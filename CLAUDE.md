@@ -72,6 +72,27 @@ Rules for Claude when working on this repo:
 - It's important to see the evolution of the application from the first iteration to the final product. 
 - Generative AI needs to be used during the evolution of the product and catalogged in the logs.
 
+### Changelog (big commits and new features)
+
+Besides the prompt log, keep `docs/changelog.md`: the history of the **product**, while the prompt log is the history of the **prompts**. One entry per substantial change, newest first:
+
+```
+### YYYY-MM-DD — Short title — author — commit <short hash>
+- Type: feature | refactor | fix | assets | docs
+- What changed: one or two sentences, user-visible effect first
+- Modules/files touched: e.g. src/dialogue/, assets/music/
+- Why: the reason or the problem it solves
+- Prompt log: link to the related entry in docs/prompt-log.md (if generated with AI)
+```
+
+Rules for Claude:
+
+- **Every substantial change must be written to `docs/changelog.md`** in the same working session, and ideally in the same commit. Substantial means: a new feature or mechanic, a new module, a significant refactor, a change to the game's behaviour or rules, new generated assets, a change of tech stack or dependencies, or any commit a teammate would need to know about. Typos, formatting and trivial fixes do not need an entry.
+- Do not wait to be asked. If you finish a substantial change and the entry is missing, add it or tell the user exactly what to add.
+- Never rewrite or delete old entries; if something is reverted, add a new entry saying so and why.
+- Cross-link: each changelog entry that came from an AI-generated result points to its prompt-log entry, and vice versa. This is what shows the evolution of the application from the first iteration to the final product.
+- Fill in the commit hash after committing, so entries can be traced to a person and a point in git history.
+
 ## 6. Repository layout (proposed)
 
 ```
@@ -83,6 +104,7 @@ Rules for Claude when working on this repo:
 ├── prompts/             # reusable prompt files
 ├── docs/
 │   ├── prompt-log.md    # section 5
+│   ├── changelog.md     # section 5: big commits and new features
 │   ├── tasks.md         # who does what (feeds "task division")
 │   └── presentation.md  # 15-minute outline
 └── submission/          # the Moodle PDF source
@@ -116,6 +138,7 @@ Prepare a recorded fallback of the demo in case live execution fails.
 - [ ] Task distribution per member
 - [ ] Instructions to load and run the code
 - [ ] Prompt examples, including at least one iterated sequence with justifications
+- [ ] `docs/changelog.md` up to date, cross-linked with the prompt log
 - [ ] Confirmation that no part of the work is shared with another course
 - [ ] Only one member uploads the PDF to Moodle, before the first presentation
 - [ ] Everyone has access to the Microsoft Forms peer evaluation (UPM email account) before the session
