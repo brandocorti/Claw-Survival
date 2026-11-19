@@ -24,6 +24,9 @@ Full plan: [`design/game-brief.md`](design/game-brief.md), section 9.
 
 ## Run it
 
+New to this? Follow the step-by-step guide in [`HOW_TO_PLAY.txt`](HOW_TO_PLAY.txt)
+(Windows, macOS, Linux, plus fixes for common problems).
+
 You need **Node.js 18.18 or newer** ([nodejs.org](https://nodejs.org), LTS).
 
 ```bash

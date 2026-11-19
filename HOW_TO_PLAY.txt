@@ -1,0 +1,160 @@
+=====================================================================
+  [GAME TITLE] - island survival roguelike
+  HOW TO PLAY THE GAME (for every team member)
+=====================================================================
+
+The game runs in your web browser, but you start it from your own
+computer with a few commands. Setup takes about 5 minutes and you
+only do it once.
+
+
+---------------------------------------------------------------------
+STEP 0 - Before you start (only once)
+---------------------------------------------------------------------
+
+1. GitHub access
+   The repository is PRIVATE. Ask the owner (brandocorti) to add you
+   as a collaborator, then accept the invitation in your email or at
+   https://github.com/notifications
+   Repository: https://github.com/brandocorti/GEN_AI
+
+2. Install Node.js (version 18.18 or newer)
+   Download the "LTS" version from https://nodejs.org and install it
+   with the default options.
+
+3. Install Git
+   - Windows: https://git-scm.com/download/win (default options)
+   - macOS: open Terminal and type  git --version
+     (if it is missing, macOS offers to install it)
+   - Linux: sudo apt install git   (or your distro's package manager)
+
+4. Close and reopen your terminal so it finds Node and Git.
+   Check that both work:
+       node --version
+       git --version
+   Each should print a version number.
+
+Which terminal?
+   - Windows: open "Command Prompt" (search "cmd" in the Start menu).
+     Command Prompt avoids a common PowerShell error (see Problems).
+   - macOS: open "Terminal".
+   - Linux: any terminal.
+
+
+---------------------------------------------------------------------
+STEP 1 - Download the game (only once)
+---------------------------------------------------------------------
+
+Go to the folder where you want the game, e.g. your Desktop:
+    cd Desktop
+
+Download it:
+    git clone https://github.com/brandocorti/GEN_AI.git
+
+The first time, a GitHub sign-in window may open: sign in with the
+GitHub account that was invited.
+
+Enter the folder:
+    cd GEN_AI
+
+Install the game's libraries (about 60 MB, takes under a minute):
+    npm install
+
+
+---------------------------------------------------------------------
+STEP 2 - Play
+---------------------------------------------------------------------
+
+Inside the GEN_AI folder, run:
+    npm run dev
+
+Then open this address in Chrome, Firefox or Edge:
+    http://localhost:5173
+
+Keep the terminal window open while you play.
+To stop the game: click the terminal and press Ctrl + C.
+
+Next time you want to play, you only need:
+    cd Desktop\GEN_AI        (macOS/Linux: cd Desktop/GEN_AI)
+    npm run dev
+
+
+---------------------------------------------------------------------
+CONTROLS
+---------------------------------------------------------------------
+
+    W A S D  or arrow keys ... move
+    Space .................... dodge roll (short invulnerability)
+    (nothing) ................ your slingshot shoots BY ITSELF at the
+                               nearest enemy you can see
+    R ........................ try again after you die
+    F9 ....................... save a screenshot (developers)
+
+Goal: survive 5 rounds (10 minutes) of crabs, exploding coconuts,
+skeleton pirates and tiki spirits. Pick up the XP gems that enemies
+drop to level up. The Crab King appears in rounds 3 and 5.
+
+Tip: dodge-roll THROUGH red bullets. Enemies flash yellow just
+before they attack.
+
+
+---------------------------------------------------------------------
+SHORTCUTS FOR TESTING (add to the address)
+---------------------------------------------------------------------
+
+    http://localhost:5173/?fast            whole match in 100 seconds
+    http://localhost:5173/?round=3         start at round 3
+    http://localhost:5173/?tough           10 hearts instead of 3
+    http://localhost:5173/?fast&round=3&tough
+                                           see the Crab King in seconds
+
+
+---------------------------------------------------------------------
+GET THE LATEST VERSION
+---------------------------------------------------------------------
+
+The game is updated often. Before playing, inside the GEN_AI folder:
+    git pull
+    npm install
+    npm run dev
+
+
+---------------------------------------------------------------------
+PROBLEMS?
+---------------------------------------------------------------------
+
+"running scripts is disabled on this system" (Windows PowerShell)
+    Use Command Prompt (cmd) instead of PowerShell, or type npm.cmd
+    instead of npm (e.g.  npm.cmd run dev).
+
+"'node' / 'npm' / 'git' is not recognized" or "command not found"
+    Node or Git is not installed, or the terminal was open during
+    the installation. Install it, then close and reopen the terminal.
+
+"Repository not found" or 404 on GitHub
+    You are not a collaborator yet, or you signed in with a different
+    GitHub account. Ask brandocorti for an invite and accept it.
+
+"Port 5173 is in use"
+    The game is already running in another terminal. Use that one,
+    or close it with Ctrl + C. (Vite may also pick another port such
+    as 5174: open the address it prints.)
+
+The page is black or blank
+    Wait a few seconds and refresh (F5). Check that the terminal
+    with "npm run dev" is still open.
+
+The game looks tiny or blurry
+    It scales in whole steps to keep pixels sharp. Make the browser
+    window bigger or press F11 for full screen.
+
+
+---------------------------------------------------------------------
+WANT TO WORK ON THE GAME TOO?
+---------------------------------------------------------------------
+
+Read README.md (how the code is organised) and CLAUDE.md (team rules).
+Before you push:
+    npm run smoke      (tests + build must pass)
+and add an entry to docs/changelog.md (and docs/prompt-log.md if you
+used an AI prompt).
