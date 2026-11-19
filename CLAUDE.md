@@ -158,11 +158,11 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ### Technology Stack
 
-- **Engine**: [CHOOSE: Web / Godot 4 / Unity / Unreal Engine 5]
-- **Language**: [CHOOSE: TypeScript / GDScript / C# / C++ / Blueprint]
+- **Engine**: Web (Vite 6.3.5; Phaser 3.90.0)
+- **Language**: JavaScript (ES modules)
 - **Version Control**: Git with trunk-based development
-- **Build System**: [SPECIFY after choosing engine]
-- **Asset Pipeline**: [SPECIFY after choosing engine]
+- **Build System**: Vite — `npm run build` (tests: `npm test`, both: `npm run smoke`)
+- **Asset Pipeline**: placeholder pixel art generated in code (`src/client/art/`) until real assets exist
 
 > **Note**: Engine-specialist agents exist for Godot, Unity, and Unreal with
 > dedicated sub-specialists. Use the set matching your engine.

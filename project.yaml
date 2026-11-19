@@ -7,6 +7,19 @@ framework:
   version: 1.3.0
   last_upgraded: 2026-11-09
 
+# Web stack: Vite (bundler, its version is engine.version) + Phaser 3.90.0 (see package.json).
+# Code root src/ (client/, server/, shared/), tests in tests/unit (Vitest).
+engine:
+  name: "Web"
+  version: "6.3.5"
+  language: "JavaScript"
+
+commands:
+  build: "npm run build"
+  test: "npm test"
+  run: "npm run dev"
+  smoke: "npm run smoke"
+
 # NOTE: this template ships with no `modes:` block, and the six knobs below must
 # never be added to one.
 #
