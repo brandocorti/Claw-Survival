@@ -78,6 +78,59 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   other one changes nothing today (only one ability affects the fire rate). One test was also found
   to check a copy of the config instead of the real one, and was fixed.
 
+### [Balance] Shorter and harder after playing — 2026-11-25 — Esteban
+- **Goal:** make the match shorter and more difficult before the art pass.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact):** "before going to milestone 4, i would improve the game by reducing the timer from
+  ten to five because is too long, and also making it harder, because there are too few creatures and
+  is very easy"
+- **Result:** instead of guessing numbers, the AI wrote a throwaway bot that plays whole matches without
+  graphics, confirmed the complaint (1.7 enemies on screen in round 1, no damage taken), and compared
+  six settings. It chose the middle one ([changelog](changelog.md)).
+- **Problem found:** the prompt names the problem but not a target ("harder" than what?). Halving the
+  timer alone would have left round 1 as empty as before (1.8 enemies on screen).
+- **Change made and why:** spawn rate and enemy mix changed along with the timer. Two stronger settings
+  were rejected because no bot got past round 3. Whether this is the right difficulty for a person
+  still has to be played.
+
+### [Balance] A bit softer: round 4 was a wall — 2026-11-25 — Esteban
+- **Goal:** keep the new difficulty but make the match passable.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact, in Spanish):** "un poco mas chill, no mucho pero que sea pasable, porque ahora la fase
+  4 no he sido capaz" (a bit more chill, not much but passable, because I was not able to pass phase 4).
+  "Phase 4" was read as round 4 of the match.
+- **Result:** the AI compared 9 softer settings with the bot and chose one that softens the climb
+  between rounds ([changelog](changelog.md)).
+- **Problem found:** the first idea, only spawning fewer enemies, did not help the bots: fewer enemies
+  also means less XP and fewer cards. With 20 matches per setting the results were also too noisy.
+- **Change made and why:** spawn growth, enemy health growth and enemy mix were softened together, and
+  the final comparison used 40 matches per setting. One more starting heart was tested and left out,
+  because it went further than "a bit".
+
+### [Balance] A little bit less in round 5 — 2026-11-25 — Esteban
+- **Goal:** fine-tune the late rounds.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompts (exact):** "damelo en la ronda 5 para probar" (give it to me at round 5 to try), then
+  "a little bit less".
+- **Result:** the AI opened round 5 with 15 cards, then compared five small changes on that same setup
+  and on full matches, and applied one ([changelog](changelog.md)).
+- **Problem found:** "a little bit less" does not say less of what. It was read as less difficulty in
+  the late rounds, and the reply said so.
+- **Change made and why:** only the growth per round was lowered, so the early rounds, which the author
+  had found too empty at first, stay as they are.
+
+### [Gameplay] Final boss duel after the timer — 2026-11-25 — Esteban
+- **Goal:** give the solo match an ending.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact):** "when surviving the 5 minutes, make a 1v1 against the final boss, not at the same
+  time when the timer is out"
+- **Result:** a duel phase, a new boss and a victory screen ([changelog](changelog.md)).
+- **Problem found:** tests passed, but a bot fighting the boss showed it was stuck behind rocks for about
+  11 of every 35 seconds: it was too big for the paths enemies follow.
+- **Change made and why:** bosses may now cross rocks and water. That would have made a boss standing on a
+  rock impossible to hit, because rocks stop shots, so bosses crush rocks. The time spent stuck fell to
+  0.1 to 0.3 s. The author played it and answered "ok perfect push it". Open question for milestone 8: how this duel fits with the final PvP of the original spec.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

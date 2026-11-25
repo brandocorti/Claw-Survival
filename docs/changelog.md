@@ -6,6 +6,56 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
+- **Type:** feature
+- **What changed:** when the 5 minutes run out, all enemies and their bullets vanish and, after 3 quiet
+  seconds, the Crab Emperor appears alone for a one-against-one duel with the clock stopped. Beating it
+  wins ("YOU SURVIVED!", R to play again). Round 5 no longer has a Crab King; round 3 still does. Both
+  bosses now cross water and crush the rocks they walk over. New dev option `?boss`.
+- **Modules/files touched:** `src/shared/sim/systems/` (spawner, enemies, cards), `src/shared/sim/map.js`,
+  `src/shared/content/enemies/` (boss, crabKing, crabEmperor), `src/client/` (HUD, art, map, effects).
+- **Why:** the author asked for a duel with the final boss after the timer, not while it runs.
+- **Evidence:** 134 unit tests pass; the whole sequence was played in the browser by a scripted player
+  with extra hearts, screenshots in `production/qa/evidence/2026-11-25-16-4*`. In bot matches started at
+  round 5 with 15 cards, 25 of 30 reached the boss and 22 beat it, in about 34 s. Played full matches:
+  13 of 48 reached it with slightly lower boss health (600 instead of 800). The author then played it: "ok perfect".
+- **Prompt log:** [Final boss duel](prompt-log.md#gameplay-final-boss-duel-after-the-timer--2026-11-25--esteban).
+
+### 2026-11-25 — Late rounds one step softer — Esteban — commit 142a7cd
+- **Type:** feature (balance)
+- **What changed:** spawn rate grows by +0.3/s per round (was +0.4) and enemy health by +15% per round
+  (was +20%). Round 1 is unchanged.
+- **Modules/files touched:** `src/shared/config.js` (numbers only), docs.
+- **Why:** after asking for round 5 to try it, the author asked for "a little bit less".
+- **Evidence:** bots starting at round 5 with 15 cards: 41 of 60 survived before, 49 after; enemies on
+  screen 18.9 before, 15.8 after. Full matches won: 5 of 40 before, 9 after.
+- **Prompt log:** [A little bit less](prompt-log.md#balance-a-little-bit-less-in-round-5--2026-11-25--esteban).
+
+### 2026-11-25 — A bit softer: gentler late rounds — Esteban — commit 142a7cd
+- **Type:** feature (balance)
+- **What changed:** the match stays at 5 minutes and round 1 stays busy, but difficulty climbs more
+  slowly: spawn rate 1.6/s in round 1 (was 1.8) and +0.4/s per round (was +0.8), enemy health +20% per
+  round (was +30%), and fewer skeletons and tikis in rounds 2 to 5.
+- **Modules/files touched:** `src/shared/config.js` (numbers only), docs.
+- **Why:** after playing the previous version, the author could not get past round 4.
+- **Evidence:** 40 bot matches per setting. Bots reaching round 4: 4 before, 21 after. Winning: 0 before,
+  5 after. Enemies on screen in round 1: 8.1 before, 6.9 after (1.7 in the original 10-minute version).
+- **Prompt log:** [A bit softer](prompt-log.md#balance-a-bit-softer-round-4-was-a-wall--2026-11-25--esteban).
+
+### 2026-11-25 — Shorter and harder: 5-minute match, more enemies — Esteban — commit 142a7cd
+- **Type:** feature (balance)
+- **What changed:** a match lasts 5 minutes instead of 10 (five 1-minute rounds). Enemies spawn three
+  times as fast in round 1, skeletons appear from round 1 and tikis from round 2, and the Crab King
+  arrives with 25 s left in rounds 3 and 5.
+- **Modules/files touched:** `src/shared/config.js` (numbers only), a config sanity test, docs.
+- **Why:** feedback after playing: the timer was too long, there were too few creatures and it was
+  very easy.
+- **Evidence:** bots played whole matches without graphics. Average enemies on screen per round
+  (careful bot): before 1.7 / 3.8 / 8.4 / 9.4 / 9.5, after 8.4 / 14.1 / 14.9 / 16.9 / 20.8. Later
+  rounds only count the bots still alive. Careful bots won 6 of 24 matches before and 1 of 10 after.
+  Bots dodge worse than people, so these numbers compare settings; they do not predict a player.
+- **Prompt log:** [Shorter and harder](prompt-log.md#balance-shorter-and-harder-after-playing--2026-11-25--esteban).
+
 ### 2026-11-25 — Milestone 3: level-up cards and 8 abilities — Esteban — commit cddb0f3
 - **Type:** feature
 - **What changed:** leveling up pauses the game and offers 3 random cards; pick with the mouse or
