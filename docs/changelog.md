@@ -6,6 +6,33 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Milestone 3: level-up cards and 8 abilities — Esteban — commit cddb0f3
+- **Type:** feature
+- **What changed:** leveling up pauses the game and offers 3 random cards; pick with the mouse or
+  1 / 2 / 3. Abilities: damage, fire rate, move speed, max hearts, multishot, piercing, orbiting
+  coconuts, fire-trail roll. Picking one again makes it stronger, up to a maximum. Owned abilities
+  show at the left of the HUD. New dev option `?cards=N`.
+- **Modules/files touched:** `src/shared/content/abilities/`, `src/shared/sim/systems/` (abilities,
+  cards, combat, movement), `src/client/ui/CardScreen.js`, `src/client/entities/AbilityViews.js`,
+  `src/client/art/cardArt.js`, `tests/unit/`.
+- **Why:** milestone 3 of the plan in `design/game-brief.md`.
+- **Evidence:** 114 unit tests pass; cards picked by real clicks and keys in the browser, also after a
+  resize; a fully maxed build ran at 60 FPS with up to 15 enemies. Screenshots:
+  `production/qa/evidence/2026-11-25-*`. Balance has only been tried with a scripted player.
+- **Prompt log:** [Level-up cards](prompt-log.md#gameplay-level-up-cards-ask-for-a-recap-then-approve--2026-11-25--esteban).
+
+### 2026-11-25 — Corrections to earlier entries — Esteban — commit (pending)
+- **Type:** docs
+- **What changed:** three statements in the entries below are wrong. Old entries are never rewritten,
+  so they are corrected here:
+  - Milestone 2 says the control change "came from playtesting milestone 1". Nobody stated that.
+  - Milestone 2's "155 enemies + 505 bullets at 60 FPS" was measured with one player, weapon damage
+    set to 0 and the player made invulnerable, so that nothing died. It is not the 6-player target.
+  - The framework entry says its hooks block commits of `.env` files. They do not: `.gitignore` keeps
+    `.env` out of commits, and the framework's settings block reading and editing `.env` files.
+- **Why:** the AI wrote them without a source.
+- **Prompt log:** "Model limitations" in [prompt-log.md](prompt-log.md).
+
 ### 2026-11-19 — Milestone 2: enemies, rounds, XP, HUD, auto-aim — Esteban — commit 57e1af1
 - **Type:** feature
 - **What changed:** the game is now playable solo PvE. Survive a 10-minute match of 5 rounds

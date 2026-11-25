@@ -43,8 +43,7 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   Reason: a 30-file reply cannot be read or reviewed, and the files are the real artefact.
 
 ### [Gameplay] Survivors-style controls: auto-fire instead of mouse aiming — 2026-11-18 — Esteban
-- **Goal:** after playing milestone 1, change the control scheme before enemies are built on
-  top of it.
+- **Goal:** change the control scheme before milestone 2 builds enemies on top of it.
 - **Tool/model:** Claude Code, Claude Opus 5.5.
 - **Prompt (exact):** "before going to milestone 2 some things: I want autoshoot, not clicking
   with a scope, only wasd for movement and then use the mouse when the ability pool pops up,
@@ -59,15 +58,32 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   The agent picked an interpretation and flagged it for confirmation instead of guessing
   silently. Still open: does the team want the roll?
 - **Change made and why:** v1 of the spec said "WASD to move, mouse to aim, left click to shoot"
-  (Enter the Gungeon style). Changed because with hordes of enemies, aiming by hand made the
-  player stand still. Survivors-style controls keep the focus on movement and dodging, and
-  leave the mouse for build decisions, which are the core of the roguelike loop.
+  (Enter the Gungeon style). The only reason given in the prompt is "like a roguelike".
+- **Correction (2026-11-25):** the first version of this entry, written by the AI, gave a reason
+  the author never stated (that hand-aiming "made the player stand still") and said the change
+  followed playing milestone 1. Both were invented and have been removed. See the limitations below.
+
+### [Gameplay] Level-up cards: ask for a recap, then approve — 2026-11-25 — Esteban
+- **Goal:** build milestone 3, after checking what it contains.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt 1 (exact):** "so, lets go with the phase 3, but before it, could you remember me what is abot?"
+- **Result 1:** a summary of milestone 3, the 8 abilities from the spec, what is left out (bad perks,
+  milestone 6), and three questions: keep the Space roll (the fire-trail card needs it)? can cards
+  stack (the spec does not say)? correct the docs at the same time?
+- **Prompt 2 (exact):** "go", which the reply had defined as: keep the roll, stack the cards, fix the docs.
+- **Result 2:** milestone 3 ([changelog](changelog.md)). This also settles the open question about the
+  roll from the previous entry.
+- **Problem found:** all the new tests passed on their first run, which says little about the tests.
+- **Change made and why:** the AI then broke the code on purpose in 14 ways. The tests caught 13; the
+  other one changes nothing today (only one ability affects the fire rate). One test was also found
+  to check a copy of the config instead of the real one, and was fixed.
 
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own
-  unit tests failed 5 times: walls stopped the player 1–2 px early (`Math.min`/`Math.max`
-  swapped); a timer leftover of 1e-17 made rolls one tick too long; the fire rate was one
+  unit tests failed 5 times on the first run: two because walls stopped the player 1–2 px early
+  (`Math.min`/`Math.max` swapped), two because a timer leftover of 1e-17 made rolls one tick too
+  long, and one because a test room had two spawns. The next run showed the fire rate was one
   tick early. Fix: we ask for tests with every system and run them before accepting.
 - **Plausible code is not working code.** In the running game, a fast mouse click fired
   nothing (the click was shorter than one frame). Only playing it in a browser showed this.
@@ -77,3 +93,7 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **A false alarm from the AI's own test.** A pathfinding test failed because the player's
   new auto-fire killed the test enemy, not because pathing was broken. The agent traced it,
   fixed the test, and checked that the test still fails when pathfinding is switched off.
+- **The AI invented facts in our own documentation.** When it wrote this log and the changelog, it
+  filled in a motivation for the control change and a claim about playtesting that nobody had
+  stated, and described a safety hook it had not checked. It reported this itself a few days
+  later. Lesson: AI-written process documentation must be checked by the person it speaks for.
