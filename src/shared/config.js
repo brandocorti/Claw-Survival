@@ -194,6 +194,8 @@ export const CONFIG = {
     curve: { base: 5, growth: 3, exponent: 1.25 },
     /** Gem sizes: an enemy's XP is split into the largest gems first. */
     gemValues: [20, 5, 1],
+    /** Half hearts restored on each level-up. */
+    healOnLevelUp: 1,
   },
 
   cards: {
@@ -224,6 +226,8 @@ export const CONFIG = {
       maxLevel: 3, spacing: 10, radius: 8, hitCooldown: 0.4,
       baseDamage: 1, damagePerLevel: 1, baseDuration: 1, durationPerLevel: 0.5,
     },
+    orbitShield: { maxLevel: 4, counts: [1, 2, 2, 3], bounceFromLevel: 3, orbitRadius: 24, angularSpeed: -2.2, radius: 7, reflectSpeedScale: 1.5, reflectDamage: 3 },
+    bombCannon: { maxLevel: 4, range: 170, flightTime: 0.65, baseCooldown: 4.0, cooldownPerLevel: 0.6, baseRadius: 24, radiusPerLevel: 3, baseDamage: 5, damagePerLevel: 2 },
   },
 
   /** Timed buff pickups spawned on walkable sand during waves. */
@@ -236,7 +240,7 @@ export const CONFIG = {
     minDistance: 60,
     maxDistance: 170,
     /** Effect ids eligible to spawn as arena pickups. */
-    pool: ['doubleXp'],
+    pool: ['doubleXp', 'totalShield', 'multiDirFire', 'lifesteal', 'thorns', 'homing', 'heal'],
   },
 
   /**
@@ -245,5 +249,13 @@ export const CONFIG = {
    */
   effects: {
     doubleXp: { duration: 9, multiplier: 2 },
+    totalShield: { duration: 4 },
+    multiDirFire: { duration: 10, directions: 4 },
+    lifesteal: { duration: 10, hitsPerHeal: 8, killsPerHeal: 2, maxHeals: 4 },
+    thorns: { duration: 6, bossDamage: 18, rangedDamage: 15 },
+    homing: { duration: 10, range: 110, turnRate: 5.5 },
+    heal: { amount: 2 },
   },
+
+  volcano: { startRound: 2, initialDelay: 20, interval: 38, rockCount: 5, warningSeconds: 1.2, radius: 22, playerDamage: 1, enemyDamage: 6, minDistance: 24, maxDistance: 150 },
 };

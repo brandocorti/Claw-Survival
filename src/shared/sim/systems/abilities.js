@@ -1,7 +1,7 @@
 // Abilities: turns the cards a player owns into numbers (player.stats) and runs
 // the abilities that act every tick (orbiting coconuts, fire trail).
 import { isActive } from '../entities/enemy.js';
-import { damageEnemy } from './damage.js';
+import { damageEnemy, queueExplosion } from './damage.js';
 
 /**
  * Recomputes player.stats and maxHealth from the base config plus every owned ability.
@@ -21,6 +21,10 @@ export function refreshStats(world, player) {
     shotSpread: 0,
     pierce: 0,
     xpMultiplier: 1,
+    invulnerable: false,
+    fireDirections: 1,
+    homingRange: 0,
+    homingTurnRate: 0,
   };
   // What "+20%" is a percentage of.
   const base = { ...stats };
@@ -55,7 +59,33 @@ export function updateAbilities(world, dt) {
       world.abilityTypes[id].update?.(world, p, level, world.config.abilities[id], dt);
     }
   }
+  updateBombs(world, dt);
   updateFires(world, dt);
+}
+
+function updateBombs(world, dt) {
+  const bombs = world.bombs;
+  if (!bombs || bombs.length === 0) return;
+  let kept = 0;
+  for (let i = 0; i < bombs.length; i++) {
+    const b = bombs[i];
+    b.elapsed += dt;
+    const t = Math.min(1, b.elapsed / b.flightTime);
+    b.x = b.startX + (b.targetX - b.startX) * t;
+    b.y = b.startY + (b.targetY - b.startY) * t;
+    if (b.elapsed >= b.flightTime) {
+      queueExplosion(
+        world,
+        b.targetX,
+        b.targetY,
+        { radius: b.radius, playerDamage: 0, enemyDamage: b.damage },
+        b.ownerId
+      );
+    } else {
+      bombs[kept++] = b;
+    }
+  }
+  bombs.length = kept;
 }
 
 function updateFires(world, dt) {

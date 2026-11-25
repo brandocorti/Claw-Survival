@@ -98,6 +98,29 @@ const ORBIT_COCONUT = [
   '..DDDD..',
 ];
 
+/** Orbiting shell shield: cyan core with gold rim. */
+const ORBIT_SHIELD = [
+  '..YYYY..',
+  '.YCCCCY.',
+  'YCCWWCCY',
+  'YCCCCCCY',
+  'YCCCCCCY',
+  '.YCCCCY.',
+  '..YCCY..',
+  '...YY...',
+];
+
+/** Bomb: dark iron with spark fuse. */
+const BOMB = [
+  '.....FY',
+  '....F..',
+  '..KKK..',
+  '.KWWKK.',
+  '.KKKKK.',
+  '.KKKKK.',
+  '..KKK..',
+];
+
 /** XP gems: small (1 XP), medium (5), large (20). */
 const GEMS = {
   1: { rows: ['.C.', 'CWc', '.c.'], colors: { C: '#4de1ff', c: '#1f9fd0', W: P.white } },
@@ -155,6 +178,17 @@ export function createSprites(scene) {
     'orbitCoconut',
     outlined(ORBIT_COCONUT, { G: '#8fd14a', L: '#dcf7a0', D: P.jungleLight }),
   );
+  createTextureFromGrid(
+    scene,
+    'orbitShield',
+    outlined(ORBIT_SHIELD, { Y: P.shotRim, C: P.xpBar, W: P.white }),
+  );
+  createTextureFromGrid(
+    scene,
+    'bomb',
+    outlined(BOMB, { K: P.rockDeep, W: P.white, F: P.explosion, Y: P.shotCore }),
+  );
+  createTextureFromGrid(scene, 'shieldAura', ringGrid(10, P.xpBar));
   createTextureFromGrid(scene, 'px', gridFromStrings(['WW', 'WW'], { W: P.white }));
   createTextureFromGrid(scene, 'ring', ringGrid(16, P.white));
 

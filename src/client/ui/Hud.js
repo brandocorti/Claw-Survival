@@ -9,6 +9,14 @@ import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
 const MAX_HEARTS_DRAWN = 14;
 const MARGIN = 4;
 const BOSS_NAMES = { crabKing: 'CRAB KING', crabEmperor: 'CRAB EMPEROR' };
+const EFFECT_LABELS = {
+  doubleXp: '2X XP',
+  totalShield: 'SHIELD',
+  multiDirFire: '4-WAY',
+  lifesteal: 'VAMP',
+  thorns: 'THORNS',
+  homing: 'HOMING',
+};
 
 export class Hud {
   /**
@@ -142,8 +150,9 @@ export class Hud {
         text: addPixelText(this.scene, 0, 0, '').setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH.HUD),
       });
       view.icon.setTexture(`effect-${e.id}`).setPosition(bx + 1, by + 1).setVisible(true);
+      const label = EFFECT_LABELS[e.id] ?? e.id.toUpperCase();
       view.text
-        .setText(`${Math.ceil(e.remaining)}S`)
+        .setText(`${label} ${Math.ceil(e.remaining)}S`)
         .setTint(e.kind === 'debuff' ? hexToInt(P.curse) : 0xffffff)
         .setPosition(bx - 3, by + 4)
         .setVisible(true);

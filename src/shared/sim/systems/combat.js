@@ -56,14 +56,26 @@ export function updatePlayerWeapon(world, player, dt) {
   // so the fire rate stays exact even when 1/fireRate is not a whole number of ticks.
   if (player.fireCooldown > 0) player.fireCooldown -= dt;
 
-  const stats = { speed: weapon.bulletSpeed, range: weapon.range, damage, radius: weapon.bulletRadius, pierce };
+  const stats = {
+    speed: weapon.bulletSpeed,
+    range: weapon.range,
+    damage,
+    radius: weapon.bulletRadius,
+    pierce,
+    homingRange: player.stats.homingRange,
+    homingTurnRate: player.stats.homingTurnRate,
+  };
+  const dirs = player.stats.fireDirections ?? 1;
   while (player.fireCooldown <= EPSILON) {
     const center = player.aim + world.rng.range(-weapon.spread, weapon.spread);
-    for (let i = 0; i < shots; i++) {
-      const angle = center + (i - (shots - 1) / 2) * shotSpread;
-      const x = player.x + Math.cos(angle) * weapon.muzzleDistance;
-      const y = player.y + Math.sin(angle) * weapon.muzzleDistance;
-      world.bullets.push(createBullet(world.nextId++, player.id, 'player', x, y, angle, stats));
+    for (let d = 0; d < dirs; d++) {
+      const dirCenter = center + (d * Math.PI * 2) / dirs;
+      for (let i = 0; i < shots; i++) {
+        const angle = dirCenter + (i - (shots - 1) / 2) * shotSpread;
+        const x = player.x + Math.cos(angle) * weapon.muzzleDistance;
+        const y = player.y + Math.sin(angle) * weapon.muzzleDistance;
+        world.bullets.push(createBullet(world.nextId++, player.id, 'player', x, y, angle, stats));
+      }
     }
     // One event per volley: one flash (and later one sound), however many pebbles.
     world.events.push({
@@ -89,6 +101,34 @@ export function updateBullets(world, dt) {
   let kept = 0;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
+    if (b.life <= 0) continue;
+
+    if (b.team === 'player' && b.homingRange > 0 && b.homingTurnRate > 0) {
+      let nearest = null;
+      let minD2 = b.homingRange * b.homingRange;
+      world.grid.forEachNear(b.x, b.y, b.homingRange + 16, (e) => {
+        if (!isActive(e) || b.hitIds.includes(e.id)) return;
+        const d2 = (e.x - b.x) ** 2 + (e.y - b.y) ** 2;
+        if (d2 <= minD2) {
+          minD2 = d2;
+          nearest = e;
+        }
+      });
+      if (nearest) {
+        const speed = Math.hypot(b.vx, b.vy);
+        if (speed > EPSILON) {
+          const currentAngle = Math.atan2(b.vy, b.vx);
+          const targetAngle = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+          const diff = Math.atan2(Math.sin(targetAngle - currentAngle), Math.cos(targetAngle - currentAngle));
+          const maxTurn = b.homingTurnRate * dt;
+          const turn = Math.max(-maxTurn, Math.min(maxTurn, diff));
+          const newAngle = currentAngle + turn;
+          b.vx = Math.cos(newAngle) * speed;
+          b.vy = Math.sin(newAngle) * speed;
+        }
+      }
+    }
+
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= dt;

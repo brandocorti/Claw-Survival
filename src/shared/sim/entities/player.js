@@ -64,6 +64,7 @@ export function createPlayer(id, x, y, config) {
     kills: 0,
     weapon: p.startingWeapon,
     fireCooldown: 0,
+    bombCooldown: 0,
     moving: false,
     rolling: false,
     rollTime: 0,

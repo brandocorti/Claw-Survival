@@ -15,10 +15,22 @@ export function applyEffect(world, player, id, options = {}) {
   const cfg = world.config.effects?.[id];
   if (!def || !player.alive) return null;
 
-  const duration = options.duration ?? cfg?.duration ?? 0;
-  if (duration <= 0) return null;
-
   const sourceId = options.sourceId ?? null;
+  if (def.instant) {
+    const instantEffect = { id, kind: def.kind, remaining: 0, duration: 0, sourceId };
+    def.onApply?.(world, player, instantEffect, cfg);
+    world.events.push({
+      type: 'effectApplied',
+      playerId: player.id,
+      effectId: id,
+      kind: def.kind,
+      duration: 0,
+      sourceId,
+    });
+    return instantEffect;
+  }
+
+  const duration = options.duration ?? cfg?.duration ?? 0;
   let active = getEffect(player, id);
   if (active) {
     if ((def.stacking ?? 'refresh') === 'extend') {

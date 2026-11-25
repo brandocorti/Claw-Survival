@@ -113,6 +113,32 @@ export const CARD_ICONS = {
     '..FFYWYFF..',
     '...FFFFF...',
   ],
+  orbitShield: [
+    '....OOO....',
+    '...OPPPO...',
+    '...OPWPO...',
+    '..L.OOO.L..',
+    '.L...P...L.',
+    '.L..PPP..L.',
+    '.L...P...L.',
+    '..L.....L..',
+    '.OOO...OOO.',
+    'OPWPO.OPWPO',
+    '.OOO...OOO.',
+  ],
+  bombCannon: [
+    '.......FOF.',
+    '......FYO..',
+    '.....B.....',
+    '....KKKK...',
+    '...KKKKKK..',
+    '..KWWKKKKK.',
+    '..KWKKKKKK.',
+    '..KKKKKKKK.',
+    '...KKKKKK..',
+    '....KKKK...',
+    '...........',
+  ],
 };
 
 /** Builds every card icon texture. Call once, in BootScene. */

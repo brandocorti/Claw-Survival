@@ -44,6 +44,8 @@ export function createBullet(id, ownerId, team, x, y, angle, stats) {
     damage: stats.damage,
     radius: stats.radius,
     pierce: stats.pierce ?? 0,
+    homingRange: stats.homingRange ?? 0,
+    homingTurnRate: stats.homingTurnRate ?? 0,
     hitIds: [],
   };
 }

@@ -42,6 +42,8 @@ export function grantXp(world, player, value) {
     player.xp -= need;
     player.level++;
     player.pendingLevelUps++;
+    const heal = world.config.xp.healOnLevelUp ?? 0;
+    if (heal > 0) player.health = Math.min(player.maxHealth, player.health + heal);
     world.events.push({ type: 'levelUp', playerId: player.id, level: player.level });
     need = xpToNextLevel(player.level, world.config.xp.curve);
   }

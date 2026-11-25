@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { gainAbility, refreshStats } from '../../../src/shared/sim/systems/abilities.js';
 import { orbitPositions } from '../../../src/shared/content/abilities/orbitCoconuts.js';
+import { shieldPositions, shieldCount } from '../../../src/shared/content/abilities/orbitShield.js';
 import { CONFIG } from '../../../src/shared/config.js';
 import { createBullet } from '../../../src/shared/sim/entities/bullet.js';
-import { makeWorld, placeEnemy, placeSturdyEnemy, input, run, runCollect, BIG_ROOM, TEST_CONFIG } from '../helpers/fixtures.js';
+import { drainEvents } from '../../../src/shared/sim/world.js';
+import { makeWorld, placeEnemy, placeSturdyEnemy, input, run, runCollect, BIG_ROOM, OBSTACLE_ROOM, TEST_CONFIG } from '../helpers/fixtures.js';
 
 const A = TEST_CONFIG.abilities;
 const weapon = TEST_CONFIG.weapons.test;
@@ -169,5 +171,122 @@ describe('fire trail', () => {
     run(world, 1, input({ moveX: 1, roll: true }));
     run(world, 20);
     expect(world.fires.length).toBe(0);
+  });
+});
+
+describe('orbiting shield', () => {
+  it('scales count with level according to config', () => {
+    expect(shieldCount(1, A.orbitShield)).toBe(1);
+    expect(shieldCount(2, A.orbitShield)).toBe(2);
+    expect(shieldCount(3, A.orbitShield)).toBe(2);
+    expect(shieldCount(4, A.orbitShield)).toBe(3);
+  });
+
+  it('L1-L2 blocks enemy bullets and emits shieldBlocked', () => {
+    const { world, player } = makeWorld({ arena: BIG_ROOM });
+    world.config = { ...TEST_CONFIG, autoAim: { ...TEST_CONFIG.autoAim, range: 0 } };
+    gain(world, player, 'orbitShield', 1);
+
+    const at = shieldPositions(player, world.time, 1, A.orbitShield)[0];
+    const bullet = createBullet(501, 'enemy1', 'enemy', at.x, at.y, 0, {
+      speed: 0,
+      range: 100,
+      damage: 1,
+      radius: 2,
+    });
+    world.bullets.push(bullet);
+
+    run(world, 1);
+    expect(bullet.life).toBe(0);
+    const events = drainEvents(world);
+    expect(events.some((e) => e.type === 'shieldBlocked' && e.playerId === player.id)).toBe(true);
+  });
+
+  it('L3-L4 reflects enemy bullets into player team, emits shieldReflected, and hits enemies', () => {
+    const { world, player } = makeWorld({ arena: BIG_ROOM });
+    world.config = { ...TEST_CONFIG, autoAim: { ...TEST_CONFIG.autoAim, range: 0 } };
+    gain(world, player, 'orbitShield', 3); // L3 >= bounceFromLevel (3)
+
+    const at = shieldPositions(player, world.time, 3, A.orbitShield)[0];
+    // Enemy bullet heading directly left toward shield
+    const bullet = createBullet(502, 'enemy1', 'enemy', at.x, at.y, Math.PI, {
+      speed: 80,
+      range: 200,
+      damage: 1,
+      radius: 2,
+    });
+    world.bullets.push(bullet);
+
+    // Place an enemy to the right of shield, where the reflected bullet (vx reversed to positive) will travel
+    const dummy = placeSturdyEnemy(world, 'dummy', at.x + 20, at.y);
+    const beforeHp = dummy.hp;
+
+    run(world, 1);
+    expect(bullet.team).toBe('player');
+    expect(bullet.ownerId).toBe(player.id);
+    expect(bullet.damage).toBe(A.orbitShield.reflectDamage);
+    const events = drainEvents(world);
+    expect(events.some((e) => e.type === 'shieldReflected' && e.playerId === player.id)).toBe(true);
+
+    // Run a few ticks so reflected bullet hits dummy
+    run(world, 15);
+    expect(dummy.hp).toBe(beforeHp - A.orbitShield.reflectDamage);
+  });
+});
+
+describe('bomb cannon', () => {
+  it('periodically lobs bomb over rocks, explodes with playerDamage: 0, hurts enemies, and triggers coconut chain reactions', () => {
+    const { world, player } = makeWorld({ arena: OBSTACLE_ROOM });
+    world.config = { ...TEST_CONFIG, autoAim: { ...TEST_CONFIG.autoAim, range: 0 } };
+    gain(world, player, 'bombCannon', 1);
+
+    // Target dummy on the other side of rock
+    const enemyX = player.x + 50;
+    const enemyY = player.y;
+    const dummy = placeSturdyEnemy(world, 'dummy', enemyX, enemyY);
+    const beforeDummyHp = dummy.hp;
+
+    // Advance 1 tick -> bomb should be launched towards dummy
+    run(world, 1);
+    const events = drainEvents(world);
+    expect(events.some((e) => e.type === 'bombLaunched' && e.playerId === player.id)).toBe(true);
+    expect(world.bombs.length).toBe(1);
+
+    const b = world.bombs[0];
+    expect(b.targetX).toBe(dummy.x);
+    expect(b.targetY).toBe(dummy.y);
+
+    // Move player inside the bomb blast radius (radius = 24)
+    player.x = dummy.x + 10;
+    player.y = dummy.y;
+    const playerHp = player.health;
+
+    // Run until bomb lands and explodes (flightTime = 0.65s ~ 40 ticks)
+    run(world, Math.ceil(A.bombCannon.flightTime * 60) + 2);
+
+    // Player takes 0 damage from bomb explosion
+    expect(player.health).toBe(playerHp);
+    // Dummy enemy takes base bomb damage
+    expect(beforeDummyHp - dummy.hp).toBe(A.bombCannon.baseDamage);
+
+    // Move player back to safe distance
+    player.x = enemyX - 50;
+    player.y = enemyY;
+
+    // Reset cooldown to test chain reaction with coconut
+    player.bombCooldown = 0;
+    const coconut = placeEnemy(world, 'coconut', enemyX, enemyY);
+    const adjacent = placeSturdyEnemy(world, 'dummy', enemyX + 10, enemyY);
+    const beforeAdjHp = adjacent.hp;
+
+    run(world, 1);
+    expect(world.bombs.length).toBe(1);
+    run(world, Math.ceil(A.bombCannon.flightTime * 60) + 2);
+
+    // Coconut died from bomb
+    expect(coconut.hp).toBe(0);
+    // Adjacent took bomb damage + coconut explosion damage
+    const expectedDamage = A.bombCannon.baseDamage + TEST_CONFIG.enemies.coconut.explosion.enemyDamage;
+    expect(beforeAdjHp - adjacent.hp).toBe(expectedDamage);
   });
 });

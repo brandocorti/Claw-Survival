@@ -33,6 +33,13 @@
  * @property {(world: object, player: object, effect: ActiveEffect, cfg: object, hit: object) => void} [onEnemyDamaged]
  */
 
+import { totalShield } from './totalShield.js';
+import { multiDirFire } from './multiDirFire.js';
+import { lifesteal } from './lifesteal.js';
+import { thorns } from './thorns.js';
+import { homing } from './homing.js';
+import { heal } from './heal.js';
+
 export const doubleXp = {
   name: 'Double XP',
   kind: 'buff',
@@ -41,6 +48,14 @@ export const doubleXp = {
   },
 };
 
+export { totalShield, multiDirFire, lifesteal, thorns, homing };
+
 export const EFFECT_TYPES = Object.freeze({
   doubleXp,
+  totalShield,
+  multiDirFire,
+  lifesteal,
+  thorns,
+  homing,
+  heal,
 });

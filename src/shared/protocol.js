@@ -42,5 +42,14 @@ export function createEmptyInput() {
  *   | { type: 'effectApplied', playerId: string, effectId: string, kind: 'buff'|'debuff', duration: number, sourceId: string|null }
  *   | { type: 'effectExpired', playerId: string, effectId: string, kind: 'buff'|'debuff' }
  *   | { type: 'pickupSpawned', id: number, effectId: string, x: number, y: number }
- *   | { type: 'pickupCollected', id: number, playerId: string, effectId: string, x: number, y: number }} SimEvent
+ *   | { type: 'pickupCollected', id: number, playerId: string, effectId: string, x: number, y: number }
+ *   | { type: 'totalShieldBlocked', playerId: string, x: number, y: number, source: any }
+ *   | { type: 'shieldBlocked', playerId: string, x: number, y: number }
+ *   | { type: 'shieldReflected', playerId: string, x: number, y: number }
+ *   | { type: 'thornsHit', playerId: string, enemyId: number, x: number, y: number, damage: number }
+ *   | { type: 'lifestealHeal', playerId: string, x: number, y: number, health: number }
+ *   | { type: 'bombLaunched', playerId: string, x: number, y: number, targetX: number, targetY: number }
+ *   | { type: 'volcanoStarted', count: number }
+ *   | { type: 'volcanoRockWarning', id: number, x: number, y: number, radius: number, duration: number }
+ *   | { type: 'volcanoRockImpact', id: number, x: number, y: number, radius: number }} SimEvent
  */

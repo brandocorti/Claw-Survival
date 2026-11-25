@@ -9,7 +9,11 @@
 import { damage, fireRate, moveSpeed, maxHearts, multishot, piercing } from './statBoosts.js';
 import { orbitCoconuts } from './orbitCoconuts.js';
 import { fireTrail } from './fireTrail.js';
+import { orbitShield } from './orbitShield.js';
+import { bombCannon } from './bombCannon.js';
+
+export { orbitShield, bombCannon };
 
 export const ABILITY_TYPES = Object.freeze({
-  damage, fireRate, moveSpeed, maxHearts, multishot, piercing, orbitCoconuts, fireTrail,
+  damage, fireRate, moveSpeed, maxHearts, multishot, piercing, orbitCoconuts, fireTrail, orbitShield, bombCannon,
 });

@@ -10,6 +10,7 @@ import { updatePlayerMovement } from './systems/movement.js';
 import { updatePlayerWeapon, updateBullets } from './systems/combat.js';
 import { updateEnemies, removeDeadEnemies } from './systems/enemies.js';
 import { processExplosions } from './systems/damage.js';
+import { updateHazards } from './systems/hazards.js';
 import { updateGems } from './systems/xp.js';
 import { createMatchState, updateSpawner } from './systems/spawner.js';
 import { refreshStats, updateAbilities } from './systems/abilities.js';
@@ -74,6 +75,9 @@ export function createWorld({
     pickupSpawnTimer: config.pickups?.initialDelay ?? config.pickups?.spawnInterval ?? 20,
     /** Burning ground patches (fire-trail roll). */
     fires: [],
+    bombs: [],
+    hazards: [],
+    volcanoTimer: config.volcano?.initialDelay ?? config.volcano?.interval ?? 20,
     pendingExplosions: [],
     grid: new SpatialGrid(map.width * map.tileSize, map.height * map.tileSize, 32),
     flowField: new FlowField(map),
@@ -101,7 +105,7 @@ export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
  */
 export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
-  for (const list of [world.players, world.enemies, world.bullets, world.gems, world.pickups]) {
+  for (const list of [world.players, world.enemies, world.bullets, world.gems, world.pickups, world.bombs]) {
     for (const o of list) {
       o.prevX = o.x;
       o.prevY = o.y;
@@ -122,6 +126,7 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
   updateAbilities(world, dt);
   for (const p of world.players) updatePlayerWeapon(world, p, dt);
   updateBullets(world, dt);
+  updateHazards(world, dt);
   processExplosions(world);
   updateGems(world, dt);
   updatePickups(world, dt);

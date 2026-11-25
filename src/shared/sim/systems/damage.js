@@ -20,7 +20,12 @@ import { dropGems } from './xp.js';
  * @returns {boolean} true if the damage was applied
  */
 export function damagePlayer(world, player, amount, source = null) {
-  if (!player.alive || player.invulnerableTime > 0 || amount <= 0) return false;
+  if (!player.alive || amount <= 0) return false;
+  if (player.stats?.invulnerable) {
+    world.events.push({ type: 'totalShieldBlocked', playerId: player.id, x: player.x, y: player.y, source });
+    return false;
+  }
+  if (player.invulnerableTime > 0) return false;
   player.health = Math.max(0, player.health - amount);
   player.lastHitTime = world.time;
 

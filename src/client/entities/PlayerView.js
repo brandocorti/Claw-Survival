@@ -13,6 +13,7 @@ export class PlayerView {
   constructor(scene, playerCfg) {
     this.cfg = playerCfg;
     this.shadow = scene.add.image(0, 0, 'shadow').setDepth(DEPTH.SHADOW);
+    this.shieldAura = scene.add.image(0, 0, 'shieldAura').setDepth(DEPTH.FX).setVisible(false);
     this.body = scene.add.sprite(0, 0, 'castaway', 'down_0');
     this.weapon = scene.add.image(0, 0, 'slingshot').setOrigin(0.2, 0.5);
     this.walkClock = 0;
@@ -33,6 +34,16 @@ export class PlayerView {
     const s = Math.sin(p.aim);
 
     this.shadow.setPosition(rx, ry + 3);
+
+    if (p.alive && p.stats?.invulnerable) {
+      this.shieldAura
+        .setPosition(rx, ry - 4)
+        .setDepth(y + 0.2)
+        .setAlpha(0.6 + 0.3 * Math.sin(time * 12))
+        .setVisible(true);
+    } else {
+      this.shieldAura.setVisible(false);
+    }
 
     if (!p.alive) {
       this.body.setFrame('down_0').setOrigin(0.5, 0.5).setPosition(rx, ry).setRotation(Math.PI / 2).setAlpha(0.8);
@@ -77,6 +88,7 @@ export class PlayerView {
 
   destroy() {
     this.shadow.destroy();
+    this.shieldAura.destroy();
     this.body.destroy();
     this.weapon.destroy();
   }

@@ -39,6 +39,8 @@ export class EffectsSystem {
 
     this.sparks = burst([P.shotCore, P.shotRim]);
     this.redSparks = burst([P.enemyShot, P.white]);
+    this.healSparks = burst(['#5dff8a', P.white]);
+    this.shieldSparks = burst([P.xpBar, P.white]);
     this.fire = burst([P.explosion, P.shotRim, P.shotCore], { speed: { min: 40, max: 140 }, lifespan: { min: 200, max: 450 } });
     this.debris = Object.fromEntries(
       Object.entries(DEBRIS).map(([type, colors]) => [
@@ -115,6 +117,31 @@ export class EffectsSystem {
           break;
         case 'pickupCollected':
           this.sparks.explode(10, e.x, e.y - 4);
+          break;
+        case 'totalShieldBlocked':
+          this.shieldSparks.explode(8, e.x, e.y - 8);
+          break;
+        case 'shieldBlocked':
+          this.shieldSparks.explode(5, e.x, e.y - 6);
+          break;
+        case 'shieldReflected':
+          this.shieldSparks.explode(10, e.x, e.y - 6);
+          break;
+        case 'thornsHit':
+          this.redSparks.explode(6, e.x, e.y - 6);
+          break;
+        case 'lifestealHeal':
+          this.healSparks.explode(8, e.x, e.y - 8);
+          break;
+        case 'bombLaunched':
+          this.dust.explode(5, e.x, e.y);
+          break;
+        case 'volcanoStarted':
+          this.shake(260, 0.005);
+          break;
+        case 'volcanoRockImpact':
+          this.rubble.explode(10, e.x, e.y);
+          this.shake(110, 0.004);
           break;
         default:
           break;
