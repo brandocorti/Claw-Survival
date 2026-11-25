@@ -113,6 +113,9 @@ export class EffectsSystem {
         case 'bossSpawned':
           this.shake(500, 0.006);
           break;
+        case 'pickupCollected':
+          this.sparks.explode(10, e.x, e.y - 4);
+          break;
         default:
           break;
       }

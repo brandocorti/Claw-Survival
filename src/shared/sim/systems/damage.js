@@ -1,27 +1,51 @@
 // Damage, deaths and explosions. Every hit in the game goes through here, so
 // later systems (curses, compensation credit, Gulag) have one place to hook in.
 import { isActive } from '../entities/enemy.js';
+import { clearEffects } from './effects.js';
 import { dropGems } from './xp.js';
+
+/**
+ * @typedef {object} DamageSource
+ * @property {'contact'|'bullet'|'explosion'|'hazard'} kind
+ * @property {string|number|null} [attackerId]
+ * @property {import('../entities/enemy.js').Enemy} [enemy]
+ */
 
 /**
  * Damages a player unless they are dead or invulnerable (rolling or recently hit).
  * @param {object} world
  * @param {import('../entities/player.js').Player} player
  * @param {number} amount - half hearts
+ * @param {DamageSource | null} [source]
  * @returns {boolean} true if the damage was applied
  */
-export function damagePlayer(world, player, amount) {
+export function damagePlayer(world, player, amount, source = null) {
   if (!player.alive || player.invulnerableTime > 0 || amount <= 0) return false;
   player.health = Math.max(0, player.health - amount);
   player.lastHitTime = world.time;
+
+  for (const effect of [...(player.effects ?? [])]) {
+    world.effectTypes?.[effect.id]?.onPlayerDamaged?.(
+      world,
+      player,
+      effect,
+      world.config.effects?.[effect.id],
+      { amount, source },
+    );
+  }
+
   if (player.health === 0) {
+    const curseSources = (player.effects ?? [])
+      .filter((e) => e.kind === 'debuff' && e.sourceId != null)
+      .map((e) => e.sourceId);
     player.alive = false;
     player.rolling = false;
     player.targetId = null;
-    world.events.push({ type: 'playerDied', playerId: player.id, x: player.x, y: player.y });
+    clearEffects(world, player);
+    world.events.push({ type: 'playerDied', playerId: player.id, x: player.x, y: player.y, source, curseSources });
   } else {
     player.invulnerableTime = world.config.player.hitInvulnerability;
-    world.events.push({ type: 'playerHit', playerId: player.id, x: player.x, y: player.y, health: player.health });
+    world.events.push({ type: 'playerHit', playerId: player.id, x: player.x, y: player.y, health: player.health, source });
   }
   return true;
 }
@@ -40,6 +64,21 @@ export function damageEnemy(world, enemy, amount, attackerId) {
   enemy.lastHitTime = world.time;
   world.events.push({ type: 'enemyHit', id: enemy.id, x: enemy.x, y: enemy.y });
   if (enemy.hp <= 0) killEnemy(world, enemy, attackerId);
+
+  if (attackerId != null) {
+    const attacker = world.players.find((p) => p.id === attackerId && p.alive);
+    if (attacker) {
+      for (const effect of [...(attacker.effects ?? [])]) {
+        world.effectTypes?.[effect.id]?.onEnemyDamaged?.(
+          world,
+          attacker,
+          effect,
+          world.config.effects?.[effect.id],
+          { enemy, amount, killed: enemy.dead },
+        );
+      }
+    }
+  }
   return true;
 }
 
@@ -88,7 +127,7 @@ export function processExplosions(world) {
 
     for (const p of world.players) {
       if (Math.hypot(p.x - x, p.y - y) <= stats.radius + world.config.player.radius) {
-        damagePlayer(world, p, stats.playerDamage);
+        damagePlayer(world, p, stats.playerDamage, { kind: 'explosion', attackerId: creditId });
       }
     }
     for (const e of world.enemies) {

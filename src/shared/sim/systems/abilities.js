@@ -20,14 +20,19 @@ export function refreshStats(world, player) {
     shots: 1,
     shotSpread: 0,
     pierce: 0,
+    xpMultiplier: 1,
   };
   // What "+20%" is a percentage of.
   const base = { ...stats };
   for (const [id, level] of Object.entries(player.abilities)) {
     world.abilityTypes[id].modify?.(stats, level, config.abilities[id], base);
   }
+  for (const effect of player.effects ?? []) {
+    world.effectTypes?.[effect.id]?.modify?.(stats, effect, config.effects?.[effect.id], base);
+  }
   player.stats = stats;
   player.maxHealth = stats.maxHealth;
+  player.health = Math.min(player.health, player.maxHealth);
 }
 
 /**

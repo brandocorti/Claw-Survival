@@ -93,6 +93,19 @@ export const TEST_CONFIG = Object.freeze({
       baseDamage: 1, damagePerLevel: 1, baseDuration: 1, durationPerLevel: 0.5,
     },
   },
+  pickups: {
+    initialDelay: 12,
+    spawnInterval: 22,
+    maxOnMap: 2,
+    lifetime: 18,
+    collectRadius: 9,
+    minDistance: 40,
+    maxDistance: 80,
+    pool: ['doubleXp'],
+  },
+  effects: {
+    doubleXp: { duration: 9, multiplier: 2 },
+  },
 });
 
 /** Behaviours used in tests: the real ones plus a do-nothing dummy. */

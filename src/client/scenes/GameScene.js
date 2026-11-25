@@ -10,6 +10,7 @@ import { EnemyViews } from '../entities/EnemyViews.js';
 import { BulletViews } from '../entities/BulletViews.js';
 import { AbilityViews } from '../entities/AbilityViews.js';
 import { GemViews } from '../entities/GemViews.js';
+import { PickupViews } from '../entities/PickupViews.js';
 import { InputSystem } from '../systems/InputSystem.js';
 import { CameraSystem } from '../systems/CameraSystem.js';
 import { EffectsSystem } from '../systems/EffectsSystem.js';
@@ -27,10 +28,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const { config, startRound, startCards, startAtBoss, seed } = readDevOptions(CONFIG, window.location.search);
+    const { config, startRound, startCards, startAtBoss, spawnStartPickup, seed } = readDevOptions(
+      CONFIG,
+      window.location.search,
+    );
     this.config = config;
     const handHeight = config.player.handHeight;
-    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards, startAtBoss });
+    this.transport = new LocalTransport({
+      config,
+      arena: BEACH_ARENA,
+      seed,
+      startRound,
+      startCards,
+      startAtBoss,
+      spawnStartPickup,
+    });
     const world = this.transport.world;
     const localId = this.transport.localPlayerId;
 
@@ -40,6 +52,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews = new EnemyViews(this);
     this.bulletViews = new BulletViews(this, handHeight);
     this.gemViews = new GemViews(this);
+    this.pickupViews = new PickupViews(this);
     this.abilityViews = new AbilityViews(this, config);
     this.inputSystem = new InputSystem(this);
     this.cameraSystem = new CameraSystem(this, config.camera, world.map);
@@ -88,6 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews.sync(world.enemies, alpha, world.time);
     this.bulletViews.sync(world.bullets, alpha);
     this.gemViews.sync(world.gems, alpha, world.time);
+    this.pickupViews.sync(world.pickups, alpha, world.time);
     this.abilityViews.sync(world, alpha, this.transport.renderTime);
 
     const events = this.transport.drainEvents();

@@ -71,7 +71,7 @@ export function updateEnemies(world, dt) {
       if (Math.hypot(e.x - p.x, e.y - p.y) >= e.radius + world.config.player.radius * 0.8) return;
       const def = world.enemyTypes[e.type];
       if (def.onContact) def.onContact(world, e, p);
-      else damagePlayer(world, p, world.config.enemies[e.type].contactDamage);
+      else damagePlayer(world, p, world.config.enemies[e.type].contactDamage, { kind: 'contact', attackerId: e.id, enemy: e });
     });
   }
 }

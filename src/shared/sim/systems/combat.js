@@ -130,7 +130,7 @@ function hitPlayer(world, b) {
     if (!p.alive) continue;
     const r = hurtRadius + b.radius;
     if ((p.x - b.x) ** 2 + (p.y - b.y) ** 2 > r * r) continue;
-    if (damagePlayer(world, p, b.damage)) return true;
+    if (damagePlayer(world, p, b.damage, { kind: 'bullet', attackerId: b.ownerId })) return true;
   }
   return false;
 }

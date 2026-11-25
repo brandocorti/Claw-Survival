@@ -2,16 +2,29 @@
 // From milestone 5, ColyseusTransport offers the same methods but gets the
 // world state from the server, so scenes do not care which one they use.
 import { createWorld, addPlayer, stepWorld, drainEvents } from '../../shared/sim/world.js';
+import { spawnPickup } from '../../shared/sim/systems/pickups.js';
 
 export class LocalTransport {
   /**
-   * @param {{ config: object, arena: { id: string, rows: string[] }, seed?: number, playerId?: string, startRound?: number, startCards?: number, startAtBoss?: boolean }} options
+   * @param {{ config: object, arena: { id: string, rows: string[] }, seed?: number, playerId?: string, startRound?: number, startCards?: number, startAtBoss?: boolean, spawnStartPickup?: boolean }} options
    */
-  constructor({ config, arena, seed = 1, playerId = 'local', startRound = 1, startCards = 0, startAtBoss = false }) {
+  constructor({
+    config,
+    arena,
+    seed = 1,
+    playerId = 'local',
+    startRound = 1,
+    startCards = 0,
+    startAtBoss = false,
+    spawnStartPickup = false,
+  }) {
     this.config = config;
     this.localPlayerId = playerId;
     this.world = createWorld({ config, arena, seed });
     const player = addPlayer(this.world, playerId);
+    if (spawnStartPickup && config.pickups?.pool?.length > 0) {
+      spawnPickup(this.world, config.pickups.pool[0], player.x + 36, player.y);
+    }
     // Dev shortcut (?cards=N): start with N level-ups to spend.
     player.level += startCards;
     player.pendingLevelUps += startCards;

@@ -3,7 +3,9 @@
 import { describe, it, expect } from 'vitest';
 import { ENEMY_ART } from '../../../src/client/art/enemyArt.js';
 import { CARD_ICONS, CARD_ICON_COLORS } from '../../../src/client/art/cardArt.js';
+import { EFFECT_ICONS, EFFECT_ICON_COLORS } from '../../../src/client/art/effectArt.js';
 import { ABILITY_TYPES } from '../../../src/shared/content/abilities/index.js';
+import { EFFECT_TYPES } from '../../../src/shared/content/effects/index.js';
 import { wrapText } from '../../../src/client/ui/wrapText.js';
 import { chibiFrame, CHIBI_DIRECTIONS, CHIBI_WIDTH, CHIBI_HEIGHT } from '../../../src/shared/art/chibi.js';
 import { CONFIG } from '../../../src/shared/config.js';
@@ -72,6 +74,24 @@ describe('ability cards', () => {
         const lines = wrapText(text, 26).split('\n');
         expect(lines.length, text).toBeLessThanOrEqual(3);
         for (const line of lines) expect(line.length, text).toBeLessThanOrEqual(26);
+      }
+    }
+  });
+});
+
+describe('status effects art and config', () => {
+  it('every effect has config, code and an icon, and nothing is left over', () => {
+    const ids = Object.keys(EFFECT_TYPES).sort();
+    expect(Object.keys(CONFIG.effects).sort()).toEqual(ids);
+    expect(Object.keys(EFFECT_ICONS).sort()).toEqual(ids);
+  });
+
+  it('effect icons are 11x11 and use only defined colors', () => {
+    for (const [id, rows] of Object.entries(EFFECT_ICONS)) {
+      expect(rows.length, id).toBe(11);
+      for (const row of rows) expect(row.length, id).toBe(11);
+      for (const ch of new Set(rows.join('').replace(/\./g, ''))) {
+        expect(EFFECT_ICON_COLORS[ch], `${id} '${ch}'`).toBeDefined();
       }
     }
   });

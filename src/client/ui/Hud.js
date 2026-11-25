@@ -37,6 +37,8 @@ export class Hud {
     this.subBanner = fixed(addPixelText(scene, this.w / 2, 86, '').setOrigin(0.5)).setAlpha(0);
     /** @type {Map<string, { icon: object, text: object }>} owned abilities */
     this.abilityIcons = new Map();
+    /** @type {{ icon: object, text: object }[]} pooled active timed-effect views */
+    this.effectViews = [];
 
     this.hint = fixed(addPixelText(scene, MARGIN, this.h - 10, 'WASD MOVE   SPACE ROLL   YOUR SLINGSHOT FIRES BY ITSELF'))
       .setAlpha(0.9);
@@ -124,6 +126,32 @@ export class Hud {
     const ss = String(Math.floor(left % 60)).padStart(2, '0');
     this.timerText.setText(`${mm}:${ss}`).setTint(left <= 30 ? hexToInt(P.enemyShot) : 0xffffff);
     this.killsText.setText(`KILLS ${player.kills}`);
+
+    // Active timed buffs and debuffs on the right edge (buff = gold frame, debuff = reserved purple)
+    const effects = player.effects ?? [];
+    for (let i = 0; i < effects.length; i++) {
+      const e = effects[i];
+      const bx = this.w - MARGIN - 15;
+      const by = 28 + i * 16;
+      const border = hexToInt(e.kind === 'debuff' ? P.curse : P.shotRim);
+      g.fillStyle(border).fillRect(bx, by, 15, 15);
+      g.fillStyle(hexToInt(P.outline)).fillRect(bx + 1, by + 1, 13, 13);
+
+      const view = (this.effectViews[i] ??= {
+        icon: this.scene.add.image(0, 0, `effect-${e.id}`).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.HUD),
+        text: addPixelText(this.scene, 0, 0, '').setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH.HUD),
+      });
+      view.icon.setTexture(`effect-${e.id}`).setPosition(bx + 1, by + 1).setVisible(true);
+      view.text
+        .setText(`${Math.ceil(e.remaining)}S`)
+        .setTint(e.kind === 'debuff' ? hexToInt(P.curse) : 0xffffff)
+        .setPosition(bx - 3, by + 4)
+        .setVisible(true);
+    }
+    for (let i = effects.length; i < this.effectViews.length; i++) {
+      this.effectViews[i].icon.setVisible(false);
+      this.effectViews[i].text.setVisible(false);
+    }
 
     // Boss health bar
     const boss = world.enemies.find((e) => e.boss && !e.dead && e.spawnDelay <= 0);

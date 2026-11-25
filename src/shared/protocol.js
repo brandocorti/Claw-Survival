@@ -38,5 +38,9 @@ export function createEmptyInput() {
  *   | { type: 'enemyDespawned', x: number, y: number }
  *   | { type: 'finalBossIntro' }
  *   | { type: 'matchWon' }
- *   | { type: 'bossSpawned', id: number, enemyType: string }} SimEvent
+ *   | { type: 'bossSpawned', id: number, enemyType: string }
+ *   | { type: 'effectApplied', playerId: string, effectId: string, kind: 'buff'|'debuff', duration: number, sourceId: string|null }
+ *   | { type: 'effectExpired', playerId: string, effectId: string, kind: 'buff'|'debuff' }
+ *   | { type: 'pickupSpawned', id: number, effectId: string, x: number, y: number }
+ *   | { type: 'pickupCollected', id: number, playerId: string, effectId: string, x: number, y: number }} SimEvent
  */

@@ -14,9 +14,12 @@ import { updateGems } from './systems/xp.js';
 import { createMatchState, updateSpawner } from './systems/spawner.js';
 import { refreshStats, updateAbilities } from './systems/abilities.js';
 import { updateCards } from './systems/cards.js';
+import { updateEffects } from './systems/effects.js';
+import { updatePickups } from './systems/pickups.js';
 import { createEmptyInput } from '../protocol.js';
 import { ENEMY_TYPES } from '../content/enemies/index.js';
 import { ABILITY_TYPES } from '../content/abilities/index.js';
+import { EFFECT_TYPES } from '../content/effects/index.js';
 
 const NO_INPUT = Object.freeze(createEmptyInput());
 
@@ -30,9 +33,17 @@ const NO_INPUT = Object.freeze(createEmptyInput());
  * @param {boolean} [options.cards] - false = level-ups never open the card choice (tests)
  * @param {object} [options.enemyTypes] - behaviour registry (tests can inject their own)
  * @param {object} [options.abilityTypes] - ability registry
+ * @param {object} [options.effectTypes] - timed status effect registry
  */
 export function createWorld({
-  config, arena, seed = 1, spawning = true, cards = true, enemyTypes = ENEMY_TYPES, abilityTypes = ABILITY_TYPES,
+  config,
+  arena,
+  seed = 1,
+  spawning = true,
+  cards = true,
+  enemyTypes = ENEMY_TYPES,
+  abilityTypes = ABILITY_TYPES,
+  effectTypes = EFFECT_TYPES,
 }) {
   const map = parseArena(arena, config.display.tileSize);
   return {
@@ -41,6 +52,7 @@ export function createWorld({
     rng: createRng(seed),
     enemyTypes,
     abilityTypes,
+    effectTypes,
     spawning,
     cards,
     /** True while a player in this arena is choosing a card: nothing moves. */
@@ -57,6 +69,9 @@ export function createWorld({
     bullets: [],
     /** @type {import('./entities/gem.js').Gem[]} */
     gems: [],
+    /** @type {import('./entities/pickup.js').Pickup[]} */
+    pickups: [],
+    pickupSpawnTimer: config.pickups?.initialDelay ?? config.pickups?.spawnInterval ?? 20,
     /** Burning ground patches (fire-trail roll). */
     fires: [],
     pendingExplosions: [],
@@ -86,7 +101,7 @@ export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
  */
 export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
-  for (const list of [world.players, world.enemies, world.bullets, world.gems]) {
+  for (const list of [world.players, world.enemies, world.bullets, world.gems, world.pickups]) {
     for (const o of list) {
       o.prevX = o.x;
       o.prevY = o.y;
@@ -101,6 +116,7 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
   world.tick++;
   world.time += dt;
   if (world.spawning) updateSpawner(world, dt);
+  updateEffects(world, dt);
   for (const p of world.players) updatePlayerMovement(world, p, inputs[p.id] ?? NO_INPUT, dt);
   updateEnemies(world, dt);
   updateAbilities(world, dt);
@@ -108,6 +124,7 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
   updateBullets(world, dt);
   processExplosions(world);
   updateGems(world, dt);
+  updatePickups(world, dt);
   removeDeadEnemies(world);
 }
 

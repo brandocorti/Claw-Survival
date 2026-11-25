@@ -225,4 +225,25 @@ export const CONFIG = {
       baseDamage: 1, damagePerLevel: 1, baseDuration: 1, durationPerLevel: 0.5,
     },
   },
+
+  /** Timed buff pickups spawned on walkable sand during waves. */
+  pickups: {
+    initialDelay: 12,
+    spawnInterval: 22,
+    maxOnMap: 2,
+    lifetime: 18,
+    collectRadius: 9,
+    minDistance: 60,
+    maxDistance: 170,
+    /** Effect ids eligible to spawn as arena pickups. */
+    pool: ['doubleXp'],
+  },
+
+  /**
+   * Timed status effects (buffs and debuffs).
+   * Code lives in shared/content/effects/index.js.
+   */
+  effects: {
+    doubleXp: { duration: 9, multiplier: 2 },
+  },
 };

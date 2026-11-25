@@ -17,6 +17,7 @@
  * @property {number} level
  * @property {number} pendingLevelUps - level-ups whose card has not been picked yet
  * @property {Record<string, number>} abilities - ability id -> level
+ * @property {import('../../content/effects/index.js').ActiveEffect[]} effects - timed buffs and debuffs
  * @property {object} stats - derived numbers (damage, fireRate...), see systems/abilities.js
  * @property {string[]|null} cardChoice - ability ids on offer while a level-up is open
  * @property {number} kills
@@ -57,6 +58,7 @@ export function createPlayer(id, x, y, config) {
     level: 1,
     pendingLevelUps: 0,
     abilities: {},
+    effects: [],
     stats: null,
     cardChoice: null,
     kills: 0,

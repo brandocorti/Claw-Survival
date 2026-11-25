@@ -28,11 +28,45 @@ describe('player damage', () => {
     expect(drainEvents(world).some((e) => e.type === 'playerDied')).toBe(true);
   });
 
-  it('touching an enemy hurts', () => {
+  it('touching an enemy hurts and attaches contact source', () => {
     const { world, player } = makeWorld();
-    placeEnemy(world, 'dummy', player.x + 6, player.y);
+    const enemy = placeEnemy(world, 'dummy', player.x + 6, player.y);
     run(world, 1);
     expect(player.health).toBe(TEST_CONFIG.player.maxHealth - TEST_CONFIG.enemies.dummy.contactDamage);
+    const hit = drainEvents(world).find((e) => e.type === 'playerHit');
+    expect(hit.source).toMatchObject({ kind: 'contact', attackerId: enemy.id, enemy });
+  });
+
+  it('enemy bullets and explosions attach bullet / explosion source', () => {
+    const { world, player } = makeWorld();
+    const s = placeEnemy(world, 'skeleton', player.x + 20, player.y);
+    // Spawn an enemy bullet moving right into the player
+    world.bullets.push({
+      id: 999,
+      ownerId: s.id,
+      team: 'enemy',
+      x: player.x - 1,
+      y: player.y,
+      prevX: player.x - 1,
+      prevY: player.y,
+      vx: 60,
+      vy: 0,
+      life: 1,
+      damage: 1,
+      radius: 3,
+      pierce: 0,
+      hitIds: [],
+    });
+    run(world, 1);
+    const bulletHit = drainEvents(world).find((e) => e.type === 'playerHit');
+    expect(bulletHit.source).toEqual({ kind: 'bullet', attackerId: s.id });
+
+    player.invulnerableTime = 0;
+    const c = placeEnemy(world, 'coconut', player.x + 10, player.y);
+    killEnemy(world, c, 'p1');
+    processExplosions(world);
+    const blastHit = drainEvents(world).find((e) => e.type === 'playerHit');
+    expect(blastHit.source).toEqual({ kind: 'explosion', attackerId: 'p1' });
   });
 });
 

@@ -35,7 +35,8 @@ export function dropGems(world, x, y, value) {
  * @param {number} value
  */
 export function grantXp(world, player, value) {
-  player.xp += value;
+  const gained = Math.round(value * (player.stats?.xpMultiplier ?? 1));
+  player.xp += gained;
   let need = xpToNextLevel(player.level, world.config.xp.curve);
   while (player.xp >= need) {
     player.xp -= need;
