@@ -161,6 +161,29 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   mangrove)" (there are 3 songs: one for menu, pause and salesman, one for the normal game, one for the
   boss). The AI's guess from the titles was wrong for rounds 1-2, pause and salesman, and was replaced.
 
+### [Art] Graphics upgrade, M0 — 2026-11-25 — Esteban
+- **Goal:** apply the dedicated graphics prompt, one milestone at a time.
+- **Tool/model:** Claude Code, Claude Opus 5.5. The prompt itself was written with another AI session; its three
+  log entries are in `improved_graphics/prompt-log-entries.md` and still need the name of their author.
+- **Prompt (exact, with `improved_graphics.zip`):** "subelo a github and then graphics, make sure to use the
+  prompt in  GRAPHICS_UPGRADE_PROMPT.md", and later "completa el m0 y para ahi, continuare mañana" (finish M0
+  and stop there, I will continue tomorrow).
+- **Result:** M0 done ([changelog](changelog.md)).
+- **Problem found:** the AI had run ahead and drafted M1 to M3 before showing M0.
+- **Change made and why:** the draft was set aside in a git stash, unverified, and the project left at M0.
+
+### [Art] Graphics upgrade, M1 to M4 — 2026-11-25 — Esteban
+- **Goal:** the rest of the graphics prompt.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact):** "continue now till the end of mx", read as "through the last milestone".
+- **Result:** 15 upgrades ported from the reference code ([changelog](changelog.md)).
+- **Problem found:** the reference was made for an older version. The bigger boss could not be hit at its edge,
+  the victory screen hid the death sequence, the wreck stood on the salesman, bullets hid behind palm leaves,
+  and the first captures were not repeatable: the game ran before the harness started, and tweens read the
+  real clock.
+- **Change made and why:** each was fixed while porting, and the new collision, art and flags got tests. Shipping
+  working reference code with target images made the result match far better than the earlier free attempt.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

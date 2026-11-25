@@ -6,6 +6,52 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Graphics upgrade M3: the hero — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** redrawn hero (18×23, teal vest) with 4-frame walks, idle, blink, hurt face, tuck roll and
+  slingshot pull; white flash on a hit and a light flicker while invulnerable. Four example skins. The salesman
+  matches the new size.
+- **Modules/files touched:** `src/shared/art/hero.js`, `src/client/gfx/hero.js`, `src/client/entities/PlayerView.js`, `src/client/art/sprites.js`.
+- **Why:** H1 to H5 of the graphics prompt.
+- **Evidence:** `production/qa/evidence/*_gfx-m3-hero-sheet.png`.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M2: the Crab Emperor — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** the final boss is an animated rig whose eyes follow you, with a warning on the ground for
+  each attack (cone, lane, circle and curved arms for the spiral), an entrance card, cracks below half health,
+  a death sequence that leaves its crown, and a framed health bar. Its radius grew from 15 to 22 to match the
+  art, and the victory screen waits for the death sequence. No aim brackets on bosses.
+- **Modules/files touched:** `src/shared/art/emperor.js`, `src/client/gfx/boss.js`, `src/client/ui/Hud.js`,
+  `src/client/entities/EnemyViews.js`, `src/shared/config.js`, `src/shared/sim/systems/`.
+- **Why:** V1 to V5 of the graphics prompt.
+- **Evidence:** `production/qa/evidence/*_gfx-m2-*.png`. Bots starting at round 5: 25 of 34 beat it with either radius.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M1: environment — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** painted ground with rounded, animated shores and tall cliffs; palms, shipwreck, crates and
+  barrels; warm light, vignette, glows and cloud shadows; squash, debris that stays, scorch marks, footprints and
+  hit-stop; framed HUD with level pips and a ring under the player. The wreck, crates, barrels and palm trunks
+  block walking (not shots, spirits or bosses). The salesman moved next to the wreck. Bullets are drawn above props.
+- **Modules/files touched:** `src/client/gfx/`, `src/shared/sim/props.js`, `src/shared/sim/map.js`,
+  `src/shared/sim/flowField.js`, views, HUD.
+- **Why:** E1 to E5 of the graphics prompt.
+- **Evidence:** 195 unit tests pass. 60 FPS with 154 enemies and 782 enemy bullets (one player, weapon damage 0
+  and invulnerable so nothing died). Bots, 60 full matches: 24 wins, 18 before. Before/after:
+  `production/qa/evidence/*_gfx-before-f900.png`, `*_gfx-after-f900.png`. Not yet played by a person.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M0: set-up — Esteban — commit 80e5856
+- **Type:** refactor
+- **What changed:** nothing visible. Graphics flags (all on; `?classic` turns them off), shared noise helpers,
+  and dev capture options `?capture`, `?script` and `?bosshp=N`. The prompt and its references are in
+  `improved_graphics/` (without the 30 MB of videos).
+- **Modules/files touched:** `src/client/gfx/`, `src/client/main.js`, `src/client/scenes/`, `src/shared/sim/hash.js`.
+- **Why:** first milestone of the graphics prompt. Status: [`graphics-upgrade.md`](graphics-upgrade.md).
+- **Evidence:** two captures of the same frame are identical pixel for pixel.
+- **Prompt log:** [Graphics upgrade, M0](prompt-log.md#art-graphics-upgrade-m0--2026-11-25--esteban).
+
 ### 2026-11-25 — Salesman, money, hearts, start menu and music — Esteban — commit 3b93e08
 - **Type:** feature, assets
 - **What changed:** enemies sometimes drop coins and, rarely, hearts. A salesman, marked by a coin over
