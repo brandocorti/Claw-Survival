@@ -63,6 +63,49 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   player stand still. Survivors-style controls keep the focus on movement and dodging, and
   leave the mouse for build decisions, which are the core of the roguelike loop.
 
+### [Core loop] Room-based runs, break rooms and the Salesman — 2026-11-25 — Alvaro
+- **Goal:** replace the timed rounds on one big arena with a chain of smaller rooms: doors
+  unlock when the room is clear, 1–3 exits, a chance of a break room and a mandatory one after
+  8 fight rooms, XP spent on healing, and a Salesman NPC who sells either a random buff/debuff
+  roll or a status report on the other players.
+- **Tool/model:** Claude Code (VS Code extension), Claude Opus 5.5. The model first turned a
+  short informal request into the structured prompt below.
+- **Prompt:** [`prompts/rooms-and-salesman-prompt-v1.md`](../prompts/rooms-and-salesman-prompt-v1.md).
+  Original request (exact): "make the game work by rooms. each fighting room is smaller than the
+  current one and there are 1,2, or 3 paths to continue to the next room, with a small chance of
+  the next room being a break room. in the "break room" you can recover some health in exchange
+  of xp maybe or purchase a random buff/debuff roll for xp too there is a mandatory break room
+  after 8 rooms. after killing all enemies you move to the next room and doors are unblocked.
+  add a character that is a salesman and he can inform of the status of the other players [...]
+  you must interact with him to also buy only one random buff/debuff roll or only one check to
+  the other players status."
+  Techniques used (different from the v1 spec on purpose):
+  - **Change request, not a spec:** states what exists now and what it replaces.
+  - **Grounded in the repo:** names the real files to read and change (`spawner.js`,
+    `config.js`, `beach.js`) so the agent doesn't invent its own structure.
+  - **Defaults for every ambiguity:** each vague point in the request becomes a number in
+    `config.js` (break chance 12%, prices as a fraction of the XP bar, exit weights).
+  - **Handles missing dependencies:** buffs/debuffs and other players don't exist yet, so
+    the prompt asks for a minimal reusable effect module and a `RivalStatusSource` interface
+    with seeded bots.
+  - **Few-shot:** an example room template in ASCII and three example Salesman lines for tone.
+  - **Testable acceptance criteria**, plus a **self-review** step against those criteria.
+  - **Plan first, then wait:** the agent must list its assumptions and open questions before it
+    writes any code.
+- **Iteration before sending (same day):** added a "Difficulty curve" section at the request
+  of Alvaro ("i also want difficulty increase in the rooms, as the player advances the enemies
+  get stronger and more appear"). The first draft only grew the enemy count. The revised prompt
+  puts all scaling in one pure function `difficultyAt(config, depth)` (count, waves, health,
+  damage, speed, enemy mix, elites, XP reward) with caps and a "no more than ~20% harder per
+  room" test. **Why:** if the formulas were scattered, the curve could not be tested or tuned,
+  and without caps late rooms would become impossible to dodge.
+- **Result:** pending. Fill in after the agent replies.
+- **Problem found:** pending.
+- **Change made and why:** the informal request left out several decisions: how XP can be
+  spent without breaking levelling, what happens to the 10-minute timer, and whether resting
+  counts toward the Salesman's one-purchase rule. The prompt gives a default for each one and
+  asks the agent to challenge them, so nothing important is decided by guessing.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own
