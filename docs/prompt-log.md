@@ -131,13 +131,13 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   rock impossible to hit, because rocks stop shots, so bosses crush rocks. The time spent stuck fell to
   0.1 to 0.3 s. The author played it and answered "ok perfect push it". Open question for milestone 8: how this duel fits with the final PvP of the original spec.
 
-### [Deployment] Set up GitHub Pages from the plan — 2026-11-25 — brandocorti
-- **Goal:** put the game online, following `docs/deployment-plan.md`, working on a dedicated `deployment`
-  branch and merging into `main` only at the end.
+### [Deployment] Set up GitHub Pages from the plan — 2026-11-25 — brandocorti, oscarcuevasm
+- **Goal:** put the game online, following `docs/deployment-plan.md` (written by oscarcuevasm, commit
+  `f444cd4`), working on the `deployment` branch he created and merging into `main` only at the end.
 - **Tool/model:** Claude Code (Sonnet 5.5) in VS Code.
-- **Prompt:** "guarda il deployment_pla.md e dimmi cosa ce da fare", then "in questo branch andiamo a fare
-  tutta la spec di deployment quindi prima pusheremo su deployment e poi andiamo a mergeare in seguito,
-  organizza e inizia a organizzare il codice e dimmi quello che posso fare io".
+- **Prompt** (originally in Italian, translated): "Look at deployment-plan.md and tell me what there is to
+  do", then "On this branch we will do the whole deployment spec, so first we push to deployment and
+  merge later. Organise the code, get started, and tell me what I can do myself."
 - **Result:** the agent first only read the plan and compared it with the repo (no `base`, no workflow, no
   README link). After the second prompt it added `base: './'`, created `.github/workflows/deploy.yml` and
   ran `npm run smoke` (134 tests, build OK).

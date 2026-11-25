@@ -66,6 +66,7 @@ Keep a running log in `docs/prompt-log.md`. One entry per meaningful prompt or i
 Rules for Claude when working on this repo:
 
 - When you help write or refine a prompt, **append the entry to the log** or tell the user exactly what to add. Never present a prompt as the first attempt if it is the third.
+- **Always write prompts in English in the log.** Team members often prompt in Italian, but the log must be readable by everyone (professors and other teams). Translate the prompt into English and mark it, e.g. `**Prompt** (originally in Italian, translated): "..."`. Translate faithfully: keep the meaning, the instructions and the tone, and do not tidy up or improve the prompt.
 - Keep failed attempts. They are evidence of the iterative process.
 - Keep prompts structured (role, context, task, constraints, output format, examples) and **varied** (different techniques: few-shot, chain-of-thought, step-by-step decomposition, self-review, tool use) because variety is graded.
 - Note limitations of the models we hit (hallucinated APIs, inconsistent style, context loss) and how we worked around them: this feeds the creativity criterion.
