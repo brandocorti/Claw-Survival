@@ -4,6 +4,7 @@ import { PALETTE as P } from './palette.js';
 import { gridFromStrings, addOutline, createTextureFromGrid, createSpritesheet } from './pixelArt.js';
 import { chibiFrame, CHIBI_DIRECTIONS, CHIBI_STEPS } from '../../shared/art/chibi.js';
 import { createEnemyTextures } from './enemyArt.js';
+import { createRoomTextures } from './roomArt.js';
 
 /** Slingshot pointing right; the handle (left) sits in the player's hand. */
 const SLINGSHOT = [
@@ -123,6 +124,7 @@ export function createSprites(scene) {
   }
   createSpritesheet(scene, 'castaway', frames);
   createEnemyTextures(scene);
+  createRoomTextures(scene);
 
   const outlined = (rows, colors) => addOutline(gridFromStrings(rows, colors), P.outline);
   createTextureFromGrid(scene, 'slingshot', outlined(SLINGSHOT, { W: P.wood, w: P.woodDark, B: P.band }));

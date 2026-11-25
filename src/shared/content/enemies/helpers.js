@@ -1,6 +1,7 @@
 // Building blocks for enemy behaviours: steering and firing.
 import { createBullet } from '../../sim/entities/bullet.js';
 import { lineBlocked } from '../../sim/map.js';
+import { scaleDamage } from '../../sim/systems/difficulty.js';
 
 export const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 export const angleTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
@@ -46,7 +47,7 @@ export function keepDistance(world, enemy, target, speed, preferred) {
 }
 
 /**
- * Fires one enemy bullet from the enemy's position.
+ * Fires one enemy bullet from the enemy's position. Damage scales with the room's depth.
  * @param {{ bulletSpeed: number, damage: number, range: number }} stats
  */
 export function fireBullet(world, enemy, angle, stats) {
@@ -54,7 +55,7 @@ export function fireBullet(world, enemy, angle, stats) {
     createBullet(world.nextId++, enemy.id, 'enemy', enemy.x, enemy.y, angle, {
       speed: stats.bulletSpeed,
       range: stats.range,
-      damage: stats.damage,
+      damage: scaleDamage(stats.damage, enemy.damageScale ?? 1),
       radius: world.config.enemyBullets.radius,
     }),
   );

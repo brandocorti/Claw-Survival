@@ -44,7 +44,7 @@ export function damageEnemy(world, enemy, amount, attackerId) {
 }
 
 /**
- * Kills an enemy: XP gems and a kill for the attacker (if any), then the
+ * Kills an enemy: XP gems (scaled by depth and elite) and a kill for the attacker (if any), then the
  * enemy type's onDeath hook (e.g. the coconut explodes).
  * @param {object} world
  * @param {import('../entities/enemy.js').Enemy} enemy
@@ -60,7 +60,7 @@ export function killEnemy(world, enemy, killerId) {
   if (killerId != null) {
     const killer = world.players.find((p) => p.id === killerId);
     if (killer) killer.kills++;
-    dropGems(world, enemy.x, enemy.y, world.config.enemies[enemy.type].xp);
+    dropGems(world, enemy.x, enemy.y, Math.round(world.config.enemies[enemy.type].xp * enemy.xpScale));
   }
   const def = world.enemyTypes[enemy.type];
   if (def.onDeath) def.onDeath(world, enemy, killerId);

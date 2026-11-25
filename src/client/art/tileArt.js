@@ -13,9 +13,11 @@ export const TILE_ART = Object.freeze({
   CLIFF_FACE: 5,
   WATER: 6,
   WATER_EDGE: 7,
+  DOOR_LOCKED: 8,
+  DOOR_OPEN: 9,
 });
 
-const COUNT = 8;
+const COUNT = 10;
 
 /**
  * Draws the tileset into a canvas texture.
@@ -107,6 +109,31 @@ export function createTileset(scene, key, ts) {
       px(ox, x, 2, P.waterDark);
       if (x % 4 !== 0) px(ox, x, 3, P.foam);
     }
+  }
+
+  // Locked door: a wooden palisade gate lashed with rope (3/4 view, front face).
+  {
+    const ox = TILE_ART.DOOR_LOCKED * ts;
+    fill(ox, P.woodDark);
+    for (let x = 0; x < ts; x++) {
+      const post = x % 4;
+      for (let y = 0; y < ts; y++) {
+        if (post === 0) px(ox, x, y, P.outline);
+        else if (post === 1) px(ox, x, y, P.wood);
+      }
+      px(ox, x, 0, post === 0 ? P.outline : P.sandLight); // pointed tops
+      px(ox, x, 4, P.band); // rope
+      px(ox, x, 11, P.band);
+      px(ox, x, ts - 1, P.cliffBase);
+    }
+  }
+
+  // Open door: a trodden path of wet sand leading out.
+  {
+    const ox = TILE_ART.DOOR_OPEN * ts;
+    fill(ox, P.wetSand);
+    speckle(ox, 8, [P.sandDark, P.cliffBase]);
+    for (let y = 0; y < ts; y += 5) px(ox, (y * 7) % ts, y, P.sand);
   }
 
   tex.refresh();

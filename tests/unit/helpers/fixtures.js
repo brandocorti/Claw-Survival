@@ -1,6 +1,6 @@
 // Test fixtures: small arenas, a fixed config and a world factory, so tests do
 // not depend on the real arena layout or on tuning values changing in config.js.
-import { createWorld, addPlayer, stepWorld, drainEvents } from '../../../src/shared/sim/world.js';
+import { createWorld, addPlayer, stepWorld, drainEvents, startRun } from '../../../src/shared/sim/world.js';
 import { spawnEnemy } from '../../../src/shared/sim/systems/spawner.js';
 import { ENEMY_TYPES } from '../../../src/shared/content/enemies/index.js';
 
@@ -10,16 +10,35 @@ export const TEST_CONFIG = Object.freeze({
   display: { width: 480, height: 270, tileSize: 16 },
   camera: { followLerp: 0.12, moveLookAhead: 16 },
   match: { durationSeconds: 100 },
-  rounds: {
-    count: 5,
-    breakSeconds: 3,
-    bossRounds: [3, 5],
-    bossAtSecondsLeft: 5,
-    enemyWeights: [{ crab: 1 }, { crab: 1, coconut: 1 }],
+  rooms: {
+    exitWeights: { 1: 0.25, 2: 0.45, 3: 0.3 },
+    breakChance: 0.12,
+    mandatoryBreakAfter: 8,
+    bossAtFightRoom: 8,
+    revealDoorTypes: true,
+    transitionSeconds: 0.25,
+    spawnProtection: 1,
+    entranceInset: 1.5,
+    firstWaveDelay: 0.5,
   },
-  spawning: {
-    baseRate: 1, ratePerRound: 0.5, rampWithinRound: 1, maxAlive: 10,
-    minDistance: 40, maxDistance: 80, spawnDelay: 0.5, healthPerRound: 0.5,
+  difficulty: {
+    baseEnemies: 6, enemiesPerRoom: 2, maxBudget: 20,
+    baseWaves: 2, wavesEvery: 4, maxWaves: 4,
+    waveGapStart: 3, waveGapPerDepth: 0.25, waveGapMin: 1,
+    healthPerDepth: 0.1, damagePerDepth: 0.1, speedPerDepth: 0.05, maxSpeedScale: 1.5, xpPerDepth: 0.1,
+    elite: { fromDepth: 4, baseChance: 0.1, chancePerDepth: 0.05, maxChance: 0.5, healthScale: 2, xpScale: 1.5 },
+    dangerEvery: 4,
+    enemyWeightsByDepth: [
+      { fromDepth: 0, weights: { crab: 1 } },
+      { fromDepth: 5, weights: { crab: 1, coconut: 1 } },
+    ],
+  },
+  spawning: { maxAlive: 10, minDistance: 40, spawnDelay: 0.5 },
+  breakRoom: { healAmount: 2, prices: { rest: 0.4, roll: 0.5, intel: 0.3 }, interactRadius: 26 },
+  salesman: { buffChance: 0.65 },
+  rivals: {
+    count: 3, names: ['ANNA', 'BORIS', 'CLARA', 'DAVID'], roomsPerMinute: [1, 2], levelsPerMinute: [0.5, 1],
+    effectEverySeconds: 30, safePeriods: 2, deathChance: 0.2,
   },
   player: {
     radius: 5,
@@ -131,11 +150,54 @@ export const BIG_ROOM = {
   ],
 };
 
+/** Small fight room with all four sockets, for run tests. */
+export const TEST_FIGHT_ROOM = {
+  id: 'test-fight',
+  rows: [
+    '#######NN#######',
+    '#..............#',
+    '#..............#',
+    'W..............E',
+    'W......P.......E',
+    '#..............#',
+    '#..............#',
+    '#######SS#######',
+  ],
+};
+
+/** Second fight template, so the "no same template twice" rule has a choice. */
+export const TEST_FIGHT_ROOM_2 = { id: 'test-fight-2', rows: TEST_FIGHT_ROOM.rows };
+
+/** Break room: campfire right of the spawn, Salesman left of it. */
+export const TEST_BREAK_ROOM = {
+  id: 'test-break',
+  rows: [
+    '#######NN#######',
+    '#..............#',
+    '#..............#',
+    'W....$.P.C.....E',
+    'W..............E',
+    '#..............#',
+    '#..............#',
+    '#######SS#######',
+  ],
+};
+
+export const TEST_ROOM_TEMPLATES = Object.freeze({
+  fight: [TEST_FIGHT_ROOM, TEST_FIGHT_ROOM_2],
+  break: [TEST_BREAK_ROOM],
+});
+
+/** Fake gossip source: fixed rivals. */
+export const TEST_RIVALS = {
+  getRivals: () => [{ name: 'ANNA', level: 4, room: 6, buffs: ['seaLegs'], debuffs: ['sunburn'], alive: true }],
+};
+
 export const TICK = 1 / TEST_CONFIG.sim.tickRate;
 
 /** Input with nothing pressed, overridable. */
 export function input(overrides = {}) {
-  return { moveX: 0, moveY: 0, roll: false, ...overrides };
+  return { moveX: 0, moveY: 0, roll: false, interact: false, ...overrides };
 }
 
 /**
@@ -145,6 +207,19 @@ export function input(overrides = {}) {
 export function makeWorld({ arena = OPEN_ROOM, seed = 1, spawning = false, config = TEST_CONFIG } = {}) {
   const world = createWorld({ config, arena, seed, spawning, enemyTypes: TEST_ENEMY_TYPES });
   const player = addPlayer(world, 'p1');
+  return { world, player };
+}
+
+/**
+ * A run of rooms (no sandbox arena) with one player 'p1', started.
+ * @param {object} [options]
+ */
+export function makeRun({
+  seed = 1, spawning = false, config = TEST_CONFIG, depth = 0, startIn = 'fight', rivals = TEST_RIVALS,
+} = {}) {
+  const world = createWorld({ config, seed, spawning, enemyTypes: TEST_ENEMY_TYPES, roomTemplates: TEST_ROOM_TEMPLATES, rivals });
+  const player = addPlayer(world, 'p1');
+  startRun(world, { depth, startIn });
   return { world, player };
 }
 

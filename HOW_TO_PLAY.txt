@@ -85,14 +85,24 @@ CONTROLS
 
     W A S D  or arrow keys ... move
     Space .................... dodge roll (short invulnerability)
+    E ........................ use the campfire / talk to the Salesman
+    1 2 3 or the mouse ....... choose in the Salesman's menu
     (nothing) ................ your slingshot shoots BY ITSELF at the
                                nearest enemy you can see
-    R ........................ try again after you die
+    R ........................ try again after you die or when time is up
     F9 ....................... save a screenshot (developers)
 
-Goal: survive 5 rounds (10 minutes) of crabs, exploding coconuts,
-skeleton pirates and tiki spirits. Pick up the XP gems that enemies
-drop to level up. The Crab King appears in rounds 3 and 5.
+Goal: go as deep as you can in 10 minutes. Each fight room locks its
+doors until every enemy is dead (crabs, exploding coconuts, skeleton
+pirates, tiki spirits). Then 1 to 3 doors open; the icon above each
+one shows what is behind it: crossed swords = another fight, a
+campfire = a break room. Rooms get harder the deeper you go. Every
+8th fight room has the Crab King, and after it comes a break room.
+
+Break rooms: rest at the campfire (E) to heal, paying with XP, and
+meet the Salesman (E). He sells ONE thing per visit: a mystery roll
+(a random buff... or a purple curse) or gossip about the other
+castaways. Spending XP never takes away a level.
 
 Tip: dodge-roll THROUGH red bullets. Enemies flash yellow just
 before they attack.
@@ -103,10 +113,12 @@ SHORTCUTS FOR TESTING (add to the address)
 ---------------------------------------------------------------------
 
     http://localhost:5173/?fast            whole match in 100 seconds
-    http://localhost:5173/?round=3         start at round 3
+    http://localhost:5173/?room=5          start in room 5
     http://localhost:5173/?tough           10 hearts instead of 3
-    http://localhost:5173/?fast&round=3&tough
-                                           see the Crab King in seconds
+    http://localhost:5173/?room=8&tough    see the Crab King in seconds
+    http://localhost:5173/?break&rich      start in a break room with XP
+                                           to spend at the Salesman
+    http://localhost:5173/?time=590        time is up in 10 seconds
 
 
 ---------------------------------------------------------------------

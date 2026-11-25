@@ -32,41 +32,107 @@ export const CONFIG = {
     durationSeconds: 600,
   },
 
-  rounds: {
-    /** The match is split into this many equal rounds (600 s / 5 = 2 min each). */
-    count: 5,
-    /** No spawns for this long at the start of each round, while the banner shows. */
-    breakSeconds: 3,
-    /** Rounds that end with a mini-boss (1-based). */
-    bossRounds: [3, 5],
-    /** The boss appears when this many seconds are left in a boss round. */
-    bossAtSecondsLeft: 30,
-    /** Enemy mix per round, as relative weights. Later rounds reuse the last entry. */
-    enemyWeights: [
-      { crab: 6, coconut: 2 },
-      { crab: 5, coconut: 3, skeleton: 2 },
-      { crab: 4, coconut: 3, skeleton: 3, tiki: 1 },
-      { crab: 4, coconut: 3, skeleton: 3, tiki: 2 },
-      { crab: 4, coconut: 4, skeleton: 4, tiki: 3 },
+  /** A run is a chain of rooms. Rules in shared/sim/systems/rooms.js. */
+  rooms: {
+    /** How many exits a cleared room has, as weights. */
+    exitWeights: { 1: 0.25, 2: 0.45, 3: 0.3 },
+    /** Chance that an exit leads to a break room (never right after a break room). */
+    breakChance: 0.12,
+    /** After this many fight rooms in a row, every exit leads to a break room. */
+    mandatoryBreakAfter: 8,
+    /** The Crab King waits in the fight room where the counter reaches this (the one before the mandatory break). */
+    bossAtFightRoom: 8,
+    /** Show what is behind each door (crossed swords or campfire) once it opens. */
+    revealDoorTypes: true,
+    /** Seconds of fade between rooms; the player cannot move or be hurt meanwhile. */
+    transitionSeconds: 0.4,
+    /** Invulnerable for this long after entering a room. */
+    spawnProtection: 1.0,
+    /** The player appears this many tiles inside the entrance. */
+    entranceInset: 1.5,
+    /** Seconds before the first wave of a fight room. */
+    firstWaveDelay: 1.0,
+  },
+
+  /**
+   * Difficulty by depth (= fight rooms cleared this run; break rooms do not count).
+   * Every formula is in shared/sim/systems/difficulty.js -> difficultyAt(config, depth).
+   */
+  difficulty: {
+    /** Enemies per fight room: min(maxBudget, baseEnemies + enemiesPerRoom * depth). */
+    baseEnemies: 10,
+    enemiesPerRoom: 2,
+    maxBudget: 60,
+    /** Waves per room: min(maxWaves, baseWaves + floor(depth / wavesEvery)). */
+    baseWaves: 2,
+    wavesEvery: 4,
+    maxWaves: 5,
+    /** Seconds between waves: max(waveGapMin, waveGapStart - waveGapPerDepth * depth). */
+    waveGapStart: 4,
+    waveGapPerDepth: 0.1,
+    waveGapMin: 1.5,
+    /** Enemy health x (1 + healthPerDepth * depth). */
+    healthPerDepth: 0.12,
+    /** Contact, bullet and blast damage x (1 + damagePerDepth * depth), rounded, never below the base. */
+    damagePerDepth: 0.05,
+    /** Enemy speed x min(maxSpeedScale, 1 + speedPerDepth * depth). */
+    speedPerDepth: 0.02,
+    maxSpeedScale: 1.3,
+    /** Enemy XP x (1 + xpPerDepth * depth), so deeper rooms pay for break-room prices. */
+    xpPerDepth: 0.08,
+    /** Elites: gold outline, more health and XP. Chance per spawn from fromDepth on. */
+    elite: { fromDepth: 6, baseChance: 0.05, chancePerDepth: 0.01, maxChance: 0.25, healthScale: 2, xpScale: 1.5 },
+    /** The HUD flashes "DANGER RISES" every this many depths. */
+    dangerEvery: 4,
+    /** Enemy mix as relative weights; the last entry whose fromDepth <= depth is used. */
+    enemyWeightsByDepth: [
+      { fromDepth: 0, weights: { crab: 6, coconut: 2 } },
+      { fromDepth: 3, weights: { crab: 5, coconut: 3, skeleton: 2 } },
+      { fromDepth: 6, weights: { crab: 4, coconut: 3, skeleton: 3, tiki: 1 } },
+      { fromDepth: 10, weights: { crab: 4, coconut: 3, skeleton: 3, tiki: 2 } },
+      { fromDepth: 16, weights: { crab: 4, coconut: 4, skeleton: 4, tiki: 3 } },
     ],
   },
 
   spawning: {
-    /** Enemies per second in round 1. Formula in shared/sim/systems/spawner.js. */
-    baseRate: 0.6,
-    /** Added to the rate for each round after the first. */
-    ratePerRound: 0.45,
-    /** The rate grows by this fraction from the start to the end of each round (0.8 = +80%). */
-    rampWithinRound: 0.8,
-    /** Spawning pauses while this many enemies are alive (performance budget). */
+    /** Never more than this many enemies alive at once (performance budget); the rest of a wave waits. */
     maxAlive: 150,
-    /** Enemies appear between these distances from the player (just off screen). */
-    minDistance: 150,
-    maxDistance: 260,
+    /** Enemies never appear closer than this to a player (4 tiles). */
+    minDistance: 64,
     /** Warning time: a sand swirl shows where an enemy will appear; it cannot hurt or be hurt yet. */
     spawnDelay: 0.7,
-    /** Enemy health grows by this fraction per round (0.3 = +30% per round). */
-    healthPerRound: 0.3,
+  },
+
+  /** Break rooms: no enemies, a campfire and the Salesman. Rules in shared/sim/systems/breakRoom.js. */
+  breakRoom: {
+    /** Half hearts healed per rest at the campfire. */
+    healAmount: 2,
+    /**
+     * Prices are a fraction of the current XP bar, so they scale with level:
+     *   cost = ceil(price * xpToNextLevel(level)), paid from the progress on the bar (never a level).
+     */
+    prices: { rest: 0.4, roll: 0.5, intel: 0.3 },
+    /** E works within this distance of the campfire or the Salesman. */
+    interactRadius: 26,
+  },
+
+  salesman: {
+    /** Mystery roll odds: buff, otherwise debuff. */
+    buffChance: 0.65,
+  },
+
+  /** Simulated rivals for the Salesman's gossip until real players exist (milestone 5). */
+  rivals: {
+    count: 3,
+    names: ['BARNACLE BEA', 'COCONUT CARL', 'DRIFTWOOD DOT', 'SALTY SAM', 'MANGO MO', 'SEAWEED SUE'],
+    /** Each bot gets a speed between these (seeded). */
+    roomsPerMinute: [1.4, 2.2],
+    levelsPerMinute: [0.7, 1.3],
+    /** Their effects change every this many seconds. */
+    effectEverySeconds: 45,
+    /** From this many effect periods on, each period a bot may wash out (dead). */
+    safePeriods: 4,
+    deathChance: 0.05,
   },
 
   player: {

@@ -27,7 +27,36 @@
  * @property {number} rollCooldown - seconds until the next roll is allowed
  * @property {number} invulnerableTime - seconds of invulnerability left (roll or after a hit)
  * @property {number} lastHitTime - world time of the last damage taken (for the hit flash)
+ * @property {PlayerStats} stats - current stats: config values changed by active effects
+ * @property {import('../systems/effects.js').ActiveEffect[]} effects - active buffs and debuffs
  */
+
+/**
+ * Stats that effects can change. Systems read these, never the config directly.
+ * @typedef {object} PlayerStats
+ * @property {number} moveSpeed - pixels per second
+ * @property {number} fireRate - shots per second
+ * @property {number} damage - per shot
+ * @property {number} maxHealth - half hearts
+ * @property {number} pickupRadius - XP gems fly to you from this far
+ */
+
+/**
+ * The player's stats with no effects active.
+ * @param {typeof import('../../config.js').CONFIG} config
+ * @param {string} weaponId
+ * @returns {PlayerStats}
+ */
+export function baseStats(config, weaponId) {
+  const weapon = config.weapons[weaponId];
+  return {
+    moveSpeed: config.player.moveSpeed,
+    fireRate: weapon.fireRate,
+    damage: weapon.damage,
+    maxHealth: config.player.maxHealth,
+    pickupRadius: config.xp.pickupRadius,
+  };
+}
 
 /**
  * @param {string} id
@@ -64,6 +93,8 @@ export function createPlayer(id, x, y, config) {
     rollCooldown: 0,
     invulnerableTime: 0,
     lastHitTime: -1,
+    stats: baseStats(config, p.startingWeapon),
+    effects: [],
   };
 }
 

@@ -8,11 +8,12 @@
  * @property {number} moveX - -1..1 (A/D)
  * @property {number} moveY - -1..1 (W/S), +1 is down the screen
  * @property {boolean} roll - roll pressed since the last tick (edge, not held)
+ * @property {boolean} interact - E pressed since the last tick (edge): campfire, Salesman
  */
 
 /** @returns {PlayerInput} an input with nothing pressed */
 export function createEmptyInput() {
-  return { moveX: 0, moveY: 0, roll: false };
+  return { moveX: 0, moveY: 0, roll: false, interact: false };
 }
 
 /**
@@ -21,7 +22,7 @@ export function createEmptyInput() {
  *   | { type: 'bulletHit', x: number, y: number, team: string }
  *   | { type: 'bulletExpired', x: number, y: number, team: string }
  *   | { type: 'roll', playerId: string, x: number, y: number, dirX: number, dirY: number }
- *   | { type: 'enemySpawning', id: number, enemyType: string, x: number, y: number }
+ *   | { type: 'enemySpawning', id: number, enemyType: string, x: number, y: number, elite: boolean }
  *   | { type: 'enemyHit', id: number, x: number, y: number }
  *   | { type: 'enemyDied', id: number, enemyType: string, x: number, y: number, boss: boolean }
  *   | { type: 'enemyShot', id: number, x: number, y: number }
@@ -30,6 +31,17 @@ export function createEmptyInput() {
  *   | { type: 'playerDied', playerId: string, x: number, y: number }
  *   | { type: 'gemCollected', playerId: string, value: number }
  *   | { type: 'levelUp', playerId: string, level: number }
- *   | { type: 'roundStarted', round: number }
- *   | { type: 'bossSpawned', id: number, enemyType: string }} SimEvent
+ *   | { type: 'bossSpawned', id: number, enemyType: string }
+ *   | { type: 'roomEntered', kind: 'fight'|'break', number: number, depth: number, boss: boolean, templateId: string, danger: boolean }
+ *   | { type: 'waveStarted', wave: number, waves: number }
+ *   | { type: 'roomCleared', number: number, depth: number }
+ *   | { type: 'doorsOpened', doors: { side: string, dest: string }[] }
+ *   | { type: 'roomLeaving', side: string, dest: string }
+ *   | { type: 'pveOver', number: number, depth: number }
+ *   | { type: 'effectApplied', playerId: string, effectId: string, kind: 'buff'|'debuff' }
+ *   | { type: 'effectExpired', playerId: string, effectId: string }
+ *   | { type: 'salesmanOpened', playerId: string, sold: boolean }
+ *   | { type: 'salesmanSale', playerId: string, item: string, cost: number, effectId: string|null }
+ *   | { type: 'rested', playerId: string, cost: number, health: number }
+ *   | { type: 'actionRefused', playerId: string, action: string, item: string|null, reason: string }} SimEvent
  */

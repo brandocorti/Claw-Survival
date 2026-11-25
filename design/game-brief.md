@@ -26,8 +26,17 @@ Rules for every reply that contains code:
 
 Story: A group of players sail to a remote tropical island. The boat breaks apart and everyone washes up on the beach. Help is coming, but the rescue boat only has room for one. Players must survive the island, grow stronger, sabotage each other, and finally fight for the rescue.
 
-Core loop:
-1. Each player plays through X rounds (configurable, default 5) of increasingly difficult enemy waves.
+Core loop (CHANGED 2026-11-25: rooms instead of timed rounds, see prompts/rooms-and-salesman-prompt-v1.md):
+1. Each player's run is a chain of rooms. In a fight room the doors are locked until every enemy
+   is dead; then 1-3 doors open, each showing what is behind it (another fight room or, with a
+   small chance, a break room). After 8 fight rooms in a row the next room is always a break room.
+   Rooms get harder with depth (fight rooms cleared): more enemies and waves, stronger and faster
+   enemies, harder enemy types, gold-outlined elites, and a Crab King before each mandatory break.
+   Break rooms have no enemies: rest at the campfire (heal for XP) and meet the Salesman, who sells
+   ONE thing per visit: a mystery roll (random buff or curse on yourself) or gossip (level, room and
+   effects of every other player). Prices are a fraction of the current XP bar; spending XP never
+   costs a level.
+   (Original: "Each player plays through X rounds (configurable, default 5) of increasingly difficult enemy waves.")
 2. Defeated enemies drop XP gems. When the XP bar fills, the player levels up.
 3. On level-up, the game pauses for that player only and shows 3 cards. The player picks ONE:
    - ABILITY: buffs their own build.

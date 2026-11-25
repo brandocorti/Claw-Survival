@@ -99,14 +99,54 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   damage, speed, enemy mix, elites, XP reward) with caps and a "no more than ~20% harder per
   room" test. **Why:** if the formulas were scattered, the curve could not be tested or tuned,
   and without caps late rooms would become impossible to dodge.
-- **Result:** pending. Fill in after the agent replies.
-- **Problem found:** pending.
+- **Result:** the plan-first step worked. Before writing code the agent listed 19 assumptions
+  and found that **the prompt's own default numbers broke the prompt's own rule**: a budget of
+  `8 + 3 per room` is +37% from room 1 to 2, more than the "~20% per room" limit. It proposed
+  `10 + 2 per room` (exactly +20%, then less), applying the 20% test to continuous values only
+  (wave counts and the first elite chance move in whole steps), and keeping rounded damage
+  even though it jumps from 1 to 2 half hearts at depth 10 (section 6 asks for exactly that).
+  After "go" it built the feature in about 30 files: rooms from 6 hand-made ASCII templates, the
+  enemy budget in waves, `difficultyAt()`, a reusable status-effect module (8 effects), the break
+  room, the Salesman and his menu, seeded bot rivals for the gossip. Tests went from 78 to 169,
+  all passing; 15 screenshots in `production/qa/evidence/rooms-and-salesman/`. Product entry:
+  [changelog](changelog.md#2026-11-25--room-based-runs-break-rooms-and-the-salesman--alvaro--commit-pending).
+- **Problem found:** the tests caught two real bugs the code looked fine without: XP gems pulled
+  from across the room **orbited the player forever** (the magnet pulled toward the position,
+  not the direction), and a "+1 max heart" rule **refilled the heart a curse had taken** when
+  the curse ended. The screenshots caught four more that no test could: unreadable speech
+  bubble text, see-through "sold out" cards, left-aligned card text, and an effect counter one
+  too high in break rooms. All fixed in the same session. Also: the headless screenshot tool
+  the framework ships (`page-shot.sh`) only plays ~0.3 s of a Phaser game, so the agent wrote
+  its own real-time driver (`tools/qa/cdp-shot.mjs`).
 - **Change made and why:** the informal request left out several decisions: how XP can be
   spent without breaking levelling, what happens to the 10-minute timer, and whether resting
   counts toward the Salesman's one-purchase rule. The prompt gives a default for each one and
   asks the agent to challenge them, so nothing important is decided by guessing.
 
 ## Model limitations met so far (and how we handled them)
+
+- **The prompt's numbers contradicted the prompt's rules** (rooms change, 2026-11-25). We wrote
+  "budget 8 + 3 per room" and "never more than ~20% harder per room" in the same prompt; the
+  first breaks the second. Asking for "assumptions and open questions" before any code is what
+  surfaced it. The test that enforces the rule was checked against the old numbers and fails
+  with them (budget ×1.375), so it is known to work.
+- **A bug only far-away gems could show.** The XP magnet had worked for two milestones because
+  gems were always picked up from close by. The room-clear vacuum pulls them from across the
+  room, and the agent's own test showed one gem circling the player at 14–46 px forever. Fixed by
+  steering the gem's velocity, not its acceleration toward the player.
+- **The agent's own tests were wrong twice, and it said so.** One test read a stale event from
+  the previous room, another forgot its own "next wave comes early" rule. Both times it debugged
+  first (printed the room chain and the gem distances) before deciding the code was right.
+- **Looking at the wrong game.** The first real-time screenshot showed a *different* game: a
+  project from another folder was already running on port 5173, and our dev server had moved to
+  5174. The agent noticed because the HUD said "BANK 0" and "WASHED ASHORE!", which our game
+  does not have. Lesson: check what a screenshot shows against what you expect, not only that
+  one was saved.
+- **The headless browser did not really play.** `page-shot.sh` uses Chrome's virtual time,
+  which ran ~0.3 s of the game whatever the wait (the screen was still fading in). Replaced with
+  a small real-time driver over the Chrome DevTools protocol that also presses keys.
+- **A small sample looked like a bug.** 5 cursed rolls in 29 seeds (17%) against 35% in the
+  config. Checked over 2000 seeds before changing anything: 35.5%, correct.
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own
   unit tests failed 5 times: walls stopped the player 1–2 px early (`Math.min`/`Math.max`

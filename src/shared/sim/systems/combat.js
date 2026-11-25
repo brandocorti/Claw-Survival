@@ -31,7 +31,7 @@ export function findTarget(world, player) {
 }
 
 /**
- * Aims at the auto-aim target and fires at the weapon's fire rate while there is one.
+ * Aims at the auto-aim target and fires at the player's fire rate (weapon + effects) while there is one.
  * No shooting during a roll. Without a target the player faces where they walk.
  * @param {object} world
  * @param {import('../entities/player.js').Player} player
@@ -55,14 +55,14 @@ export function updatePlayerWeapon(world, player, dt) {
   // so the fire rate stays exact even when 1/fireRate is not a whole number of ticks.
   if (player.fireCooldown > 0) player.fireCooldown -= dt;
 
-  const stats = { speed: weapon.bulletSpeed, range: weapon.range, damage: weapon.damage, radius: weapon.bulletRadius };
+  const stats = { speed: weapon.bulletSpeed, range: weapon.range, damage: player.stats.damage, radius: weapon.bulletRadius };
   while (player.fireCooldown <= EPSILON) {
     const angle = player.aim + world.rng.range(-weapon.spread, weapon.spread);
     const x = player.x + Math.cos(angle) * weapon.muzzleDistance;
     const y = player.y + Math.sin(angle) * weapon.muzzleDistance;
     world.bullets.push(createBullet(world.nextId++, player.id, 'player', x, y, angle, stats));
     world.events.push({ type: 'shot', playerId: player.id, x, y, angle });
-    player.fireCooldown += 1 / weapon.fireRate;
+    player.fireCooldown += 1 / player.stats.fireRate;
   }
 }
 

@@ -48,7 +48,7 @@ export function grantXp(world, player, value) {
 
 /**
  * Moves gems: they pop out and slow down, then fly to a living player within
- * pickupRadius and are collected on touch.
+ * their pickup radius (player.stats.pickupRadius) and are collected on touch.
  * @param {object} world
  * @param {number} dt
  */
@@ -63,7 +63,7 @@ export function updateGems(world, dt) {
     let target = g.targetId ? world.players.find((p) => p.id === g.targetId && p.alive) : null;
     if (!target) {
       g.targetId = null;
-      target = nearestPlayerWithin(world, g.x, g.y, cfg.pickupRadius);
+      target = nearestPlayerInReach(world, g.x, g.y);
       if (target) g.targetId = target.id;
     }
 
@@ -71,12 +71,19 @@ export function updateGems(world, dt) {
       const dx = target.x - g.x;
       const dy = target.y - g.y;
       const dist = Math.hypot(dx, dy) || 1;
-      g.vx += (dx / dist) * cfg.magnetAcceleration * dt;
-      g.vy += (dy / dist) * cfg.magnetAcceleration * dt;
-      const speed = Math.hypot(g.vx, g.vy);
-      if (speed > cfg.magnetMaxSpeed) {
-        g.vx *= cfg.magnetMaxSpeed / speed;
-        g.vy *= cfg.magnetMaxSpeed / speed;
+      // Steer the velocity toward "straight at the player at full speed". Pulling
+      // toward the position instead made far gems (room-clear vacuum) orbit the
+      // player forever without ever touching them.
+      const wantX = (dx / dist) * cfg.magnetMaxSpeed - g.vx;
+      const wantY = (dy / dist) * cfg.magnetMaxSpeed - g.vy;
+      const want = Math.hypot(wantX, wantY);
+      const steer = cfg.magnetAcceleration * dt;
+      if (want <= steer) {
+        g.vx += wantX;
+        g.vy += wantY;
+      } else {
+        g.vx += (wantX / want) * steer;
+        g.vy += (wantY / want) * steer;
       }
     } else {
       const drag = Math.pow(0.02, dt); // the pop-out stops within ~1 s
@@ -97,13 +104,13 @@ export function updateGems(world, dt) {
   gems.length = kept;
 }
 
-function nearestPlayerWithin(world, x, y, radius) {
+function nearestPlayerInReach(world, x, y) {
   let best = null;
-  let bestD = radius;
+  let bestD = Infinity;
   for (const p of world.players) {
     if (!p.alive) continue;
     const d = Math.hypot(p.x - x, p.y - y);
-    if (d <= bestD) {
+    if (d <= p.stats.pickupRadius && d <= bestD) {
       bestD = d;
       best = p;
     }

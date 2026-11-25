@@ -2,6 +2,7 @@
 // touches you. The blast also hurts other enemies, so chain reactions happen.
 import { moveToward } from './helpers.js';
 import { killEnemy, queueExplosion } from '../../sim/systems/damage.js';
+import { scaleDamage } from '../../sim/systems/difficulty.js';
 
 export const coconut = {
   update(world, e, target, s, dt) {
@@ -16,6 +17,7 @@ export const coconut = {
 
   /** Every coconut death is an explosion; kills it causes are credited to whoever killed the coconut. */
   onDeath(world, e, killerId) {
-    queueExplosion(world, e.x, e.y, world.config.enemies.coconut.explosion, killerId);
+    const blast = world.config.enemies.coconut.explosion;
+    queueExplosion(world, e.x, e.y, { ...blast, playerDamage: scaleDamage(blast.playerDamage, e.damageScale) }, killerId);
   },
 };

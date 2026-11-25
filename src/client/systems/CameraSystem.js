@@ -11,7 +11,21 @@ export class CameraSystem {
   constructor(scene, cfg, map) {
     this.cam = scene.cameras.main;
     this.cfg = cfg;
-    this.cam.setBounds(0, 0, map.width * map.tileSize, map.height * map.tileSize);
+    this.setMap(map);
+  }
+
+  /**
+   * Bounds for a new room. A room smaller than the screen (on either axis) is
+   * centered on that axis instead of sticking to the top-left corner.
+   * The next update() snaps to the player instead of gliding across.
+   * @param {{ width: number, height: number, tileSize: number }} map
+   */
+  setMap(map) {
+    const w = map.width * map.tileSize;
+    const h = map.height * map.tileSize;
+    const bw = Math.max(w, this.cam.width);
+    const bh = Math.max(h, this.cam.height);
+    this.cam.setBounds(Math.floor((w - bw) / 2), Math.floor((h - bh) / 2), bw, bh);
     this.started = false;
     this.leadX = 0;
     this.leadY = 0;

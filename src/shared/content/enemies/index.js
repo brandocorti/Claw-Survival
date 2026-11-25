@@ -4,7 +4,7 @@
 //      (optional: onContact(world, enemy, player), onDeath(world, enemy, killerId))
 //   3. register it below
 //   4. art in src/client/art/enemyArt.js
-//   5. add it to config.rounds.enemyWeights so it spawns
+//   5. add it to config.difficulty.enemyWeightsByDepth so it spawns
 import { crab } from './crab.js';
 import { coconut } from './coconut.js';
 import { skeleton } from './skeleton.js';

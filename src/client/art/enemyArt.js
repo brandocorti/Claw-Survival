@@ -111,16 +111,18 @@ const CRAB_KING = {
 
 export const ENEMY_ART = { crab: CRAB, coconut: COCONUT, skeleton: SKELETON, tiki: TIKI, crabKing: CRAB_KING };
 
+/** Elite enemies get a gold outline (gold, not purple: purple is for curses). */
+export const ELITE_OUTLINE = '#ffd23a';
+
 /**
  * Builds every enemy spritesheet. Call once, in BootScene.
+ * Keys: `enemy-<type>` and `enemy-<type>-elite` (one more pixel all round: the gold outline).
  * @param {Phaser.Scene} scene
  */
 export function createEnemyTextures(scene) {
   for (const [type, art] of Object.entries(ENEMY_ART)) {
-    createSpritesheet(
-      scene,
-      `enemy-${type}`,
-      art.frames.map((rows, i) => ({ name: String(i), grid: addOutline(gridFromStrings(rows, art.colors), P.outline) })),
-    );
+    const grids = art.frames.map((rows) => gridFromStrings(rows, art.colors));
+    createSpritesheet(scene, `enemy-${type}`, grids.map((g, i) => ({ name: String(i), grid: addOutline(g, P.outline) })));
+    createSpritesheet(scene, `enemy-${type}-elite`, grids.map((g, i) => ({ name: String(i), grid: addOutline(addOutline(g, P.outline), ELITE_OUTLINE) })));
   }
 }

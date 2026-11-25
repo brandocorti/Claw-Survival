@@ -4,6 +4,7 @@ import { isActive } from '../entities/enemy.js';
 import { moveBox } from '../map.js';
 import { EPSILON } from '../math.js';
 import { damagePlayer } from './damage.js';
+import { scaleDamage } from './difficulty.js';
 
 /** How hard overlapping enemies push apart (pixels per second per pixel of overlap). */
 const SEPARATION_STRENGTH = 10;
@@ -53,7 +54,10 @@ export function updateEnemies(world, dt) {
       sx += d2 === 0 ? (e.id % 2 ? push : -push) : (dx / d) * push;
       sy += (dy / d) * push;
     });
-    const result = moveBox(world.map, e.x, e.y, e.radius, (e.vx + sx) * dt, (e.vy + sy) * dt, e.flying);
+    // Deeper rooms: every velocity the behaviour set is scaled (charges too), separation is not.
+    const vx = e.vx * e.speedScale + sx;
+    const vy = e.vy * e.speedScale + sy;
+    const result = moveBox(world.map, e.x, e.y, e.radius, vx * dt, vy * dt, e.flying);
     e.hitWall = result.hitX || result.hitY;
     e.x = result.x;
     e.y = result.y;
@@ -69,7 +73,7 @@ export function updateEnemies(world, dt) {
       if (Math.hypot(e.x - p.x, e.y - p.y) >= e.radius + world.config.player.radius * 0.8) return;
       const def = world.enemyTypes[e.type];
       if (def.onContact) def.onContact(world, e, p);
-      else damagePlayer(world, p, world.config.enemies[e.type].contactDamage);
+      else damagePlayer(world, p, scaleDamage(world.config.enemies[e.type].contactDamage, e.damageScale));
     });
   }
 }

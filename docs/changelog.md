@@ -6,6 +6,36 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Room-based runs, break rooms and the Salesman — Alvaro — commit pending
+- **Type:** feature
+- **What changed:** the PvE is now a chain of small rooms instead of 5 timed rounds on one big
+  beach. A fight room keeps its doors locked until every enemy is dead ("ROOM CLEARED", leftover
+  XP flies to you); then 1-3 doors open with an icon for what is behind each (fight or break).
+  The deeper you go, the more enemies and waves, the stronger and faster they are, the harder
+  the mix, plus gold-outlined elites from room 7 and a Crab King in every 8th fight room, right
+  before a mandatory break room. Break rooms: rest at the campfire for XP, and the Salesman
+  (new character) sells ONE thing per visit: a mystery roll (buff or purple curse) or gossip on
+  the other players (3 simulated rivals for now). New HUD: ROOM n, DANGER RISES, active effect
+  icons, E prompts, a time-up screen. Controls: E interacts, 1/2/3 in the Salesman's menu.
+- **Modules/files touched:** `src/shared/sim/systems/` (new `rooms.js`, `roomSpawner.js`,
+  `difficulty.js`, `effects.js`, `breakRoom.js`; `spawner.js` rewritten), `src/shared/content/`
+  (new `rooms/`, `effects/`; door and campfire tiles), `src/shared/rivals/`, `src/shared/dialogue/`,
+  `src/shared/config.js` (`rounds` replaced by `rooms`, `difficulty`, `breakRoom`, `salesman`,
+  `rivals`), `src/client/` (room art, `SalesmanMenu`, HUD, camera, map view, dev options),
+  `tests/unit/` (78 → 169 tests; the timed-round tests were rewritten for rooms, see the header
+  of `spawner.test.js`), `tools/qa/cdp-shot.mjs` (real-time screenshots), docs.
+- **Why:** shorter, readable fights with a choice after each one (which door), a place to spend
+  XP, and a first sabotage-adjacent mechanic (gossip) before multiplayer exists. Buffs/debuffs
+  and the rival source are built so milestones 3, 5 and 6 can reuse them.
+- **Fixes found on the way:** XP gems pulled from far away orbited the player forever (gem
+  magnet now steers the velocity); a "+1 max heart" refill also triggered when a curse ended.
+- **Evidence:** 169 unit tests pass (`npm run smoke`). Screenshots in
+  `production/qa/evidence/rooms-and-salesman/` (locked room, same room cleared with door icons,
+  Salesman menu, gossip, buff and curse rolls, campfire rest, Crab King, room 21 with elites,
+  DANGER RISES, time-up). 60 FPS in a room crowded with 150 spawned enemies; the simulation
+  takes 0.11 ms per tick with 150 enemies and ~500 bullets.
+- **Prompt log:** [Room-based runs, break rooms and the Salesman](prompt-log.md#core-loop-room-based-runs-break-rooms-and-the-salesman--2026-11-25--alvaro).
+
 ### 2026-11-19 — Milestone 2: enemies, rounds, XP, HUD, auto-aim — Esteban — commit 57e1af1
 - **Type:** feature
 - **What changed:** the game is now playable solo PvE. Survive a 10-minute match of 5 rounds

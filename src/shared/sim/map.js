@@ -10,7 +10,12 @@ import { TILE, TILE_CHARS, TILE_RULES } from '../content/tiles.js';
  * @property {number} tileSize - in pixels
  * @property {Uint8Array} tiles - row-major tile types
  * @property {{ x: number, y: number }} spawn - world pixels (center of the 'P' tile)
+ * @property {Record<string, { x: number, y: number }>} markers - world pixels of special
+ *   characters: 'salesman' ($) and 'campfire' (C, the first one)
  */
+
+/** Characters whose position is remembered in map.markers. */
+const MARKERS = Object.freeze({ $: 'salesman', C: 'campfire' });
 
 /**
  * Parses an arena definition ({ id, rows }) into a map.
@@ -24,6 +29,7 @@ export function parseArena(arena, tileSize) {
   const width = arena.rows[0].length;
   const tiles = new Uint8Array(width * height);
   let spawn = null;
+  const markers = {};
 
   arena.rows.forEach((row, y) => {
     if (row.length !== width) {
@@ -40,11 +46,13 @@ export function parseArena(arena, tileSize) {
         if (spawn) throw new Error(`Arena "${arena.id}": more than one 'P' spawn tile`);
         spawn = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
       }
+      const marker = MARKERS[ch];
+      if (marker && !markers[marker]) markers[marker] = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
     }
   });
 
   if (!spawn) throw new Error(`Arena "${arena.id}": no 'P' spawn tile`);
-  return { id: arena.id, width, height, tileSize, tiles, spawn };
+  return { id: arena.id, width, height, tileSize, tiles, spawn, markers };
 }
 
 /**
@@ -56,6 +64,18 @@ export function parseArena(arena, tileSize) {
 export function tileAt(map, tx, ty) {
   if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return TILE.CLIFF;
   return map.tiles[ty * map.width + tx];
+}
+
+/**
+ * Changes one tile (doors opening). Outside the map does nothing.
+ * @param {ArenaMap} map
+ * @param {number} tx
+ * @param {number} ty
+ * @param {number} type - a TILE value
+ */
+export function setTile(map, tx, ty, type) {
+  if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return;
+  map.tiles[ty * map.width + tx] = type;
 }
 
 /**

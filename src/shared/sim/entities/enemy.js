@@ -28,7 +28,19 @@
  * @property {number} counter - behaviour counter (volleys fired, pattern step)
  * @property {number} lastHitTime - world time of the last hit taken (for the white flash)
  * @property {boolean} killedByPlayer - false when it blew itself up (no XP)
+ * @property {boolean} elite - stronger variant (gold outline): more health and XP
+ * @property {number} damageScale - multiplier for contact, bullet and blast damage (see difficulty.js)
+ * @property {number} speedScale - multiplier for every velocity its behaviour sets
+ * @property {number} xpScale - multiplier for the XP it drops
  */
+
+/**
+ * Multipliers an enemy is created with (from difficultyAt(), elites included).
+ * @typedef {{ health: number, damage: number, speed: number, xp: number, elite: boolean }} EnemyScales
+ */
+
+/** No scaling: depth 0, not elite. */
+export const BASE_SCALES = Object.freeze({ health: 1, damage: 1, speed: 1, xp: 1, elite: false });
 
 /**
  * @param {number} id
@@ -36,12 +48,12 @@
  * @param {number} x
  * @param {number} y
  * @param {object} stats - config.enemies[type]
- * @param {number} healthScale - multiplier for this round
+ * @param {EnemyScales} scales - difficulty multipliers for this enemy
  * @param {number} spawnDelay - seconds
  * @returns {Enemy}
  */
-export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
-  const hp = Math.ceil(stats.hp * healthScale);
+export function createEnemy(id, type, x, y, stats, scales, spawnDelay) {
+  const hp = Math.ceil(stats.hp * scales.health);
   return {
     id,
     type,
@@ -68,6 +80,10 @@ export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
     counter: 0,
     lastHitTime: -1,
     killedByPlayer: false,
+    elite: scales.elite,
+    damageScale: scales.damage,
+    speedScale: scales.speed,
+    xpScale: scales.xp,
   };
 }
 

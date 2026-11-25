@@ -1,6 +1,7 @@
 // Draws all enemies from pooled sprites: shadow, body (2-frame wobble),
 // spawn swirl while appearing, white flash when hit, yellow blink while
 // winding up an attack (so every attack is readable before it lands).
+// Elites use the gold-outlined texture (`enemy-<type>-elite`).
 import { DEPTH } from '../systems/depth.js';
 
 const HIT_FLASH_SECONDS = 0.07;
@@ -30,7 +31,7 @@ export class EnemyViews {
       this.seen.add(e.id);
       let view = this.active.get(e.id);
       if (!view) {
-        view = this.acquire(e.type);
+        view = this.acquire(e.elite ? `${e.type}-elite` : e.type);
         this.active.set(e.id, view);
       }
       this.draw(view, e, alpha, time);
@@ -101,9 +102,12 @@ export class EnemyViews {
 
   create(type) {
     const key = `enemy-${type}`;
-    const sprite = this.scene.add.sprite(0, 0, key, '0').setOrigin(0.5, 1);
+    const elite = type.endsWith('-elite');
+    const sprite = this.scene.add.sprite(0, 0, key, '0');
+    // Elite textures have one extra pixel all round: keep the feet where the normal sprite has them.
+    sprite.setOrigin(0.5, elite ? 1 - 1 / sprite.height : 1);
     const frames = this.scene.textures.get(key).getFrameNames().length;
-    const scale = sprite.width / 12;
+    const scale = (sprite.width - (elite ? 2 : 0)) / 12;
     const shadow = this.scene.add.image(0, 0, 'shadow').setDepth(DEPTH.SHADOW).setScale(scale, Math.max(1, scale * 0.8));
     const mark = this.scene.add.image(0, 0, 'spawnMark').setDepth(DEPTH.SHADOW + 1).setScale(Math.max(1, scale * 0.8));
     return { type, sprite, shadow, mark, frames, spin: 0 };

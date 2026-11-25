@@ -40,8 +40,8 @@ export function updatePlayerMovement(world, player, input, dt) {
     vy = player.rollDirY * cfg.roll.speed;
   } else {
     const dir = clampToUnit(input.moveX, input.moveY);
-    vx = dir.x * cfg.moveSpeed;
-    vy = dir.y * cfg.moveSpeed;
+    vx = dir.x * player.stats.moveSpeed;
+    vy = dir.y * player.stats.moveSpeed;
     if (vx !== 0 || vy !== 0) player.moveAngle = Math.atan2(vy, vx);
   }
 
