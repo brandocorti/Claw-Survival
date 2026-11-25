@@ -24,7 +24,7 @@ export function drawCards(world, player, count) {
  */
 export function updateCards(world, inputs) {
   world.paused = false;
-  if (!world.cards) return;
+  if (!world.cards || world.match.phase === 'won') return; // no more cards after winning
   for (const p of world.players) {
     if (!p.alive) {
       p.cardChoice = null;

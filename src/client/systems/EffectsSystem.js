@@ -10,6 +10,7 @@ const DEBRIS = {
   skeleton: ['#f2ead8', '#c9bfa8', '#2b2420'],
   tiki: ['#b0703a', '#5a9a48', '#ffcf3a'],
   crabKing: ['#e2553a', '#f0c040', '#ffffff'],
+  crabEmperor: ['#2f4a5e', '#f0c040', '#ffb52e'],
 };
 
 export class EffectsSystem {
@@ -45,6 +46,7 @@ export class EffectsSystem {
         burst(colors, { speed: { min: 20, max: 80 }, lifespan: { min: 250, max: 500 }, gravityY: 120 }),
       ]),
     );
+    this.rubble = burst([P.rockLight, P.rock, P.rockDeep], { lifespan: { min: 250, max: 550 }, gravityY: 120 });
     this.dust = scene.add.particles(0, 0, 'px', {
       speed: { min: 8, max: 35 },
       lifespan: { min: 200, max: 420 },
@@ -79,6 +81,11 @@ export class EffectsSystem {
         case 'roll':
           this.dust.explode(7, e.x, e.y + 3);
           break;
+        case 'rockCrushed':
+          this.rubble.explode(12, e.x, e.y);
+          this.shake(120, 0.004);
+          break;
+        case 'enemyDespawned':
         case 'enemySpawning':
           this.dust.explode(4, e.x, e.y);
           break;

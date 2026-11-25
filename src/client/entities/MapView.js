@@ -24,13 +24,23 @@ export class MapView {
     const tileset = this.tilemap.addTilesetImage(tilesetKey, tilesetKey, ts, ts, 0, 0);
     this.layer = this.tilemap.createLayer(0, tileset, 0, 0).setDepth(DEPTH.FLOOR);
 
-    this.rocks = [];
+    /** @type {Map<string, Phaser.GameObjects.Image>} by 'tx,ty' */
+    this.rocks = new Map();
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (tileAt(map, x, y) !== TILE.ROCK) continue;
         const bottom = (y + 1) * ts;
-        this.rocks.push(scene.add.image((x + 0.5) * ts, bottom, 'rock').setOrigin(0.5, 1).setDepth(bottom));
+        this.rocks.set(`${x},${y}`, scene.add.image((x + 0.5) * ts, bottom, 'rock').setOrigin(0.5, 1).setDepth(bottom));
       }
+    }
+  }
+
+  /** Removes rocks crushed by a boss. */
+  handle(events) {
+    for (const e of events) {
+      if (e.type !== 'rockCrushed') continue;
+      this.rocks.get(`${e.tx},${e.ty}`)?.destroy();
+      this.rocks.delete(`${e.tx},${e.ty}`);
     }
   }
 }

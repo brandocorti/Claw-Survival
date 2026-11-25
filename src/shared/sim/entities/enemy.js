@@ -15,6 +15,7 @@
  * @property {number} maxHp
  * @property {number} radius
  * @property {boolean} flying
+ * @property {'walk'|'fly'|'giant'} travel - which tiles stop it
  * @property {boolean} boss
  * @property {boolean} dead
  * @property {number} spawnDelay - seconds before it becomes active (warning swirl)
@@ -56,6 +57,7 @@ export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
     maxHp: hp,
     radius: stats.radius,
     flying: Boolean(stats.flying),
+    travel: travelOf(stats),
     boss: Boolean(stats.boss),
     dead: false,
     spawnDelay,
@@ -71,6 +73,12 @@ export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
     hitCooldowns: {},
     killedByPlayer: false,
   };
+}
+
+/** Bosses are giants: they crush rocks and wade through water. */
+export function travelOf(stats) {
+  if (stats.flying) return 'fly';
+  return stats.boss ? 'giant' : 'walk';
 }
 
 /** True once the warning swirl is over: it can move, attack and be hit. */

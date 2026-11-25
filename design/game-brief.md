@@ -32,7 +32,7 @@ Core loop:
 3. On level-up, the game pauses for that player only and shows 3 cards. The player picks ONE:
    - ABILITY: buffs their own build.
    - BAD PERK: a debuff sent to another player (the player chooses the target).
-4. When the 10-minute match timer ends (configurable), the PvE stops. All surviving players are brought into one final arena and fight each other (PvP). The last one alive wins the rescue.
+4. When the match timer ends (configurable; CHANGED 2026-11-25 from 10 to 5 minutes after playing milestone 3), the PvE stops. (ADDED 2026-11-25: in solo, the player then fights the final boss one against one; beating it wins. How this combines with the PvP below is to be decided in milestone 8.) All surviving players are brought into one final arena and fight each other (PvP). The last one alive wins the rescue.
 
 ==================================================
 2. ENGINE & TECH STACK (WEB / HTML)

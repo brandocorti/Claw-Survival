@@ -1,5 +1,5 @@
 // Solo PvE: survive the rounds on the beach clearing. WASD moves, Space rolls,
-// the slingshot fires by itself at the nearest enemy. R restarts after death.
+// the slingshot fires by itself at the nearest enemy. R restarts after the game ends.
 import * as Phaser from 'phaser';
 import { CONFIG } from '../../shared/config.js';
 import { BEACH_ARENA } from '../../shared/content/arenas/beach.js';
@@ -27,10 +27,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const { config, startRound, startCards, seed } = readDevOptions(CONFIG, window.location.search);
+    const { config, startRound, startCards, startAtBoss, seed } = readDevOptions(CONFIG, window.location.search);
     this.config = config;
     const handHeight = config.player.handHeight;
-    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards });
+    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards, startAtBoss });
     const world = this.transport.world;
     const localId = this.transport.localPlayerId;
 
@@ -58,9 +58,10 @@ export class GameScene extends Phaser.Scene {
     this.lastInput = { moveX: 0, moveY: 0, roll: false };
 
     this.input.keyboard.on('keydown-R', () => {
-      if (!this.transport.getLocalPlayer().alive) this.scene.restart();
+      const over = !this.transport.getLocalPlayer().alive || this.transport.world.match.phase === 'won';
+      if (over) this.scene.restart();
     });
-    installEvidenceHotkey(this, 'm3-cards');
+    installEvidenceHotkey(this, 'm3-final-boss');
     if (import.meta.env.DEV) window.__scene = this; // for debugging in the console
   }
 
@@ -90,6 +91,7 @@ export class GameScene extends Phaser.Scene {
     this.abilityViews.sync(world, alpha, this.transport.renderTime);
 
     const events = this.transport.drainEvents();
+    this.mapView.handle(events);
     this.effects.handle(events);
     this.hud.handle(events);
     this.hud.update(world, local);
@@ -99,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
     if (target && !target.dead) {
       const c = this.enemyViews.bodyCenter(target, alpha);
-      this.targetMark.setVisible(true).setPosition(c.x, c.y).setScale(target.boss ? 2 : 1);
+      this.targetMark.setVisible(true).setPosition(c.x, c.y).setScale(Math.max(1, Math.round(target.radius / 5)));
     } else {
       this.targetMark.setVisible(false);
     }

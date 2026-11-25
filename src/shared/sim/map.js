@@ -58,21 +58,24 @@ export function tileAt(map, tx, ty) {
   return map.tiles[ty * map.width + tx];
 }
 
+/** How something travels -> the tile rule that stops it. */
+const BLOCK_RULE = { walk: 'blocksMove', fly: 'blocksFlying', giant: 'blocksGiant' };
+
 /**
- * True if a tile stops walkers (or flyers, when flying is true).
+ * True if a tile stops something that travels this way.
  * @param {ArenaMap} map
+ * @param {'walk'|'fly'|'giant'} [travel]
  */
-export function tileBlocks(map, tx, ty, flying = false) {
-  const rules = TILE_RULES[tileAt(map, tx, ty)];
-  return flying ? rules.blocksFlying : rules.blocksMove;
+export function tileBlocks(map, tx, ty, travel = 'walk') {
+  return TILE_RULES[tileAt(map, tx, ty)][BLOCK_RULE[travel]];
 }
 
 /**
  * True if a box (center x,y, half-size r) overlaps any blocking tile.
  * @param {ArenaMap} map
- * @param {boolean} [flying] - flyers pass over water
+ * @param {'walk'|'fly'|'giant'} [travel]
  */
-export function boxBlocked(map, x, y, r, flying = false) {
+export function boxBlocked(map, x, y, r, travel = 'walk') {
   const ts = map.tileSize;
   const x0 = Math.floor((x - r) / ts);
   const x1 = Math.floor((x + r - 0.001) / ts);
@@ -80,7 +83,7 @@ export function boxBlocked(map, x, y, r, flying = false) {
   const y1 = Math.floor((y + r - 0.001) / ts);
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
-      if (tileBlocks(map, tx, ty, flying)) return true;
+      if (tileBlocks(map, tx, ty, travel)) return true;
     }
   }
   return false;
@@ -114,10 +117,10 @@ export function lineBlocked(map, x0, y0, x1, y1) {
  * Moves a box by (dx, dy), one axis at a time, stopping flush against walls.
  * Sub-steps keep fast movement (rolls, charges) from tunneling through thin walls.
  * @param {ArenaMap} map
- * @param {boolean} [flying]
+ * @param {'walk'|'fly'|'giant'} [travel]
  * @returns {{ x: number, y: number, hitX: boolean, hitY: boolean }}
  */
-export function moveBox(map, x, y, r, dx, dy, flying = false) {
+export function moveBox(map, x, y, r, dx, dy, travel = 'walk') {
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / (r * 0.9)));
   const sx = dx / steps;
   const sy = dy / steps;
@@ -125,7 +128,7 @@ export function moveBox(map, x, y, r, dx, dy, flying = false) {
   let hitY = false;
   for (let i = 0; i < steps; i++) {
     if (!hitX && sx !== 0) {
-      if (boxBlocked(map, x + sx, y, r, flying)) {
+      if (boxBlocked(map, x + sx, y, r, travel)) {
         x = snapToWall(map, x, sx, r);
         hitX = true;
       } else {
@@ -133,7 +136,7 @@ export function moveBox(map, x, y, r, dx, dy, flying = false) {
       }
     }
     if (!hitY && sy !== 0) {
-      if (boxBlocked(map, x, y + sy, r, flying)) {
+      if (boxBlocked(map, x, y + sy, r, travel)) {
         y = snapToWall(map, y, sy, r);
         hitY = true;
       } else {

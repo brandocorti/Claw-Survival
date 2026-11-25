@@ -89,27 +89,31 @@ const TIKI = {
   },
 };
 
-/** 2x crab with a crown, built from the crab art. */
-function crabKingFrames() {
+/** Enlarged crab with a crown, built from the crab art. */
+function crownedCrabFrames(scale) {
   const crown = [
     '..........G..GG..G..........',
     '..........GG.GG.GG..........',
     '..........GGGJJGGG..........',
   ];
+  const width = CRAB.frames[0][0].length * scale;
+  const centered = crown.map((row) => row.padStart((width + row.length) / 2, '.').padEnd(width, '.'));
   return CRAB.frames.map((rows) => [
-    ...crown,
-    ...rows.flatMap((row) => {
-      const wide = [...row].map((c) => c + c).join('');
-      return [wide, wide];
-    }),
+    ...centered,
+    ...rows.flatMap((row) => Array(scale).fill([...row].map((c) => c.repeat(scale)).join(''))),
   ]);
 }
 const CRAB_KING = {
-  frames: crabKingFrames(),
+  frames: crownedCrabFrames(2),
   colors: { ...CRAB.colors, G: '#f0c040', J: '#ff3a3a' },
 };
+/** Final boss: bigger, dark armour with glowing orange eyes. */
+const CRAB_EMPEROR = {
+  frames: crownedCrabFrames(3),
+  colors: { R: '#2f4a5e', r: '#1b2c3a', h: '#6f9bb0', W: '#ffb52e', K: P.outline, G: '#f0c040', J: '#ff3a3a' },
+};
 
-export const ENEMY_ART = { crab: CRAB, coconut: COCONUT, skeleton: SKELETON, tiki: TIKI, crabKing: CRAB_KING };
+export const ENEMY_ART = { crab: CRAB, coconut: COCONUT, skeleton: SKELETON, tiki: TIKI, crabKing: CRAB_KING, crabEmperor: CRAB_EMPEROR };
 
 /**
  * Builds every enemy spritesheet. Call once, in BootScene.

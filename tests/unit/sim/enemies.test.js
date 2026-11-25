@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { makeWorld, placeEnemy, placeSturdyEnemy, run, runCollect, POND_ROOM, BIG_ROOM, TEST_CONFIG } from '../helpers/fixtures.js';
+import { pointBlocksBullet } from '../../../src/shared/sim/map.js';
+import { makeWorld, placeEnemy, placeSturdyEnemy, run, runCollect, POND_ROOM, OBSTACLE_ROOM, BIG_ROOM, TEST_CONFIG } from '../helpers/fixtures.js';
 
 describe('walking enemies', () => {
   it('a crab walks toward the player', () => {
@@ -86,5 +87,32 @@ describe('shooting enemies', () => {
     king.timer = 0;
     run(world, 1);
     expect(king.state).toBe('ringWindup');
+  });
+});
+
+describe('giants (bosses)', () => {
+  it.each(['crabKing', 'crabEmperor'])('%s walks straight over water instead of getting stuck', (type) => {
+    const { world, player } = makeWorld({ arena: POND_ROOM });
+    player.invulnerableTime = 9999;
+    const boss = placeSturdyEnemy(world, type, 12.5 * 16, 3.5 * 16);
+    boss.state = 'walk';
+    boss.timer = 999; // no attacks, just walking
+    run(world, 60 * 6);
+    expect(Math.hypot(boss.x - player.x, boss.y - player.y)).toBeLessThan(25);
+  });
+
+  it('crushes rocks it walks over but is stopped by cliffs', () => {
+    const { world, player } = makeWorld({ arena: OBSTACLE_ROOM });
+    player.invulnerableTime = 9999;
+    const boss = placeSturdyEnemy(world, 'crabEmperor', 8 * 16, 2.5 * 16); // rock at tile (4, 2) in between
+    boss.state = 'charge';
+    boss.timer = 999;
+    boss.dirX = -1;
+    boss.dirY = 0;
+    const events = runCollect(world, 120);
+    expect(events.filter((e) => e.type === 'rockCrushed').map((e) => [e.tx, e.ty])).toEqual([[4, 2]]);
+    expect(pointBlocksBullet(world.map, 4.5 * 16, 2.5 * 16)).toBe(false); // shots pass now
+    expect(boss.x).toBeLessThan(4 * 16);
+    expect(boss.x).toBeGreaterThanOrEqual(16 + boss.radius); // left wall ends at x = 16
   });
 });

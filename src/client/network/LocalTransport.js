@@ -5,9 +5,9 @@ import { createWorld, addPlayer, stepWorld, drainEvents } from '../../shared/sim
 
 export class LocalTransport {
   /**
-   * @param {{ config: object, arena: { id: string, rows: string[] }, seed?: number, playerId?: string, startRound?: number, startCards?: number }} options
+   * @param {{ config: object, arena: { id: string, rows: string[] }, seed?: number, playerId?: string, startRound?: number, startCards?: number, startAtBoss?: boolean }} options
    */
-  constructor({ config, arena, seed = 1, playerId = 'local', startRound = 1, startCards = 0 }) {
+  constructor({ config, arena, seed = 1, playerId = 'local', startRound = 1, startCards = 0, startAtBoss = false }) {
     this.config = config;
     this.localPlayerId = playerId;
     this.world = createWorld({ config, arena, seed });
@@ -20,6 +20,11 @@ export class LocalTransport {
       const len = config.match.durationSeconds / config.rounds.count;
       this.world.match.elapsed = (startRound - 1) * len;
       this.world.match.round = startRound;
+    }
+    if (startAtBoss) {
+      // Dev shortcut (?boss): the waves are over, go straight to the final boss.
+      this.world.match.elapsed = config.match.durationSeconds;
+      this.world.match.round = config.rounds.count;
     }
     this.accumulator = 0;
     this.pendingRoll = false;

@@ -7,12 +7,12 @@ export const angleTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 
 /**
  * Sets the enemy's velocity toward the target. Walkers follow the flow field
- * around ponds and rocks; flyers go straight.
+ * around ponds and rocks; flyers and giants go straight.
  */
 export function moveToward(world, enemy, target, speed) {
   let dx = target.x - enemy.x;
   let dy = target.y - enemy.y;
-  if (!enemy.flying) {
+  if (enemy.travel === 'walk') {
     const dir = world.flowField.directionFrom(enemy.x, enemy.y);
     if (dir) {
       dx = dir.x;

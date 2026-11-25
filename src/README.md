@@ -18,7 +18,7 @@ nearest enemy in range with a clear line of sight. R restarts after you die.
 
 In the game (dev mode only): **F9** saves a 3x screenshot to `production/qa/evidence/`.
 Dev URL options (combine with `&`): `?fast` (100 s match, 20 s rounds),
-`?round=3` (start at round 3), `?tough` (10 hearts), `?cards=5` (start with 5 cards to pick), `?seed=42` (same spawns every run).
+`?round=3` (start at round 3), `?boss` (straight to the final boss), `?tough` (10 hearts), `?cards=5` (start with 5 cards to pick), `?seed=42` (same spawns every run).
 Example: `http://localhost:5173/?fast&round=3&tough` shows the Crab King within seconds.
 
 ## Where things live

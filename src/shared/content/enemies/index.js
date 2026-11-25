@@ -10,5 +10,6 @@ import { coconut } from './coconut.js';
 import { skeleton } from './skeleton.js';
 import { tiki } from './tiki.js';
 import { crabKing } from './crabKing.js';
+import { crabEmperor } from './crabEmperor.js';
 
-export const ENEMY_TYPES = Object.freeze({ crab, coconut, skeleton, tiki, crabKing });
+export const ENEMY_TYPES = Object.freeze({ crab, coconut, skeleton, tiki, crabKing, crabEmperor });

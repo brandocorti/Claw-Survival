@@ -60,6 +60,11 @@ export class FlowField {
     }
   }
 
+  /** Forces a recompute on the next update (the map changed). */
+  invalidate() {
+    this.sourceKey = '';
+  }
+
   /**
    * Direction (unit vector) a walker at (x, y) should move to get closer to a player,
    * or null if it is already in a player's tile or no path exists.

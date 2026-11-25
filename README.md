@@ -57,8 +57,9 @@ npm run smoke        # tests + production build into dist/
 
 | Option | Effect |
 |---|---|
-| `?fast` | 100 s match (20 s rounds) instead of 10 minutes |
+| `?fast` | 100 s match (20 s rounds) instead of 5 minutes |
 | `?round=3` | Start at round 3 |
+| `?boss` | Go straight to the final boss |
 | `?tough` | 10 hearts instead of 3 |
 | `?cards=5` | Start with 5 cards to pick |
 | `?seed=42` | Same enemy spawns every run |

@@ -1,7 +1,8 @@
 // Runs every enemy's behaviour, keeps them from stacking on top of each other,
 // moves them, and applies contact damage to players.
 import { isActive } from '../entities/enemy.js';
-import { moveBox } from '../map.js';
+import { moveBox, tileAt } from '../map.js';
+import { TILE } from '../../content/tiles.js';
 import { EPSILON } from '../math.js';
 import { damagePlayer } from './damage.js';
 
@@ -53,10 +54,11 @@ export function updateEnemies(world, dt) {
       sx += d2 === 0 ? (e.id % 2 ? push : -push) : (dx / d) * push;
       sy += (dy / d) * push;
     });
-    const result = moveBox(world.map, e.x, e.y, e.radius, (e.vx + sx) * dt, (e.vy + sy) * dt, e.flying);
+    const result = moveBox(world.map, e.x, e.y, e.radius, (e.vx + sx) * dt, (e.vy + sy) * dt, e.travel);
     e.hitWall = result.hitX || result.hitY;
     e.x = result.x;
     e.y = result.y;
+    if (e.travel === 'giant') crushRocks(world, e);
   }
 
   // 3. Grid with the new positions, used by bullets and explosions this tick.
@@ -71,6 +73,23 @@ export function updateEnemies(world, dt) {
       if (def.onContact) def.onContact(world, e, p);
       else damagePlayer(world, p, world.config.enemies[e.type].contactDamage);
     });
+  }
+}
+
+/**
+ * Giants turn the rocks they touch into sand. Otherwise one standing on a rock
+ * could not be shot, because rocks stop bullets.
+ */
+function crushRocks(world, e) {
+  const { map } = world;
+  const ts = map.tileSize;
+  for (let ty = Math.floor((e.y - e.radius) / ts); ty <= Math.floor((e.y + e.radius) / ts); ty++) {
+    for (let tx = Math.floor((e.x - e.radius) / ts); tx <= Math.floor((e.x + e.radius) / ts); tx++) {
+      if (tileAt(map, tx, ty) !== TILE.ROCK) continue;
+      map.tiles[ty * map.width + tx] = TILE.SAND;
+      world.flowField.invalidate();
+      world.events.push({ type: 'rockCrushed', tx, ty, x: (tx + 0.5) * ts, y: (ty + 0.5) * ts });
+    }
   }
 }
 

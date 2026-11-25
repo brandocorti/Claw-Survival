@@ -28,34 +28,42 @@ export const CONFIG = {
   },
 
   match: {
-    /** PvE length. When it runs out, the final PvP starts (milestone 8). */
-    durationSeconds: 600,
+    /** Length of the waves. When it runs out, the final boss duel starts (and later the PvP, milestone 8). */
+    durationSeconds: 300,
   },
 
   rounds: {
-    /** The match is split into this many equal rounds (600 s / 5 = 2 min each). */
+    /** The match is split into this many equal rounds (300 s / 5 = 1 min each). */
     count: 5,
     /** No spawns for this long at the start of each round, while the banner shows. */
-    breakSeconds: 3,
+    breakSeconds: 2,
     /** Rounds that end with a mini-boss (1-based). */
-    bossRounds: [3, 5],
+    bossRounds: [3],
     /** The boss appears when this many seconds are left in a boss round. */
-    bossAtSecondsLeft: 30,
+    bossAtSecondsLeft: 25,
     /** Enemy mix per round, as relative weights. Later rounds reuse the last entry. */
     enemyWeights: [
-      { crab: 6, coconut: 2 },
-      { crab: 5, coconut: 3, skeleton: 2 },
-      { crab: 4, coconut: 3, skeleton: 3, tiki: 1 },
-      { crab: 4, coconut: 3, skeleton: 3, tiki: 2 },
-      { crab: 4, coconut: 4, skeleton: 4, tiki: 3 },
+      { crab: 6, coconut: 3, skeleton: 1 },
+      { crab: 5, coconut: 3, skeleton: 2, tiki: 1 },
+      { crab: 5, coconut: 3, skeleton: 3, tiki: 1 },
+      { crab: 5, coconut: 3, skeleton: 3, tiki: 2 },
+      { crab: 5, coconut: 4, skeleton: 3, tiki: 2 },
     ],
+  },
+
+  finalBoss: {
+    type: 'crabEmperor',
+    /** Calm between the last enemy vanishing and the boss appearing. */
+    introSeconds: 3,
+    /** Half hearts given back before the duel. */
+    healBefore: 0,
   },
 
   spawning: {
     /** Enemies per second in round 1. Formula in shared/sim/systems/spawner.js. */
-    baseRate: 0.6,
+    baseRate: 1.6,
     /** Added to the rate for each round after the first. */
-    ratePerRound: 0.45,
+    ratePerRound: 0.3,
     /** The rate grows by this fraction from the start to the end of each round (0.8 = +80%). */
     rampWithinRound: 0.8,
     /** Spawning pauses while this many enemies are alive (performance budget). */
@@ -65,8 +73,8 @@ export const CONFIG = {
     maxDistance: 260,
     /** Warning time: a sand swirl shows where an enemy will appear; it cannot hurt or be hurt yet. */
     spawnDelay: 0.7,
-    /** Enemy health grows by this fraction per round (0.3 = +30% per round). */
-    healthPerRound: 0.3,
+    /** Enemy health grows by this fraction per round (0.15 = +15% per round). */
+    healthPerRound: 0.15,
   },
 
   player: {
@@ -153,6 +161,19 @@ export const CONFIG = {
       charge: { windup: 0.7, speed: 160, duration: 0.7 },
       fan: { windup: 0.5, count: 5, spread: 0.9, bulletSpeed: 75, damage: 1, range: 280 },
       ring: { windup: 0.6, count: 14, bulletSpeed: 60, damage: 1, range: 300 },
+    },
+    /** Final boss. Health also grows with the round, like every enemy. */
+    crabEmperor: {
+      hp: 800, speed: 34, radius: 15, contactDamage: 2, xp: 0, boss: true,
+      spawnDelay: 1.6,
+      pattern: ['fan', 'charge', 'ring'],
+      /** Used below half health. */
+      enragedPattern: ['spiral', 'charge', 'fan', 'ring', 'charge'],
+      attackPause: 1.0,
+      charge: { windup: 0.6, speed: 190, duration: 0.8 },
+      fan: { windup: 0.5, count: 7, spread: 1.2, bulletSpeed: 85, damage: 1, range: 300 },
+      ring: { windup: 0.6, count: 16, bulletSpeed: 65, damage: 1, range: 320 },
+      spiral: { windup: 0.7, duration: 2.2, interval: 0.14, arms: 3, turn: 0.22, bulletSpeed: 70, damage: 1, range: 320 },
     },
   },
 

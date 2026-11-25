@@ -10,6 +10,7 @@ export const TEST_CONFIG = Object.freeze({
   display: { width: 480, height: 270, tileSize: 16 },
   camera: { followLerp: 0.12, moveLookAhead: 16 },
   match: { durationSeconds: 100 },
+  finalBoss: { type: 'crabEmperor', introSeconds: 2, healBefore: 0 },
   rounds: {
     count: 5,
     breakSeconds: 3,
@@ -60,6 +61,14 @@ export const TEST_CONFIG = Object.freeze({
       charge: { windup: 0.7, speed: 160, duration: 0.7 },
       fan: { windup: 0.5, count: 5, spread: 0.9, bulletSpeed: 75, damage: 1, range: 280 },
       ring: { windup: 0.6, count: 14, bulletSpeed: 60, damage: 1, range: 300 },
+    },
+    crabEmperor: {
+      hp: 100, speed: 30, radius: 15, contactDamage: 2, xp: 30, boss: true, spawnDelay: 1,
+      pattern: ['fan', 'charge', 'ring'], enragedPattern: ['spiral'], attackPause: 1,
+      charge: { windup: 0.6, speed: 190, duration: 0.8 },
+      fan: { windup: 0.5, count: 7, spread: 1.2, bulletSpeed: 85, damage: 1, range: 300 },
+      ring: { windup: 0.6, count: 16, bulletSpeed: 65, damage: 1, range: 320 },
+      spiral: { windup: 0.7, duration: 2, interval: 0.2, arms: 3, turn: 0.2, bulletSpeed: 70, damage: 1, range: 320 },
     },
   },
   enemyBullets: { radius: 3 },

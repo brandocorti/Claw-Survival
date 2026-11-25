@@ -1,6 +1,6 @@
 // Pixel-art HUD: XP bar across the top, level + hearts at the top left, round
 // in the middle, match timer and kills at the top right, boss bar at the bottom,
-// owned ability icons on the left, round / boss banners, and the game-over screen.
+// owned ability icons on the left, round / boss banners, and the end screen (lost or won).
 import { addPixelText } from '../art/pixelFont.js';
 import { PALETTE as P, hexToInt } from '../art/palette.js';
 import { DEPTH } from '../systems/depth.js';
@@ -8,6 +8,7 @@ import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
 
 const MAX_HEARTS_DRAWN = 14;
 const MARGIN = 4;
+const BOSS_NAMES = { crabKing: 'CRAB KING', crabEmperor: 'CRAB EMPEROR' };
 
 export class Hud {
   /**
@@ -41,7 +42,7 @@ export class Hud {
       .setAlpha(0.9);
     scene.tweens.add({ targets: this.hint, alpha: 0, delay: 9000, duration: 1500 });
 
-    this.gameOver = null;
+    this.endScreen = null;
   }
 
   /** @param {import('../../shared/protocol.js').SimEvent[]} events */
@@ -51,7 +52,10 @@ export class Hud {
         const last = e.round === this.config.rounds.count;
         this.showBanner(`ROUND ${e.round}`, last ? 'FINAL ROUND - HOLD ON!' : 'THE TIDE RISES');
       } else if (e.type === 'bossSpawned') {
-        this.showBanner('CRAB KING!', 'THE KING OF THE BEACH IS ANGRY', P.enemyShot);
+        const subtitle = e.enemyType === 'crabEmperor' ? 'ONE AGAINST ONE' : 'THE KING OF THE BEACH IS ANGRY';
+        this.showBanner(`${BOSS_NAMES[e.enemyType]}!`, subtitle, P.enemyShot);
+      } else if (e.type === 'finalBossIntro') {
+        this.showBanner('TIME IS UP', 'THE BEACH GOES QUIET...', P.shotRim);
       } else if (e.type === 'playerHit' && e.playerId === this.localPlayerId) {
         this.heartShakeUntil = this.scene.time.now + 250;
       }
@@ -112,7 +116,9 @@ export class Hud {
 
     // Round, timer, kills
     const m = world.match;
-    this.roundText.setText(`ROUND ${m.round}/${this.config.rounds.count}`);
+    const waves = m.phase === 'waves';
+    this.roundText.setText(waves ? `ROUND ${m.round}/${this.config.rounds.count}` : 'FINAL BOSS');
+    this.timerText.setVisible(waves);
     const left = Math.max(0, this.config.match.durationSeconds - m.elapsed);
     const mm = String(Math.floor(left / 60)).padStart(2, '0');
     const ss = String(Math.floor(left % 60)).padStart(2, '0');
@@ -123,7 +129,7 @@ export class Hud {
     const boss = world.enemies.find((e) => e.boss && !e.dead && e.spawnDelay <= 0);
     this.bossText.setVisible(Boolean(boss));
     if (boss) {
-      this.bossText.setText('CRAB KING');
+      this.bossText.setText(BOSS_NAMES[boss.type]);
       const bw = 160;
       const bx = (this.w - bw) / 2;
       const by = this.h - 9;
@@ -132,19 +138,21 @@ export class Hud {
       g.fillStyle(hexToInt(P.bossBar)).fillRect(bx, by, Math.ceil((bw * boss.hp) / boss.maxHp), 4);
     }
 
-    if (!player.alive && !this.gameOver) this.showGameOver(world, player);
+    if (this.endScreen) return;
+    if (!player.alive) this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'PRESS R TO TRY AGAIN');
+    else if (m.phase === 'won') this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'PRESS R TO PLAY AGAIN');
   }
 
-  showGameOver(world, player) {
+  showEnd(world, player, heading, color, hint) {
     const s = this.scene;
     const fixed = (obj) => obj.setScrollFactor(0).setDepth(DEPTH.HUD + 10);
     const dim = fixed(s.add.rectangle(0, 0, this.w, this.h, 0x0d0a08, 0.65).setOrigin(0));
-    const title = fixed(addPixelText(s, this.w / 2, 90, 'WASHED OUT').setOrigin(0.5).setScale(3)).setTint(hexToInt(P.enemyShot));
+    const title = fixed(addPixelText(s, this.w / 2, 90, heading).setOrigin(0.5).setScale(3)).setTint(hexToInt(color));
     const stats = fixed(
-      addPixelText(s, this.w / 2, 120, `ROUND ${world.match.round}   LEVEL ${player.level}   KILLS ${player.kills}`).setOrigin(0.5),
+      addPixelText(s, this.w / 2, 120, `${world.match.phase === 'waves' ? `ROUND ${world.match.round}` : 'FINAL BOSS'}   LEVEL ${player.level}   KILLS ${player.kills}`).setOrigin(0.5),
     );
-    const retry = fixed(addPixelText(s, this.w / 2, 140, 'PRESS R TO TRY AGAIN').setOrigin(0.5));
+    const retry = fixed(addPixelText(s, this.w / 2, 140, hint).setOrigin(0.5));
     s.tweens.add({ targets: retry, alpha: 0.3, yoyo: true, repeat: -1, duration: 500 });
-    this.gameOver = [dim, title, stats, retry];
+    this.endScreen = [dim, title, stats, retry];
   }
 }

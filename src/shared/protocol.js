@@ -34,5 +34,9 @@ export function createEmptyInput() {
  *   | { type: 'cardsOffered', playerId: string, cards: string[] }
  *   | { type: 'cardPicked', playerId: string, abilityId: string, level: number }
  *   | { type: 'roundStarted', round: number }
+ *   | { type: 'rockCrushed', tx: number, ty: number, x: number, y: number }
+ *   | { type: 'enemyDespawned', x: number, y: number }
+ *   | { type: 'finalBossIntro' }
+ *   | { type: 'matchWon' }
  *   | { type: 'bossSpawned', id: number, enemyType: string }} SimEvent
  */

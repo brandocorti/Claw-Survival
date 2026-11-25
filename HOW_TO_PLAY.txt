@@ -91,10 +91,12 @@ CONTROLS
     R ........................ try again after you die
     F9 ....................... save a screenshot (developers)
 
-Goal: survive 5 rounds (10 minutes) of crabs, exploding coconuts,
+Goal: survive 5 rounds (5 minutes) of crabs, exploding coconuts,
 skeleton pirates and tiki spirits. Pick up the XP gems that enemies
 drop to level up: the game pauses and you choose 1 of 3 cards.
-Picking the same card again makes it stronger. The Crab King appears in rounds 3 and 5.
+Picking the same card again makes it stronger. The Crab King appears in round 3.
+When the 5 minutes are over, everything vanishes and you fight the
+final boss, the Crab Emperor, one against one. Beat it to win.
 
 Tip: dodge-roll THROUGH red bullets. Enemies flash yellow just
 before they attack.
@@ -106,6 +108,7 @@ SHORTCUTS FOR TESTING (add to the address)
 
     http://localhost:5173/?fast            whole match in 100 seconds
     http://localhost:5173/?round=3         start at round 3
+    http://localhost:5173/?boss&cards=15   go straight to the final boss
     http://localhost:5173/?tough           10 hearts instead of 3
     http://localhost:5173/?cards=5         start with 5 cards to pick
     http://localhost:5173/?fast&round=3&tough
