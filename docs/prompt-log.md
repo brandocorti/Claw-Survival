@@ -142,6 +142,29 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Problem found:** during verification, `damage.test.js` initially asserted `attackerId: null` for a player-killed coconut explosion, whereas `coconut.js` forwards `killerId` (`'p1'`) to `queueExplosion()` so chain-reaction kills credit the player.
 - **Change made and why:** updated the test expectation to match existing explosion credit propagation (`attackerId: 'p1'`) without changing coconut behavior.
 
+### [Gameplay] Phase 2+3: timed buffs, shield/bomb cards, and volcano hazards — 2026-11-25 — Team
+- **Goal:** implement the 5 remaining solo timed pickup buffs, 2 defensive/artillery card abilities (`orbitShield`, `bombCannon`), and the dynamic volcano eruption hazard system, keeping simulation strictly decoupled from Phaser rendering so parallel teammate work on graphics, audio, and multiplayer remains unblocked.
+- **Tool/model:** Antigravity IDE (Gemini 4 Hydrogen for `/grill-me` alignment & `/plan`, Gemini 4 Flash for `/swarm` subagent fanout).
+- **Prompt (summary, multi-stage):**
+  1. **Interactive Alignment (`/grill-me`):** Clarified mechanics and constraints through structured questions:
+     - Buff behaviors: `totalShield` makes player invulnerable; `multiDirFire` shoots in 4 cardinal directions; `lifesteal` heals 1 HP every 8 enemy hits or kills up to 3 heals; `thorns` reflects damage back to attackers (capped at 20 against bosses); `homing` steers bullets toward nearest enemy.
+     - New card abilities: `orbitShield` spawns orbiting shells that absorb enemy bullets (and reflect them at level 3+); `bombCannon` periodically lobs explosive shells over obstacles toward nearest enemy.
+     - Hazards: Volcano periodic eruptions drop fiery warning rings and falling rocks across walkable island sand that damage players and enemies.
+     - Integration safety: zero changes to `tiles.js`, `beach.js`, `tileArt.js`, or `MapView.js` to avoid conflicts with ongoing graphics/tileset overhaul.
+  2. **Architectural Plan (`/plan`):** Formulated two-stage execution architecture with strict boundaries: Stage 1 isolated feature authoring (`effects-author`, `abilities-author`, `hazards-author`, `art-author`), Stage 2 integration & validation (`sim-integrator`, `client-integrator`, `verifier`, `docs-author`).
+  3. **Swarm Execution (`/swarm`):** Orchestrated 8 specialized subagents working on non-overlapping file sets with strict coordination through typed `SimEvent` queues (`totalShieldBlocked`, `shieldBlocked`, `shieldReflected`, `thornsHit`, `lifestealHeal`, `bombLaunched`, `volcanoStarted`, `volcanoRockImpact`) and plain serializable JSON state (`world.bombs`, `world.hazards`, `player.effects`).
+- **Result:**
+  - `effects-author` created `totalShield.js`, `multiDirFire.js`, `lifesteal.js`, `thorns.js`, `homing.js`.
+  - `abilities-author` implemented `bomb.js` entity, `orbitShield.js` (with bullet blocking and L3+ reflection), and `bombCannon.js` (ballistic arc over rocks).
+  - `hazards-author` implemented `src/shared/sim/systems/hazards.js` with `spawnVolcanoRock`, `triggerVolcanoEruption`, and `updateHazards`.
+  - `art-author` added 11x11 icons in `effectArt.js` & `cardArt.js` plus 8x8 `orbitShield`, 7x7 `bomb`, and `shieldAura` ring sprites in `sprites.js`.
+  - `sim-integrator` hooked all entities, effects, abilities, weapons, combat steering, hazard updates, and damage checks into simulation loop.
+  - `client-integrator` implemented pooled `AbilityViews.js` (orbiting shells, ballistic bombs, hazard warning rings & rocks), player invulnerability pulse in `PlayerView.js`, and particle/sound event hooks in `EffectsSystem.js`.
+  - `verifier` authored 14 comprehensive unit tests in `effects.test.js`, `abilities.test.js`, and `hazards.test.js`, bringing coverage to 160 passing unit tests with 0 failures, and verified clean Vite bundle build.
+  - `docs-author` updated `changelog.md` and `prompt-log.md`.
+- **Problem found:** when multiple agents modify a shared codebase in parallel, simultaneous edits to central orchestrator files like `world.js`, `combat.js`, or `config.js` cause merge collisions and race conditions. Furthermore, client visual systems risk tightly coupling Phaser sprites with game state.
+- **Change made and why:** enforced a staged pipeline where authors wrote self-contained modules first, followed by single dedicated integrators (`sim-integrator`, `client-integrator`) who wired them into core loops. Used decoupled typed SimEvents and plain JSON data in `world` state, ensuring sim remains 100% pure JS and headless testable while completely isolating map/tileset files for the graphics team.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own
