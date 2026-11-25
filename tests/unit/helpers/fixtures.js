@@ -70,6 +70,20 @@ export const TEST_CONFIG = Object.freeze({
     curve: { base: 5, growth: 3, exponent: 1.25 },
     gemValues: [20, 5, 1],
   },
+  cards: { choices: 3 },
+  abilities: {
+    damage: { maxLevel: 5, damagePerLevel: 1 },
+    fireRate: { maxLevel: 5, ratePerLevel: 0.25 },
+    moveSpeed: { maxLevel: 5, speedPerLevel: 0.1 },
+    maxHearts: { maxLevel: 4, healthPerLevel: 2 },
+    multishot: { maxLevel: 3, shotsPerLevel: 1, spread: 0.2 },
+    piercing: { maxLevel: 3, piercePerLevel: 1 },
+    orbitCoconuts: { maxLevel: 4, perLevel: 1, orbitRadius: 36, angularSpeed: 2.6, radius: 5, damage: 2, hitCooldown: 0.5 },
+    fireTrail: {
+      maxLevel: 3, spacing: 10, radius: 8, hitCooldown: 0.4,
+      baseDamage: 1, damagePerLevel: 1, baseDuration: 1, durationPerLevel: 0.5,
+    },
+  },
 });
 
 /** Behaviours used in tests: the real ones plus a do-nothing dummy. */
@@ -139,11 +153,12 @@ export function input(overrides = {}) {
 }
 
 /**
- * World with one player 'p1' at the spawn. No automatic waves unless spawning is true.
+ * World with one player 'p1' at the spawn. No automatic waves unless spawning is true,
+ * and level-ups do not open the card choice unless cards is true.
  * @param {object} [options]
  */
-export function makeWorld({ arena = OPEN_ROOM, seed = 1, spawning = false, config = TEST_CONFIG } = {}) {
-  const world = createWorld({ config, arena, seed, spawning, enemyTypes: TEST_ENEMY_TYPES });
+export function makeWorld({ arena = OPEN_ROOM, seed = 1, spawning = false, cards = false, config = TEST_CONFIG } = {}) {
+  const world = createWorld({ config, arena, seed, spawning, cards, enemyTypes: TEST_ENEMY_TYPES });
   const player = addPlayer(world, 'p1');
   return { world, player };
 }

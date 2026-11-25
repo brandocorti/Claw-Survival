@@ -8,11 +8,12 @@
  * @property {number} moveX - -1..1 (A/D)
  * @property {number} moveY - -1..1 (W/S), +1 is down the screen
  * @property {boolean} roll - roll pressed since the last tick (edge, not held)
+ * @property {number|null} [pick] - index of the level-up card chosen, or null
  */
 
 /** @returns {PlayerInput} an input with nothing pressed */
 export function createEmptyInput() {
-  return { moveX: 0, moveY: 0, roll: false };
+  return { moveX: 0, moveY: 0, roll: false, pick: null };
 }
 
 /**
@@ -30,6 +31,8 @@ export function createEmptyInput() {
  *   | { type: 'playerDied', playerId: string, x: number, y: number }
  *   | { type: 'gemCollected', playerId: string, value: number }
  *   | { type: 'levelUp', playerId: string, level: number }
+ *   | { type: 'cardsOffered', playerId: string, cards: string[] }
+ *   | { type: 'cardPicked', playerId: string, abilityId: string, level: number }
  *   | { type: 'roundStarted', round: number }
  *   | { type: 'bossSpawned', id: number, enemyType: string }} SimEvent
  */

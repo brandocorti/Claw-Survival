@@ -174,4 +174,34 @@ export const CONFIG = {
     /** Gem sizes: an enemy's XP is split into the largest gems first. */
     gemValues: [20, 5, 1],
   },
+
+  cards: {
+    /** How many cards a level-up offers. */
+    choices: 3,
+  },
+
+  /**
+   * Ability cards. Picking a card again raises its level, up to maxLevel.
+   * Code lives in shared/content/abilities/<id>.js.
+   */
+  abilities: {
+    damage: { maxLevel: 5, damagePerLevel: 1 },
+    /** +20% of the weapon's base fire rate per level. */
+    fireRate: { maxLevel: 5, ratePerLevel: 0.2 },
+    /** +8% of the base move speed per level. */
+    moveSpeed: { maxLevel: 5, speedPerLevel: 0.08 },
+    /** In half hearts: 2 = one heart. Also heals that much when picked. */
+    maxHearts: { maxLevel: 4, healthPerLevel: 2 },
+    /** Extra pebbles per shot, fanned out by `spread` radians between neighbours. */
+    multishot: { maxLevel: 3, shotsPerLevel: 1, spread: 0.16 },
+    /** Extra enemies each pebble passes through. */
+    piercing: { maxLevel: 3, piercePerLevel: 1 },
+    /** Coconuts circling the player. The orbit is wider than an enemy coconut's blast on purpose. */
+    orbitCoconuts: { maxLevel: 4, perLevel: 1, orbitRadius: 36, angularSpeed: 2.6, radius: 5, damage: 2, hitCooldown: 0.5 },
+    /** Burning ground left by a dodge roll. Flying enemies are not burned. */
+    fireTrail: {
+      maxLevel: 3, spacing: 10, radius: 8, hitCooldown: 0.4,
+      baseDamage: 1, damagePerLevel: 1, baseDuration: 1, durationPerLevel: 0.5,
+    },
+  },
 };

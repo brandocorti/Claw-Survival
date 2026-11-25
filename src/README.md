@@ -13,12 +13,12 @@ npm test           # unit tests (Vitest)
 npm run smoke      # tests + production build into dist/
 ```
 
-**Controls:** WASD / arrows move, Space rolls. The slingshot fires by itself at the
+**Controls:** WASD / arrows move, Space rolls, mouse or 1 / 2 / 3 picks level-up cards. The slingshot fires by itself at the
 nearest enemy in range with a clear line of sight. R restarts after you die.
 
 In the game (dev mode only): **F9** saves a 3x screenshot to `production/qa/evidence/`.
 Dev URL options (combine with `&`): `?fast` (100 s match, 20 s rounds),
-`?round=3` (start at round 3), `?tough` (10 hearts), `?seed=42` (same spawns every run).
+`?round=3` (start at round 3), `?tough` (10 hearts), `?cards=5` (start with 5 cards to pick), `?seed=42` (same spawns every run).
 Example: `http://localhost:5173/?fast&round=3&tough` shows the Crab King within seconds.
 
 ## Where things live
@@ -46,8 +46,8 @@ milestone 5 and be unit tested now.
 `EffectsSystem` and `Hud` turn tick events (`shot`, `enemyDied`, `levelUp`…) into
 particles, shake and banners.
 
-One tick of `stepWorld()`: spawner (match clock, rounds, waves, boss) → player
-movement → enemy AI + separation + contact damage → auto-aim + shooting →
+One tick of `stepWorld()`: level-up cards (an open choice stops the tick here) → spawner (match clock, rounds, waves, boss) → player
+movement → enemy AI + separation + contact damage → abilities (orbiting coconuts, fire) → auto-aim + shooting →
 bullets → explosions → XP gems → remove the dead.
 
 ## Adding things
@@ -55,7 +55,7 @@ bullets → explosions → XP gems → remove the dead.
 - **A tuning change:** edit `shared/config.js`. Nothing else.
 - **A tile type:** add it to `shared/content/tiles.js` (character + collision
   rules), draw it in `client/art/tileArt.js`, map it in `client/entities/MapView.js`.
-- **An arena:** copy `shared/content/arenas/testArena.js`; every row the same length,
+- **An arena:** copy `shared/content/arenas/beach.js`; every row the same length,
   exactly one `P`.
 - **A sprite:** pixel strings in `client/art/sprites.js` (`.` = transparent);
   outlines are added automatically. Purple is reserved for curses (`art/palette.js`).
@@ -65,5 +65,8 @@ bullets → explosions → XP gems → remove the dead.
   (3) register it in `shared/content/enemies/index.js`; (4) pixel art in
   `client/art/enemyArt.js`; (5) add it to `rounds.enemyWeights` so it spawns.
   `tests/unit/art/art.test.js` fails if steps 2–4 are missing.
+- **An ability card:** the 4 steps are at the top of `shared/content/abilities/index.js`
+  (numbers in `config.js`, code, registration, icon). `art.test.js` fails if one is missing or
+  the text does not fit the card.
 - **A rule:** a function in `shared/sim/systems/`, called from `stepWorld()`, with a
   test in `tests/unit/sim/`. All damage goes through `systems/damage.js`.

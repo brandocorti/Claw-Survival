@@ -86,6 +86,18 @@ const SPAWN_MARK = [
   '...dddddd...',
 ];
 
+/** Orbiting coconut: green, so it never looks like the brown coconut enemy. */
+const ORBIT_COCONUT = [
+  '..GGGG..',
+  '.GLLGGG.',
+  'GLLGGGGD',
+  'GLGGGGGD',
+  'GGGGGGDD',
+  'GGGGGGDD',
+  '.GGGDDD.',
+  '..DDDD..',
+];
+
 /** XP gems: small (1 XP), medium (5), large (20). */
 const GEMS = {
   1: { rows: ['.C.', 'CWc', '.c.'], colors: { C: '#4de1ff', c: '#1f9fd0', W: P.white } },
@@ -138,6 +150,11 @@ export function createSprites(scene) {
   createTextureFromGrid(scene, 'shadow', gridFromStrings(SHADOW, { S: 'rgba(26,18,18,0.35)' }));
   createTextureFromGrid(scene, 'bulletShadow', gridFromStrings(['SS', 'SS'], { S: 'rgba(26,18,18,0.35)' }));
   createTextureFromGrid(scene, 'spawnMark', gridFromStrings(SPAWN_MARK, { d: '#8a6a3a', l: P.sandLight }));
+  createTextureFromGrid(
+    scene,
+    'orbitCoconut',
+    outlined(ORBIT_COCONUT, { G: '#8fd14a', L: '#dcf7a0', D: P.jungleLight }),
+  );
   createTextureFromGrid(scene, 'px', gridFromStrings(['WW', 'WW'], { W: P.white }));
   createTextureFromGrid(scene, 'ring', ringGrid(16, P.white));
 

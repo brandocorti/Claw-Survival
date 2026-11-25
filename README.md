@@ -17,8 +17,9 @@ built with generative AI (Claude Code); the process is documented in
 |---|---|---|
 | 1 | Project setup, pixel-perfect test arena, move / shoot / roll | ✅ done |
 | 2 | Enemies, waves, rounds, XP gems, HUD (+ survivors-style auto-aim controls) | ✅ done |
-| 3 | Level-up cards (abilities) | next |
-| 4–12 | Art pass, multiplayer server, curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
+| 3 | Level-up cards: 8 stackable abilities | ✅ done |
+| 4 | Island art pass | next |
+| 5–12 | Multiplayer server, curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
 
 Full plan: [`design/game-brief.md`](design/game-brief.md), section 9.
 
@@ -37,7 +38,7 @@ npm run dev          # then open http://localhost:5173
 ```
 
 ```bash
-npm test             # 78 unit tests (Vitest)
+npm test             # unit tests (Vitest)
 npm run smoke        # tests + production build into dist/
 ```
 
@@ -48,6 +49,7 @@ npm run smoke        # tests + production build into dist/
 | WASD / arrows | Move |
 | Space | Dodge roll (brief invulnerability, short cooldown) |
 | — | Your slingshot fires **by itself** at the nearest enemy in sight |
+| Mouse or 1 / 2 / 3 | Pick a card when you level up (the game pauses) |
 | R | Try again after you die |
 | F9 (dev) | Save a screenshot to `production/qa/evidence/` |
 
@@ -58,6 +60,7 @@ npm run smoke        # tests + production build into dist/
 | `?fast` | 100 s match (20 s rounds) instead of 10 minutes |
 | `?round=3` | Start at round 3 |
 | `?tough` | 10 hearts instead of 3 |
+| `?cards=5` | Start with 5 cards to pick |
 | `?seed=42` | Same enemy spawns every run |
 
 Example: <http://localhost:5173/?fast&round=3&tough> shows the Crab King within seconds.
@@ -68,7 +71,7 @@ Example: <http://localhost:5173/?fast&round=3&tough> shows the Crab King within 
 src/shared/   game rules: pure JavaScript, no Phaser (runs in the browser now, on the server later)
   config.js     every tuning value (speeds, enemy stats, rounds, XP curve)
   sim/          the simulation: world.js runs one fixed 60 Hz tick
-  content/      one file per enemy and arena
+  content/      enemies, abilities and arenas
 src/client/   Phaser: scenes, sprites, HUD, effects, input
 tests/unit/   Vitest tests for the rules
 design/       game brief (the design record)

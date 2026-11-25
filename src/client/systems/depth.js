@@ -7,5 +7,6 @@ export const DEPTH = Object.freeze({
   GROUND_FX: -400,
   FX: 5000,
   HUD: 9000,
+  MENU: 9500,
   RETICLE: 10000,
 });

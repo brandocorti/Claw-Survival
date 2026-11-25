@@ -40,6 +40,7 @@ export function findTarget(world, player) {
 export function updatePlayerWeapon(world, player, dt) {
   if (!player.alive) return;
   const weapon = world.config.weapons[player.weapon];
+  const { damage, fireRate, shots, shotSpread, pierce } = player.stats;
   const target = findTarget(world, player);
   player.targetId = target ? target.id : null;
   if (target) player.aim = Math.atan2(target.y - player.y, target.x - player.x);
@@ -55,14 +56,24 @@ export function updatePlayerWeapon(world, player, dt) {
   // so the fire rate stays exact even when 1/fireRate is not a whole number of ticks.
   if (player.fireCooldown > 0) player.fireCooldown -= dt;
 
-  const stats = { speed: weapon.bulletSpeed, range: weapon.range, damage: weapon.damage, radius: weapon.bulletRadius };
+  const stats = { speed: weapon.bulletSpeed, range: weapon.range, damage, radius: weapon.bulletRadius, pierce };
   while (player.fireCooldown <= EPSILON) {
-    const angle = player.aim + world.rng.range(-weapon.spread, weapon.spread);
-    const x = player.x + Math.cos(angle) * weapon.muzzleDistance;
-    const y = player.y + Math.sin(angle) * weapon.muzzleDistance;
-    world.bullets.push(createBullet(world.nextId++, player.id, 'player', x, y, angle, stats));
-    world.events.push({ type: 'shot', playerId: player.id, x, y, angle });
-    player.fireCooldown += 1 / weapon.fireRate;
+    const center = player.aim + world.rng.range(-weapon.spread, weapon.spread);
+    for (let i = 0; i < shots; i++) {
+      const angle = center + (i - (shots - 1) / 2) * shotSpread;
+      const x = player.x + Math.cos(angle) * weapon.muzzleDistance;
+      const y = player.y + Math.sin(angle) * weapon.muzzleDistance;
+      world.bullets.push(createBullet(world.nextId++, player.id, 'player', x, y, angle, stats));
+    }
+    // One event per volley: one flash (and later one sound), however many pebbles.
+    world.events.push({
+      type: 'shot',
+      playerId: player.id,
+      x: player.x + Math.cos(center) * weapon.muzzleDistance,
+      y: player.y + Math.sin(center) * weapon.muzzleDistance,
+      angle: center,
+    });
+    player.fireCooldown += 1 / fireRate;
   }
 }
 
@@ -96,17 +107,20 @@ export function updateBullets(world, dt) {
   bullets.length = kept;
 }
 
-/** @returns {boolean} true if the bullet hit (and should be removed) */
+/** @returns {boolean} true if the bullet hit and has no piercing left (remove it) */
 function hitEnemy(world, b) {
   let hit = null;
   world.grid.forEachNear(b.x, b.y, b.radius + 16, (e) => {
-    if (hit || !isActive(e)) return;
+    if (hit || !isActive(e) || b.hitIds.includes(e.id)) return;
     const r = e.radius + b.radius;
     if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 <= r * r) hit = e;
   });
   if (!hit) return false;
   damageEnemy(world, hit, b.damage, b.ownerId);
-  return true;
+  b.hitIds.push(hit.id);
+  if (b.pierce <= 0) return true;
+  b.pierce--;
+  return false;
 }
 
 /** @returns {boolean} true if the bullet hit (and should be removed) */

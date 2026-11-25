@@ -8,6 +8,7 @@ import { MapView } from '../entities/MapView.js';
 import { PlayerView } from '../entities/PlayerView.js';
 import { EnemyViews } from '../entities/EnemyViews.js';
 import { BulletViews } from '../entities/BulletViews.js';
+import { AbilityViews } from '../entities/AbilityViews.js';
 import { GemViews } from '../entities/GemViews.js';
 import { InputSystem } from '../systems/InputSystem.js';
 import { CameraSystem } from '../systems/CameraSystem.js';
@@ -15,6 +16,7 @@ import { EffectsSystem } from '../systems/EffectsSystem.js';
 import { installEvidenceHotkey } from '../systems/evidence.js';
 import { DEPTH } from '../systems/depth.js';
 import { Hud } from '../ui/Hud.js';
+import { CardScreen } from '../ui/CardScreen.js';
 import { addPixelText } from '../art/pixelFont.js';
 import { readDevOptions } from '../devOptions.js';
 import { TILESET_KEY } from './BootScene.js';
@@ -25,10 +27,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const { config, startRound, seed } = readDevOptions(CONFIG, window.location.search);
+    const { config, startRound, startCards, seed } = readDevOptions(CONFIG, window.location.search);
     this.config = config;
     const handHeight = config.player.handHeight;
-    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound });
+    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards });
     const world = this.transport.world;
     const localId = this.transport.localPlayerId;
 
@@ -38,6 +40,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews = new EnemyViews(this);
     this.bulletViews = new BulletViews(this, handHeight);
     this.gemViews = new GemViews(this);
+    this.abilityViews = new AbilityViews(this, config);
     this.inputSystem = new InputSystem(this);
     this.cameraSystem = new CameraSystem(this, config.camera, world.map);
     this.effects = new EffectsSystem(this, {
@@ -46,6 +49,7 @@ export class GameScene extends Phaser.Scene {
       shake: (ms, intensity) => this.cameraSystem.shake(ms, intensity),
     });
     this.hud = new Hud(this, config, localId);
+    this.cardScreen = new CardScreen(this, config);
     this.targetMark = this.add.image(0, 0, 'targetMark').setDepth(DEPTH.FX).setVisible(false);
 
     this.fpsText = addPixelText(this, config.display.width - 4, config.display.height - 10, '')
@@ -56,7 +60,7 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-R', () => {
       if (!this.transport.getLocalPlayer().alive) this.scene.restart();
     });
-    installEvidenceHotkey(this, 'm2-waves');
+    installEvidenceHotkey(this, 'm3-cards');
     if (import.meta.env.DEV) window.__scene = this; // for debugging in the console
   }
 
@@ -64,7 +68,7 @@ export class GameScene extends Phaser.Scene {
     const dt = deltaMs / 1000;
 
     // 1. Input -> simulation
-    const input = this.inputSystem.read();
+    const input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick() };
     this.lastInput = input;
     this.transport.update(deltaMs, input);
 
@@ -83,11 +87,13 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews.sync(world.enemies, alpha, world.time);
     this.bulletViews.sync(world.bullets, alpha);
     this.gemViews.sync(world.gems, alpha, world.time);
+    this.abilityViews.sync(world, alpha, this.transport.renderTime);
 
     const events = this.transport.drainEvents();
     this.effects.handle(events);
     this.hud.handle(events);
     this.hud.update(world, local);
+    this.cardScreen.update(local);
 
     // 3. Auto-aim target marker
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;

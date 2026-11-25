@@ -15,7 +15,10 @@
  * @property {number} maxHealth - half hearts
  * @property {number} xp - XP toward the next level
  * @property {number} level
- * @property {number} pendingLevelUps - level-ups whose card choice is still open (milestone 3)
+ * @property {number} pendingLevelUps - level-ups whose card has not been picked yet
+ * @property {Record<string, number>} abilities - ability id -> level
+ * @property {object} stats - derived numbers (damage, fireRate...), see systems/abilities.js
+ * @property {string[]|null} cardChoice - ability ids on offer while a level-up is open
  * @property {number} kills
  * @property {string} weapon - key into config.weapons
  * @property {number} fireCooldown - seconds until the next shot
@@ -53,6 +56,9 @@ export function createPlayer(id, x, y, config) {
     xp: 0,
     level: 1,
     pendingLevelUps: 0,
+    abilities: {},
+    stats: null,
+    cardChoice: null,
     kills: 0,
     weapon: p.startingWeapon,
     fireCooldown: 0,

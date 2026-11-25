@@ -108,6 +108,8 @@ Abilities (self-buffs, at least 8 to start), e.g.:
 - +damage, +fire rate, +move speed, +max hearts
 - multishot, piercing shots, orbiting coconuts, fire-trail roll
 
+(Decided 2026-11-25: picking an ability again makes it stronger, up to a maximum level per ability. The Space roll stays.)
+
 Bad perks (sent to another player, at least 6 to start). All are purple-themed and last a limited time unless stated otherwise, e.g.:
 - Slowed movement
 - Fog of war shrinking their vision

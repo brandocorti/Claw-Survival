@@ -12,8 +12,11 @@ import { updateEnemies, removeDeadEnemies } from './systems/enemies.js';
 import { processExplosions } from './systems/damage.js';
 import { updateGems } from './systems/xp.js';
 import { createMatchState, updateSpawner } from './systems/spawner.js';
+import { refreshStats, updateAbilities } from './systems/abilities.js';
+import { updateCards } from './systems/cards.js';
 import { createEmptyInput } from '../protocol.js';
 import { ENEMY_TYPES } from '../content/enemies/index.js';
+import { ABILITY_TYPES } from '../content/abilities/index.js';
 
 const NO_INPUT = Object.freeze(createEmptyInput());
 
@@ -24,16 +27,24 @@ const NO_INPUT = Object.freeze(createEmptyInput());
  * @param {{ id: string, rows: string[] }} options.arena
  * @param {number} [options.seed]
  * @param {boolean} [options.spawning] - false = no automatic waves (tests, sandbox)
+ * @param {boolean} [options.cards] - false = level-ups never open the card choice (tests)
  * @param {object} [options.enemyTypes] - behaviour registry (tests can inject their own)
+ * @param {object} [options.abilityTypes] - ability registry
  */
-export function createWorld({ config, arena, seed = 1, spawning = true, enemyTypes = ENEMY_TYPES }) {
+export function createWorld({
+  config, arena, seed = 1, spawning = true, cards = true, enemyTypes = ENEMY_TYPES, abilityTypes = ABILITY_TYPES,
+}) {
   const map = parseArena(arena, config.display.tileSize);
   return {
     config,
     map,
     rng: createRng(seed),
     enemyTypes,
+    abilityTypes,
     spawning,
+    cards,
+    /** True while a player in this arena is choosing a card: nothing moves. */
+    paused: false,
     tick: 0,
     time: 0,
     nextId: 1,
@@ -46,6 +57,8 @@ export function createWorld({ config, arena, seed = 1, spawning = true, enemyTyp
     bullets: [],
     /** @type {import('./entities/gem.js').Gem[]} */
     gems: [],
+    /** Burning ground patches (fire-trail roll). */
+    fires: [],
     pendingExplosions: [],
     grid: new SpatialGrid(map.width * map.tileSize, map.height * map.tileSize, 32),
     flowField: new FlowField(map),
@@ -61,6 +74,7 @@ export function createWorld({ config, arena, seed = 1, spawning = true, enemyTyp
  */
 export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.y) {
   const player = createPlayer(id, x, y, world.config);
+  refreshStats(world, player);
   world.players.push(player);
   return player;
 }
@@ -72,9 +86,6 @@ export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
  */
 export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
-  world.tick++;
-  world.time += dt;
-
   for (const list of [world.players, world.enemies, world.bullets, world.gems]) {
     for (const o of list) {
       o.prevX = o.x;
@@ -82,9 +93,17 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
     }
   }
 
+  // Level-up cards. In PvE every player has their own arena, so freezing this
+  // world pauses the game for that player only.
+  updateCards(world, inputs);
+  if (world.paused) return;
+
+  world.tick++;
+  world.time += dt;
   if (world.spawning) updateSpawner(world, dt);
   for (const p of world.players) updatePlayerMovement(world, p, inputs[p.id] ?? NO_INPUT, dt);
   updateEnemies(world, dt);
+  updateAbilities(world, dt);
   for (const p of world.players) updatePlayerWeapon(world, p, dt);
   updateBullets(world, dt);
   processExplosions(world);

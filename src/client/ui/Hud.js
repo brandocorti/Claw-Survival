@@ -1,12 +1,12 @@
 // Pixel-art HUD: XP bar across the top, level + hearts at the top left, round
 // in the middle, match timer and kills at the top right, boss bar at the bottom,
-// round / boss / level-up banners, and the game-over screen.
+// owned ability icons on the left, round / boss banners, and the game-over screen.
 import { addPixelText } from '../art/pixelFont.js';
 import { PALETTE as P, hexToInt } from '../art/palette.js';
 import { DEPTH } from '../systems/depth.js';
 import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
 
-const MAX_HEARTS_DRAWN = 10;
+const MAX_HEARTS_DRAWN = 14;
 const MARGIN = 4;
 
 export class Hud {
@@ -34,8 +34,8 @@ export class Hud {
 
     this.banner = fixed(addPixelText(scene, this.w / 2, 70, '').setOrigin(0.5).setScale(2)).setAlpha(0);
     this.subBanner = fixed(addPixelText(scene, this.w / 2, 86, '').setOrigin(0.5)).setAlpha(0);
-    this.levelUpText = fixed(addPixelText(scene, this.w / 2, 112, 'LEVEL UP!').setOrigin(0.5).setScale(2))
-      .setTint(hexToInt(P.xpBar)).setAlpha(0);
+    /** @type {Map<string, { icon: object, text: object }>} owned abilities */
+    this.abilityIcons = new Map();
 
     this.hint = fixed(addPixelText(scene, MARGIN, this.h - 10, 'WASD MOVE   SPACE ROLL   YOUR SLINGSHOT FIRES BY ITSELF'))
       .setAlpha(0.9);
@@ -52,9 +52,6 @@ export class Hud {
         this.showBanner(`ROUND ${e.round}`, last ? 'FINAL ROUND - HOLD ON!' : 'THE TIDE RISES');
       } else if (e.type === 'bossSpawned') {
         this.showBanner('CRAB KING!', 'THE KING OF THE BEACH IS ANGRY', P.enemyShot);
-      } else if (e.type === 'levelUp' && e.playerId === this.localPlayerId) {
-        this.levelUpText.setText(`LEVEL ${e.level}!`).setAlpha(1).setY(112);
-        this.scene.tweens.add({ targets: this.levelUpText, alpha: 0, y: 100, delay: 600, duration: 500 });
       } else if (e.type === 'playerHit' && e.playerId === this.localPlayerId) {
         this.heartShakeUntil = this.scene.time.now + 250;
       }
@@ -97,6 +94,20 @@ export class Hud {
       img.setVisible(true).setFrame(filled >= 2 ? 'full' : filled === 1 ? 'half' : 'empty');
       const jitter = shaking ? Math.round(Math.sin(this.scene.time.now / 20 + i) * 1.5) : 0;
       img.setPosition(30 + i * 10 + jitter, 9);
+    });
+
+    // Owned abilities, in the order they were first picked
+    Object.entries(player.abilities).forEach(([id, level], i) => {
+      let view = this.abilityIcons.get(id);
+      if (!view) {
+        const y = 28 + i * 16;
+        view = {
+          icon: this.scene.add.image(MARGIN, y, `card-${id}`).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.HUD),
+          text: addPixelText(this.scene, MARGIN + 15, y + 3, '').setScrollFactor(0).setDepth(DEPTH.HUD),
+        };
+        this.abilityIcons.set(id, view);
+      }
+      view.text.setText(String(level));
     });
 
     // Round, timer, kills

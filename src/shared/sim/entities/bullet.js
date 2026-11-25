@@ -15,6 +15,8 @@
  * @property {number} life - seconds before it drops
  * @property {number} damage
  * @property {number} radius
+ * @property {number} pierce - enemies it can still pass through
+ * @property {number[]} hitIds - enemies already hit, so each is hit once
  */
 
 /**
@@ -41,5 +43,7 @@ export function createBullet(id, ownerId, team, x, y, angle, stats) {
     life: stats.range / stats.speed,
     damage: stats.damage,
     radius: stats.radius,
+    pierce: stats.pierce ?? 0,
+    hitIds: [],
   };
 }

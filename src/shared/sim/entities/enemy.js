@@ -27,6 +27,7 @@
  * @property {number} speedNow - current speed for accelerating enemies (coconut)
  * @property {number} counter - behaviour counter (volleys fired, pattern step)
  * @property {number} lastHitTime - world time of the last hit taken (for the white flash)
+ * @property {Record<string, number>} hitCooldowns - world time until a repeating hit (orbit, fire) may hurt it again
  * @property {boolean} killedByPlayer - false when it blew itself up (no XP)
  */
 
@@ -67,6 +68,7 @@ export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
     speedNow: stats.speed,
     counter: 0,
     lastHitTime: -1,
+    hitCooldowns: {},
     killedByPlayer: false,
   };
 }
