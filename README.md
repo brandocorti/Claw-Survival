@@ -47,13 +47,15 @@ npm run smoke        # tests + production build into dist/
 | Key | Action |
 |---|---|
 | WASD / arrows | Move |
+| E | Talk to the salesman (gold dot on the map) |
+| Esc | Pause, settings |
 | Space | Dodge roll (brief invulnerability, short cooldown) |
 | — | Your slingshot fires **by itself** at the nearest enemy in sight |
 | Mouse or 1 / 2 / 3 | Pick a card when you level up (the game pauses) |
-| R | Try again after you die |
+| R / M | After the run: play again / menu |
 | F9 (dev) | Save a screenshot to `production/qa/evidence/` |
 
-### Dev shortcuts (add to the URL)
+### Dev shortcuts (add to the URL; they skip the start menu)
 
 | Option | Effect |
 |---|---|
@@ -100,4 +102,5 @@ framework in `.claude/` load. The milestones are driven with `/next` (see the br
   (`.claude/`, `CHANGELOG.md`, `UPGRADING.md`, `docs/`): MIT, see
   [`licenses/claude-code-game-studios.LICENSE`](licenses/claude-code-game-studios.LICENSE).
   Root `CHANGELOG.md` is the framework's; **ours is [`docs/changelog.md`](docs/changelog.md)**.
-- [Phaser 3](https://phaser.io) (MIT). All art so far is placeholder pixel art drawn in code; no external assets.
+- [Phaser 3](https://phaser.io) (MIT). All art so far is placeholder pixel art drawn in code.
+- Music: generated with AI, see [`assets/audio/README.md`](assets/audio/README.md).

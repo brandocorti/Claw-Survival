@@ -102,6 +102,12 @@ export class EffectsSystem {
           this.shockwave(e.x, e.y - 2, e.radius);
           this.shake(140, 0.006);
           break;
+        case 'pickupCollected':
+          (e.kind === 'heart' ? this.redSparks : this.sparks).explode(6, e.x, e.y - 10);
+          break;
+        case 'rollBought':
+          this.shake(80, 0.003);
+          break;
         case 'playerHit':
           if (e.playerId === this.localPlayerId) this.shake(160, 0.008);
           this.redSparks.explode(8, e.x, e.y - 8);

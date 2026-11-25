@@ -1,5 +1,6 @@
 // Camera that follows the player with smoothing and leads a little in the
 // direction they walk, so you see more of what you are walking into.
+import { settings } from '../settings.js';
 import { clamp } from '../../shared/sim/math.js';
 
 export class CameraSystem {
@@ -51,6 +52,6 @@ export class CameraSystem {
    * @param {number} [intensity] - fraction of the screen size
    */
   shake(durationMs = 90, intensity = 0.004) {
-    this.cam.shake(durationMs, intensity);
+    if (settings.screenShake) this.cam.shake(durationMs, intensity);
   }
 }

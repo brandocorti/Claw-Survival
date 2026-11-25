@@ -14,6 +14,8 @@ import { updateGems } from './systems/xp.js';
 import { createMatchState, updateSpawner } from './systems/spawner.js';
 import { refreshStats, updateAbilities } from './systems/abilities.js';
 import { updateCards } from './systems/cards.js';
+import { updateShop } from './systems/shop.js';
+import { updatePickups } from './systems/pickups.js';
 import { createEmptyInput } from '../protocol.js';
 import { ENEMY_TYPES } from '../content/enemies/index.js';
 import { ABILITY_TYPES } from '../content/abilities/index.js';
@@ -43,7 +45,7 @@ export function createWorld({
     abilityTypes,
     spawning,
     cards,
-    /** True while a player in this arena is choosing a card: nothing moves. */
+    /** True while a player in this arena is choosing a card or shopping: nothing moves. */
     paused: false,
     tick: 0,
     time: 0,
@@ -57,6 +59,10 @@ export function createWorld({
     bullets: [],
     /** @type {import('./entities/gem.js').Gem[]} */
     gems: [],
+    /** @type {import('./entities/pickup.js').Pickup[]} coins and hearts */
+    pickups: [],
+    /** Status rows of players in other arenas, filled by the server (milestone 5). */
+    remotePlayers: [],
     /** Burning ground patches (fire-trail roll). */
     fires: [],
     pendingExplosions: [],
@@ -86,16 +92,18 @@ export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
  */
 export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
-  for (const list of [world.players, world.enemies, world.bullets, world.gems]) {
+  for (const list of [world.players, world.enemies, world.bullets, world.gems, world.pickups]) {
     for (const o of list) {
       o.prevX = o.x;
       o.prevY = o.y;
     }
   }
 
-  // Level-up cards. In PvE every player has their own arena, so freezing this
+  // Level-up cards and the salesman. In PvE every player has their own arena, so freezing this
   // world pauses the game for that player only.
+  updateShop(world, inputs);
   updateCards(world, inputs);
+  world.paused = world.players.some((p) => p.cardChoice || p.shopOpen);
   if (world.paused) return;
 
   world.tick++;
@@ -108,6 +116,7 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
   updateBullets(world, dt);
   processExplosions(world);
   updateGems(world, dt);
+  updatePickups(world, dt);
   removeDeadEnemies(world);
 }
 

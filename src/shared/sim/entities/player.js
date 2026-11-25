@@ -20,6 +20,12 @@
  * @property {object} stats - derived numbers (damage, fireRate...), see systems/abilities.js
  * @property {string[]|null} cardChoice - ability ids on offer while a level-up is open
  * @property {number} kills
+ * @property {number} coins
+ * @property {boolean} shopOpen - talking to the salesman
+ * @property {number} rollsBought - random abilities bought this match
+ * @property {number} rollRound - round of the last purchase
+ * @property {number} rollsThisRound - bought in that round
+ * @property {{ abilityId: string, level: number }|null} lastRoll - result shown in the shop
  * @property {string} weapon - key into config.weapons
  * @property {number} fireCooldown - seconds until the next shot
  * @property {boolean} moving
@@ -60,6 +66,12 @@ export function createPlayer(id, x, y, config) {
     stats: null,
     cardChoice: null,
     kills: 0,
+    coins: 0,
+    shopOpen: false,
+    rollsBought: 0,
+    rollRound: 0,
+    rollsThisRound: 0,
+    lastRoll: null,
     weapon: p.startingWeapon,
     fireCooldown: 0,
     moving: false,

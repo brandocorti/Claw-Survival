@@ -9,6 +9,7 @@ import { TILE, TILE_CHARS, TILE_RULES } from '../content/tiles.js';
  * @property {number} height - in tiles
  * @property {number} tileSize - in pixels
  * @property {Uint8Array} tiles - row-major tile types
+ * @property {{ x: number, y: number } | null} vendor - where the salesman stands ('V' tile)
  * @property {{ x: number, y: number }} spawn - world pixels (center of the 'P' tile)
  */
 
@@ -24,6 +25,7 @@ export function parseArena(arena, tileSize) {
   const width = arena.rows[0].length;
   const tiles = new Uint8Array(width * height);
   let spawn = null;
+  let vendor = null;
 
   arena.rows.forEach((row, y) => {
     if (row.length !== width) {
@@ -36,6 +38,7 @@ export function parseArena(arena, tileSize) {
         throw new Error(`Arena "${arena.id}": unknown tile '${ch}' at ${x},${y}`);
       }
       tiles[y * width + x] = type;
+      if (ch === 'V') vendor = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
       if (ch === 'P') {
         if (spawn) throw new Error(`Arena "${arena.id}": more than one 'P' spawn tile`);
         spawn = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
@@ -44,7 +47,7 @@ export function parseArena(arena, tileSize) {
   });
 
   if (!spawn) throw new Error(`Arena "${arena.id}": no 'P' spawn tile`);
-  return { id: arena.id, width, height, tileSize, tiles, spawn };
+  return { id: arena.id, width, height, tileSize, tiles, spawn, vendor };
 }
 
 /**
@@ -87,6 +90,34 @@ export function boxBlocked(map, x, y, r, travel = 'walk') {
     }
   }
   return false;
+}
+
+/**
+ * The position itself if you can walk there, otherwise the center of the nearest
+ * walkable tile. Keeps drops (e.g. from a spirit over water) reachable.
+ * @param {ArenaMap} map
+ */
+export function openSpotNear(map, x, y) {
+  const ts = map.tileSize;
+  const tx = Math.floor(x / ts);
+  const ty = Math.floor(y / ts);
+  if (!tileBlocks(map, tx, ty)) return { x, y };
+  let best = { x, y };
+  let bestD = Infinity;
+  for (let r = 1; r <= 8 && bestD === Infinity; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (tileBlocks(map, tx + dx, ty + dy)) continue;
+        const c = { x: (tx + dx + 0.5) * ts, y: (ty + dy + 0.5) * ts };
+        const d = Math.hypot(c.x - x, c.y - y);
+        if (d < bestD) {
+          bestD = d;
+          best = c;
+        }
+      }
+    }
+  }
+  return best;
 }
 
 /**

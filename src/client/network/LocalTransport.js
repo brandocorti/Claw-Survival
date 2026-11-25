@@ -29,6 +29,8 @@ export class LocalTransport {
     this.accumulator = 0;
     this.pendingRoll = false;
     this.pendingPick = null;
+    this.pendingInteract = false;
+    this.pendingShop = null;
     /** 0..1: how far the render time is between the last two ticks. */
     this.alpha = 0;
   }
@@ -40,17 +42,24 @@ export class LocalTransport {
    */
   update(deltaMs, input) {
     const dt = 1 / this.config.sim.tickRate;
-    // A roll press is kept until a tick actually uses it (high refresh screens can
+    // A press is kept until a tick actually uses it (high refresh screens can
     // render a frame with zero ticks).
     if (input.roll) this.pendingRoll = true;
     if (input.pick != null) this.pendingPick = input.pick;
+    if (input.interact) this.pendingInteract = true;
+    if (input.shop) this.pendingShop = input.shop;
     this.accumulator += deltaMs / 1000;
 
     let ticks = 0;
     while (this.accumulator >= dt && ticks < this.config.sim.maxTicksPerFrame) {
-      stepWorld(this.world, { [this.localPlayerId]: { ...input, roll: this.pendingRoll, pick: this.pendingPick } }, dt);
+      const tickInput = {
+        ...input, roll: this.pendingRoll, pick: this.pendingPick, interact: this.pendingInteract, shop: this.pendingShop,
+      };
+      stepWorld(this.world, { [this.localPlayerId]: tickInput }, dt);
       this.pendingRoll = false;
       this.pendingPick = null;
+      this.pendingInteract = false;
+      this.pendingShop = null;
       this.accumulator -= dt;
       ticks++;
     }

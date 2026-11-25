@@ -1,5 +1,5 @@
 // Pixel-art HUD: XP bar across the top, level + hearts at the top left, round
-// in the middle, match timer and kills at the top right, boss bar at the bottom,
+// in the middle, match timer, kills and coins at the top right, boss bar at the bottom,
 // owned ability icons on the left, round / boss banners, and the end screen (lost or won).
 import { addPixelText } from '../art/pixelFont.js';
 import { PALETTE as P, hexToInt } from '../art/palette.js';
@@ -29,6 +29,8 @@ export class Hud {
     this.roundText = fixed(addPixelText(scene, this.w / 2, 10, '').setOrigin(0.5, 0));
     this.timerText = fixed(addPixelText(scene, this.w - MARGIN, 10, '').setOrigin(1, 0));
     this.killsText = fixed(addPixelText(scene, this.w - MARGIN, 18, '').setOrigin(1, 0).setAlpha(0.85));
+    this.coinIcon = fixed(scene.add.image(this.w - 8, 31, 'coin', '0'));
+    this.coinText = fixed(addPixelText(scene, this.w - 14, 28, '').setOrigin(1, 0)).setTint(hexToInt('#ffd23a'));
     this.bossText = fixed(addPixelText(scene, this.w / 2, this.h - 18, '').setOrigin(0.5, 0)).setVisible(false);
     this.hearts = [];
     this.heartShakeUntil = 0;
@@ -38,7 +40,7 @@ export class Hud {
     /** @type {Map<string, { icon: object, text: object }>} owned abilities */
     this.abilityIcons = new Map();
 
-    this.hint = fixed(addPixelText(scene, MARGIN, this.h - 10, 'WASD MOVE   SPACE ROLL   YOUR SLINGSHOT FIRES BY ITSELF'))
+    this.hint = fixed(addPixelText(scene, MARGIN, this.h - 10, 'WASD MOVE   SPACE ROLL   E TALK   ESC PAUSE'))
       .setAlpha(0.9);
     scene.tweens.add({ targets: this.hint, alpha: 0, delay: 9000, duration: 1500 });
 
@@ -124,6 +126,7 @@ export class Hud {
     const ss = String(Math.floor(left % 60)).padStart(2, '0');
     this.timerText.setText(`${mm}:${ss}`).setTint(left <= 30 ? hexToInt(P.enemyShot) : 0xffffff);
     this.killsText.setText(`KILLS ${player.kills}`);
+    this.coinText.setText(String(player.coins));
 
     // Boss health bar
     const boss = world.enemies.find((e) => e.boss && !e.dead && e.spawnDelay <= 0);
@@ -139,8 +142,8 @@ export class Hud {
     }
 
     if (this.endScreen) return;
-    if (!player.alive) this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'PRESS R TO TRY AGAIN');
-    else if (m.phase === 'won') this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'PRESS R TO PLAY AGAIN');
+    if (!player.alive) this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'R  TRY AGAIN     M  MENU');
+    else if (m.phase === 'won') this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'R  PLAY AGAIN     M  MENU');
   }
 
   showEnd(world, player, heading, color, hint) {

@@ -79,6 +79,8 @@ export const TEST_CONFIG = Object.freeze({
     curve: { base: 5, growth: 3, exponent: 1.25 },
     gemValues: [20, 5, 1],
   },
+  drops: { coinChance: 0, heartChance: 0, heartHeal: 2 },
+  shop: { interactRadius: 28, basePrice: 8, priceStep: 4, rollsPerRound: 1 },
   cards: { choices: 3 },
   abilities: {
     damage: { maxLevel: 5, damagePerLevel: 1 },

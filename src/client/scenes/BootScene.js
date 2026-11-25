@@ -1,4 +1,4 @@
-// Generates all placeholder textures, then starts the game.
+// Generates all placeholder textures, then opens the start menu.
 import * as Phaser from 'phaser';
 import { CONFIG } from '../../shared/config.js';
 import { createSprites } from '../art/sprites.js';
@@ -18,6 +18,7 @@ export class BootScene extends Phaser.Scene {
     createCardTextures(this);
     createTileset(this, TILESET_KEY, CONFIG.display.tileSize);
     createPixelFont(this);
-    this.scene.start('Game');
+    // Dev options in the URL (?fast, ?boss...) skip the start menu.
+    this.scene.start(window.location.search ? 'Game' : 'Menu');
   }
 }

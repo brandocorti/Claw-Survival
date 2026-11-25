@@ -122,6 +122,8 @@ Bad perks (sent to another player, at least 6 to start). All are purple-themed a
 5. SPECIAL RULES
 ==================================================
 
+Salesman, coins and hearts (ADDED 2026-11-25): enemies drop coins and, rarely, hearts. A salesman on the island (E) shows the status of all players and sells one random ability per round.
+
 Sabotage compensation:
 - The server tracks who sent each active bad perk.
 - If a player dies while affected by a bad perk (or within N seconds after it ends), the sender is credited and rewarded. The default reward is one free ability pick plus bonus XP; it is configurable.

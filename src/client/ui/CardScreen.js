@@ -46,7 +46,7 @@ export class CardScreen {
   }
 
   choose(index) {
-    if (!this.shown || index >= this.shown.length) return;
+    if (!this.shown || index >= this.shown.length || this.scene.pauseMenu.isOpen) return;
     if (this.scene.time.now - this.openedAt < INPUT_DELAY_MS) return;
     this.pick = index;
   }

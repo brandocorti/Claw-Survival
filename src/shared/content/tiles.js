@@ -12,10 +12,11 @@ export const TILE = Object.freeze({
   WATER: 3,
 });
 
-/** Map character -> tile type. 'P' marks the player spawn (sand underneath). */
+/** Map character -> tile type. 'P' marks the player spawn and 'V' the salesman (sand underneath). */
 export const TILE_CHARS = Object.freeze({
   '.': TILE.SAND,
   P: TILE.SAND,
+  V: TILE.SAND,
   '#': TILE.CLIFF,
   o: TILE.ROCK,
   '~': TILE.WATER,

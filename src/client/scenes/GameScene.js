@@ -1,5 +1,6 @@
 // Solo PvE: survive the rounds on the beach clearing. WASD moves, Space rolls,
-// the slingshot fires by itself at the nearest enemy. R restarts after the game ends.
+// the slingshot fires by itself at the nearest enemy, E talks to the salesman, Esc
+// pauses. After the run ends, R restarts and M goes back to the menu.
 import * as Phaser from 'phaser';
 import { CONFIG } from '../../shared/config.js';
 import { BEACH_ARENA } from '../../shared/content/arenas/beach.js';
@@ -9,6 +10,8 @@ import { PlayerView } from '../entities/PlayerView.js';
 import { EnemyViews } from '../entities/EnemyViews.js';
 import { BulletViews } from '../entities/BulletViews.js';
 import { AbilityViews } from '../entities/AbilityViews.js';
+import { PickupViews } from '../entities/PickupViews.js';
+import { VendorView } from '../entities/VendorView.js';
 import { GemViews } from '../entities/GemViews.js';
 import { InputSystem } from '../systems/InputSystem.js';
 import { CameraSystem } from '../systems/CameraSystem.js';
@@ -17,6 +20,13 @@ import { installEvidenceHotkey } from '../systems/evidence.js';
 import { DEPTH } from '../systems/depth.js';
 import { Hud } from '../ui/Hud.js';
 import { CardScreen } from '../ui/CardScreen.js';
+import { ShopPanel } from '../ui/ShopPanel.js';
+import { PauseMenu } from '../ui/PauseMenu.js';
+import { Minimap } from '../ui/Minimap.js';
+import { music } from '../audio/MusicPlayer.js';
+import { musicFor } from '../audio/musicFor.js';
+import { settings } from '../settings.js';
+import { shopIsOpen, nearVendor } from '../../shared/sim/systems/shop.js';
 import { addPixelText } from '../art/pixelFont.js';
 import { readDevOptions } from '../devOptions.js';
 import { TILESET_KEY } from './BootScene.js';
@@ -40,6 +50,8 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews = new EnemyViews(this);
     this.bulletViews = new BulletViews(this, handHeight);
     this.gemViews = new GemViews(this);
+    this.pickupViews = new PickupViews(this);
+    this.vendorView = world.map.vendor ? new VendorView(this, world.map.vendor) : null;
     this.abilityViews = new AbilityViews(this, config);
     this.inputSystem = new InputSystem(this);
     this.cameraSystem = new CameraSystem(this, config.camera, world.map);
@@ -49,29 +61,46 @@ export class GameScene extends Phaser.Scene {
       shake: (ms, intensity) => this.cameraSystem.shake(ms, intensity),
     });
     this.hud = new Hud(this, config, localId);
+    this.minimap = new Minimap(this, world.map, config.display);
     this.cardScreen = new CardScreen(this, config);
+    this.shopPanel = new ShopPanel(this, config);
+    this.pauseMenu = new PauseMenu(this, config.display);
     this.targetMark = this.add.image(0, 0, 'targetMark').setDepth(DEPTH.FX).setVisible(false);
 
-    this.fpsText = addPixelText(this, config.display.width - 4, config.display.height - 10, '')
+    this.fpsText = addPixelText(this, config.display.width - 4, 38, '')
       .setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH.HUD).setAlpha(0.6);
     this.fpsTimer = 0;
     this.lastInput = { moveX: 0, moveY: 0, roll: false };
 
     this.input.keyboard.on('keydown-R', () => {
-      const over = !this.transport.getLocalPlayer().alive || this.transport.world.match.phase === 'won';
-      if (over) this.scene.restart();
+      if (this.runIsOver() && !this.pauseMenu.isOpen) this.scene.restart();
     });
-    installEvidenceHotkey(this, 'm3-final-boss');
+    this.input.keyboard.on('keydown-M', () => {
+      if (this.runIsOver() && !this.pauseMenu.isOpen) this.scene.start('Menu');
+    });
+    this.input.keyboard.on('keydown-ESC', (event) => {
+      if (event.repeat) return;
+      if (this.pauseMenu.isOpen) this.pauseMenu.close();
+      else if (this.shopPanel.isOpen) this.shopPanel.choose('close');
+      else this.pauseMenu.open();
+    });
+    music.rewind();
+    installEvidenceHotkey(this, 'm4-salesman');
     if (import.meta.env.DEV) window.__scene = this; // for debugging in the console
+  }
+
+  runIsOver() {
+    return !this.transport.getLocalPlayer().alive || this.transport.world.match.phase === 'won';
   }
 
   update(_time, deltaMs) {
     const dt = deltaMs / 1000;
 
     // 1. Input -> simulation
-    const input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick() };
+    const input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick(), shop: this.shopPanel.takeChoice() };
     this.lastInput = input;
-    this.transport.update(deltaMs, input);
+    // Solo: the pause menu freezes the game. (With other players it cannot, milestone 5.)
+    if (!this.pauseMenu.isOpen) this.transport.update(deltaMs, input);
 
     // 2. Simulation -> visuals
     const world = this.transport.world;
@@ -88,6 +117,9 @@ export class GameScene extends Phaser.Scene {
     this.enemyViews.sync(world.enemies, alpha, world.time);
     this.bulletViews.sync(world.bullets, alpha);
     this.gemViews.sync(world.gems, alpha, world.time);
+    this.pickupViews.sync(world.pickups, alpha, world.time);
+    const open = shopIsOpen(world);
+    this.vendorView?.update({ open, near: nearVendor(world, local) && !local.shopOpen, time: this.time.now / 1000 });
     this.abilityViews.sync(world, alpha, this.transport.renderTime);
 
     const events = this.transport.drainEvents();
@@ -95,7 +127,10 @@ export class GameScene extends Phaser.Scene {
     this.effects.handle(events);
     this.hud.handle(events);
     this.hud.update(world, local);
+    this.minimap.update(world, local, open, this.time.now / 1000);
     this.cardScreen.update(local);
+    this.shopPanel.update(world, local);
+    music.play(musicFor(world.match, { paused: this.pauseMenu.isOpen, shopping: local.shopOpen }));
 
     // 3. Auto-aim target marker
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
@@ -111,6 +146,7 @@ export class GameScene extends Phaser.Scene {
     const py = local.prevY + (local.y - local.prevY) * alpha;
     this.cameraSystem.update(px, py, input.moveX, input.moveY, dt);
 
+    this.fpsText.setVisible(settings.showFps);
     this.fpsTimer -= dt;
     if (this.fpsTimer <= 0) {
       this.fpsTimer = 0.25;

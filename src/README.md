@@ -46,7 +46,7 @@ milestone 5 and be unit tested now.
 `EffectsSystem` and `Hud` turn tick events (`shot`, `enemyDied`, `levelUp`…) into
 particles, shake and banners.
 
-One tick of `stepWorld()`: level-up cards (an open choice stops the tick here) → spawner (match clock, rounds, waves, boss) → player
+One tick of `stepWorld()`: shop and level-up cards (an open one stops the tick here) → spawner (match clock, rounds, waves, boss) → player
 movement → enemy AI + separation + contact damage → abilities (orbiting coconuts, fire) → auto-aim + shooting →
 bullets → explosions → XP gems → remove the dead.
 
@@ -68,5 +68,8 @@ bullets → explosions → XP gems → remove the dead.
 - **An ability card:** the 4 steps are at the top of `shared/content/abilities/index.js`
   (numbers in `config.js`, code, registration, icon). `art.test.js` fails if one is missing or
   the text does not fit the card.
+- **Music:** files in `assets/audio/music/`, loaded in `client/audio/MusicPlayer.js`, chosen in
+  `client/audio/musicFor.js`. Record the generator and licence in `assets/audio/README.md`.
+- **A setting:** default in `client/settings.js`, a row in `client/ui/SettingsPanel.js`.
 - **A rule:** a function in `shared/sim/systems/`, called from `stepWorld()`, with a
   test in `tests/unit/sim/`. All damage goes through `systems/damage.js`.

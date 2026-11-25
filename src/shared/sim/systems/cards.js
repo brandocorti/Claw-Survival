@@ -4,12 +4,14 @@ import { gainAbility } from './abilities.js';
 
 /**
  * Draws up to `count` different abilities the player can still level up.
+ * With `peek`, only tells whether any are left (no random numbers used).
  * @returns {string[]} ability ids (empty when everything is maxed)
  */
-export function drawCards(world, player, count) {
+export function drawCards(world, player, count, { peek = false } = {}) {
   const pool = Object.keys(world.abilityTypes).filter(
     (id) => (player.abilities[id] ?? 0) < world.config.abilities[id].maxLevel,
   );
+  if (peek) return pool.slice(0, count);
   const drawn = [];
   while (drawn.length < count && pool.length > 0) {
     drawn.push(pool.splice(world.rng.int(0, pool.length - 1), 1)[0]);
@@ -18,12 +20,11 @@ export function drawCards(world, player, count) {
 }
 
 /**
- * Applies picks and opens the next choice. Sets world.paused while one is open.
+ * Applies picks and opens the next choice (the game is paused while one is open).
  * @param {object} world
  * @param {Record<string, import('../../protocol.js').PlayerInput>} inputs
  */
 export function updateCards(world, inputs) {
-  world.paused = false;
   if (!world.cards || world.match.phase === 'won') return; // no more cards after winning
   for (const p of world.players) {
     if (!p.alive) {
@@ -31,8 +32,7 @@ export function updateCards(world, inputs) {
       continue;
     }
     if (p.cardChoice) applyPick(world, p, inputs[p.id]?.pick);
-    if (!p.cardChoice && p.pendingLevelUps > 0) offer(world, p);
-    if (p.cardChoice) world.paused = true;
+    if (!p.cardChoice && !p.shopOpen && p.pendingLevelUps > 0) offer(world, p);
   }
 }
 

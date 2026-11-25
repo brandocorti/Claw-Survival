@@ -98,6 +98,26 @@ const ORBIT_COCONUT = [
   '..DDDD..',
 ];
 
+/** Coin, spinning: 4 frames. */
+const COIN = [
+  ['.GGG.', 'GWGGg', 'GGdGg', 'GGGgg', '.ggg.'],
+  ['..G..', '.WGg.', '.Gdg.', '.Ggg.', '..g..'],
+  ['..G..', '..W..', '..G..', '..g..', '..g..'],
+  ['..G..', '.GWg.', '.Gdg.', '.Ggg.', '..g..'],
+];
+
+/** The salesman's goods, laid out on a rug. */
+const VENDOR_RUG = [
+  'RRRRRRRRRRRRRRRRRRRRRRRRRR',
+  'RyyyyyyyyyyyyyyyyyyyyyyyyR',
+  'RyttttBBtttWWWttttGGtttyyR',
+  'RytttBbbBttWwWtttGGGGttyyR',
+  'RyttttBBtttWWWttttGGtttyyR',
+  'RyyyyyyyyyyyyyyyyyyyyyyyyR',
+  'rrrrrrrrrrrrrrrrrrrrrrrrrr',
+  'r.r.r.r.r.r.r.r.r.r.r.r.r.',
+];
+
 /** XP gems: small (1 XP), medium (5), large (20). */
 const GEMS = {
   1: { rows: ['.C.', 'CWc', '.c.'], colors: { C: '#4de1ff', c: '#1f9fd0', W: P.white } },
@@ -136,6 +156,14 @@ export function createSprites(scene) {
   createSpritesheet(scene, 'castaway', frames);
   createEnemyTextures(scene);
 
+  createSpritesheet(scene, 'vendor', [{ name: '0', grid: addOutline(vendorGrid(), P.outline) }]);
+  createSpritesheet(scene, 'coin', COIN.map((rows, i) => ({
+    name: String(i), grid: addOutline(gridFromStrings(rows, { G: '#ffd23a', g: '#c98a1e', W: '#fff7c2', d: '#a86a12' }), P.outline),
+  })));
+  createTextureFromGrid(scene, 'vendorRug', gridFromStrings(VENDOR_RUG, {
+    R: '#b5452e', r: '#7d2c1c', y: '#e0b040', t: '#c9583c', B: '#a06a3c', b: '#f2ead8', W: '#9fd8d0', w: '#ffffff', G: '#ffd23a',
+  }));
+
   const outlined = (rows, colors) => addOutline(gridFromStrings(rows, colors), P.outline);
   createTextureFromGrid(scene, 'slingshot', outlined(SLINGSHOT, { W: P.wood, w: P.woodDark, B: P.band }));
   createTextureFromGrid(scene, 'pebble', outlined(PEBBLE, { Y: P.shotRim, W: P.shotCore }));
@@ -170,6 +198,19 @@ export function createSprites(scene) {
     { name: 'half', grid: heart(red, empty) },
     { name: 'empty', grid: heart(empty, empty) },
   ]);
+}
+
+/** The salesman: a castaway with a wide straw hat and a green vest. */
+function vendorGrid() {
+  const body = chibiFrame({ hair: '#8a5a2a', shirt: '#2f8f5a', shirtShade: '#206840', shorts: '#6e4a2a', bandana: '#8a5a2a' }, 'down', 0);
+  const hat = gridFromStrings(
+    ['.....HHHHHH.....', '....HHHHHHHH....', '....RRRRRRRR....', 'hHHHHHHHHHHHHHHh', '.hhhhhhhhhhhhhh.'],
+    { H: '#e8c872', h: '#b8923e', R: '#b5452e' },
+  );
+  // The hat is two pixels wider than the body and covers the top of the head.
+  const grid = [null, null].map(() => Array(16).fill(null)).concat(body.map((row) => [null, ...row, null]));
+  hat.forEach((row, y) => row.forEach((c, x) => { if (c) grid[y][x] = c; }));
+  return grid;
 }
 
 /** Circle outline (2 px thick) used for explosion shockwaves. */

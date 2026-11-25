@@ -1,6 +1,6 @@
 // Beach clearing (milestone 2): big enough for hordes, framed by cliffs, with
 // ponds (walkers go around, bullets and tiki spirits pass over) and rocks for cover.
-// Legend: '#' cliff  '.' sand  'o' rock (cover)  '~' water  'P' player spawn
+// Legend: '#' cliff  '.' sand  'o' rock (cover)  '~' water  'P' player spawn  'V' salesman
 // Every row must have the same length, with exactly one 'P'.
 
 export const BEACH_ARENA = {
@@ -22,7 +22,7 @@ export const BEACH_ARENA = {
     '##....................o.................~~~~~~~.......##',
     '#####...................................~~~~~~~.......##',
     '#####....................................~~~~~....o...##',
-    '#####.................................................##',
+    '#####.............V...................................##',
     '#####.................................................##',
     '##..........................P.....o...................##',
     '##....................................................##',

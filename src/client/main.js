@@ -2,6 +2,7 @@
 import * as Phaser from 'phaser';
 import { CONFIG } from '../shared/config.js';
 import { BootScene } from './scenes/BootScene.js';
+import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { installIntegerScaling } from './systems/integerScaling.js';
 
@@ -19,7 +20,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.NONE, // we pick the zoom ourselves (integer only)
     autoCenter: Phaser.Scale.NO_CENTER, // centered with CSS flexbox in index.html
   },
-  scene: [BootScene, GameScene],
+  scene: [BootScene, MenuScene, GameScene],
 });
 
 installIntegerScaling(game, width, height);
