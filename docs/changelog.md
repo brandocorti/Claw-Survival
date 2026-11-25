@@ -6,7 +6,7 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
-### 2026-11-25 — Deploy to GitHub Pages (setup) — brandocorti — commit TBD (fill in after committing)
+### 2026-11-25 — Deploy to GitHub Pages (setup) — brandocorti — commit 9e28cd0
 - **Type:** feature
 - **What changed:** the game can now be published as a static site. `vite.config.js` uses relative asset
   paths (`base: './'`), so the build also works from a sub-path such as `brandocorti.github.io/GEN_AI/`.
