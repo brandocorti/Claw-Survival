@@ -9,7 +9,7 @@ Project for the **Generative AI and Language Models** course (UPM, 2026/27). The
 built with generative AI (Claude Code); the process is documented in
 [`docs/prompt-log.md`](docs/prompt-log.md) and [`docs/changelog.md`](docs/changelog.md).
 
-![Round 3 with the Crab King](production/qa/evidence/2026-11-19-19-22-40_m2-round3-crab-king.png)
+![A fight on the island](production/qa/evidence/2026-11-25-20-27-33_gfx-m1-fight.png)
 
 ## Status
 
@@ -18,8 +18,9 @@ built with generative AI (Claude Code); the process is documented in
 | 1 | Project setup, pixel-perfect test arena, move / shoot / roll | ✅ done |
 | 2 | Enemies, waves, rounds, XP gems, HUD (+ survivors-style auto-aim controls) | ✅ done |
 | 3 | Level-up cards: 8 stackable abilities | ✅ done |
-| 4 | Island art pass | next |
-| 5–12 | Multiplayer server, curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
+| 4 | Graphics upgrade: environment, Crab Emperor, hero | ✅ done |
+| 5 | Multiplayer server and lobby | next |
+| 6–12 | Curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
 
 Full plan: [`design/game-brief.md`](design/game-brief.md), section 9.
 
@@ -64,6 +65,7 @@ npm run smoke        # tests + production build into dist/
 | `?boss` | Go straight to the final boss |
 | `?tough` | 10 hearts instead of 3 |
 | `?cards=5` | Start with 5 cards to pick |
+| `?classic` | The old graphics, for comparison |
 | `?seed=42` | Same enemy spawns every run |
 
 Example: <http://localhost:5173/?fast&round=3&tough> shows the Crab King within seconds.

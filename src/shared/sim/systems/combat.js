@@ -1,6 +1,6 @@
 // Auto-aim, player shooting, and projectiles (player and enemy bullets).
 import { createBullet } from '../entities/bullet.js';
-import { isActive } from '../entities/enemy.js';
+import { isActive, MAX_ENEMY_RADIUS } from '../entities/enemy.js';
 import { pointBlocksBullet, lineBlocked } from '../map.js';
 import { EPSILON } from '../math.js';
 import { damageEnemy, damagePlayer } from './damage.js';
@@ -110,7 +110,7 @@ export function updateBullets(world, dt) {
 /** @returns {boolean} true if the bullet hit and has no piercing left (remove it) */
 function hitEnemy(world, b) {
   let hit = null;
-  world.grid.forEachNear(b.x, b.y, b.radius + 16, (e) => {
+  world.grid.forEachNear(b.x, b.y, b.radius + MAX_ENEMY_RADIUS, (e) => {
     if (hit || !isActive(e) || b.hitIds.includes(e.id)) return;
     const r = e.radius + b.radius;
     if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 <= r * r) hit = e;

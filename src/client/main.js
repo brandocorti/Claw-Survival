@@ -4,7 +4,19 @@ import { CONFIG } from '../shared/config.js';
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
+import { CAPTURE } from './gfx/flags.js';
 import { installIntegerScaling } from './systems/integerScaling.js';
+
+// Captures: the same "random" particles every time, and tweens (which read the real
+// clock) follow the harness clock instead.
+if (CAPTURE) {
+  Date.now = () => window.__t ?? 0;
+  let seed = 1;
+  Math.random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
 
 const { width, height } = CONFIG.display;
 
@@ -14,6 +26,7 @@ const game = new Phaser.Game({
   width,
   height,
   backgroundColor: '#1a1212',
+  render: { preserveDrawingBuffer: CAPTURE }, // lets the capture harness read the canvas
   pixelArt: true, // nearest-neighbor filtering, no smoothing
   roundPixels: true, // draw sprites on whole pixels
   scale: {

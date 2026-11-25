@@ -164,7 +164,7 @@ export const CONFIG = {
     },
     /** Final boss. Health also grows with the round, like every enemy. */
     crabEmperor: {
-      hp: 800, speed: 34, radius: 15, contactDamage: 2, xp: 0, coins: 0, boss: true,
+      hp: 800, speed: 34, radius: 22, contactDamage: 2, xp: 0, coins: 0, boss: true,
       spawnDelay: 1.6,
       pattern: ['fan', 'charge', 'ring'],
       /** Used below half health. */

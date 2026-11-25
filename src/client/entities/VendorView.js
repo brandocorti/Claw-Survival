@@ -14,7 +14,9 @@ export class VendorView {
     this.shadow = scene.add.image(at.x, at.y + 3, 'shadow').setDepth(DEPTH.SHADOW);
     this.body = scene.add.image(at.x, at.y + 4, 'vendor').setOrigin(0.5, 1).setDepth(at.y);
     this.mark = scene.add.sprite(at.x, at.y, 'coin', '0').setScale(2).setDepth(DEPTH.FX);
-    this.prompt = addPixelText(scene, at.x, at.y - 46, 'E TALK').setOrigin(0.5, 0).setDepth(DEPTH.FX + 1);
+    /** Top of the hat, where the coin floats. */
+    this.top = at.y + 4 - this.body.height;
+    this.prompt = addPixelText(scene, at.x, this.top - 26, 'E TALK').setOrigin(0.5, 0).setDepth(DEPTH.FX + 1);
   }
 
   /**
@@ -23,7 +25,7 @@ export class VendorView {
   update({ open, near, time }) {
     for (const obj of [this.rug, this.shadow, this.body, this.mark]) obj.setVisible(open);
     this.prompt.setVisible(open && near);
-    this.mark.setY(Math.round(this.at.y - 27 + Math.sin(time * 4) * 2)).setFrame(String(Math.floor(time * 5) % 4));
+    this.mark.setY(Math.round(this.top - 10 + Math.sin(time * 4) * 2)).setFrame(String(Math.floor(time * 5) % 4));
     this.body.setFlipX(Math.floor(time / 3) % 2 === 0);
   }
 }

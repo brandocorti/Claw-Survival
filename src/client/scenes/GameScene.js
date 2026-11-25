@@ -30,6 +30,22 @@ import { shopIsOpen, nearVendor } from '../../shared/sim/systems/shop.js';
 import { addPixelText } from '../art/pixelFont.js';
 import { readDevOptions } from '../devOptions.js';
 import { TILESET_KEY } from './BootScene.js';
+import { GFX, SCRIPTED, CAPTURE } from '../gfx/flags.js';
+import { Lighting } from '../gfx/lighting.js';
+import { Juice } from '../gfx/juice.js';
+import { emperorIntro, emperorDeath } from '../gfx/boss.js';
+
+/** Shortest time between two hit-stops, so chains of explosions do not stutter. */
+const HIT_STOP_GAP_MS = 500;
+
+/** Deterministic wander used for side-by-side captures (?script). */
+function scriptedInput(frame) {
+  const t = frame / 60;
+  const a = Math.sin(t * 0.35) * 2.2 + Math.sin(t * 0.13) * 3;
+  const moveX = Math.abs(Math.cos(a)) > 0.38 ? Math.sign(Math.cos(a)) : 0;
+  const moveY = Math.abs(Math.sin(a)) > 0.38 ? Math.sign(Math.sin(a)) : 0;
+  return { moveX, moveY, roll: frame % 170 === 0, pick: frame % 20 === 0 ? Math.floor(frame / 20) % 3 : null };
+}
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -40,7 +56,10 @@ export class GameScene extends Phaser.Scene {
     const { config, startRound, startCards, startAtBoss, seed } = readDevOptions(CONFIG, window.location.search);
     this.config = config;
     const handHeight = config.player.handHeight;
-    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards, startAtBoss });
+    this.transport = new LocalTransport({
+      // The classic look has no props, so they must not block the way either.
+      config, arena: { ...BEACH_ARENA, props: GFX.props }, seed, startRound, startCards, startAtBoss,
+    });
     const world = this.transport.world;
     const localId = this.transport.localPlayerId;
 
@@ -61,6 +80,13 @@ export class GameScene extends Phaser.Scene {
       shake: (ms, intensity) => this.cameraSystem.shake(ms, intensity),
     });
     this.hud = new Hud(this, config, localId);
+    this.lighting = GFX.light ? new Lighting(this, config.display, world.map) : null;
+    this.juice = GFX.juice ? new Juice(this, world.map, localId) : null;
+    /** Frames left with the picture frozen (the simulation keeps running). */
+    this.hitStop = 0;
+    this.nextHitStop = 0;
+    this.camFocus = null;
+    this.frame = 0;
     this.minimap = new Minimap(this, world.map, config.display);
     this.cardScreen = new CardScreen(this, config);
     this.shopPanel = new ShopPanel(this, config);
@@ -85,7 +111,11 @@ export class GameScene extends Phaser.Scene {
       else this.pauseMenu.open();
     });
     music.rewind();
-    installEvidenceHotkey(this, 'm4-salesman');
+    if (CAPTURE) {
+      this.game.loop.sleep(); // the capture harness steps the frames itself
+      window.__ready = true;
+    }
+    installEvidenceHotkey(this, 'm4-graphics');
     if (import.meta.env.DEV) window.__scene = this; // for debugging in the console
   }
 
@@ -93,19 +123,8 @@ export class GameScene extends Phaser.Scene {
     return !this.transport.getLocalPlayer().alive || this.transport.world.match.phase === 'won';
   }
 
-  update(_time, deltaMs) {
-    const dt = deltaMs / 1000;
-
-    // 1. Input -> simulation
-    const input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick(), shop: this.shopPanel.takeChoice() };
-    this.lastInput = input;
-    // Solo: the pause menu freezes the game. (With other players it cannot, milestone 5.)
-    if (!this.pauseMenu.isOpen) this.transport.update(deltaMs, input);
-
-    // 2. Simulation -> visuals
-    const world = this.transport.world;
-    const alpha = this.transport.alpha;
-    const local = this.transport.getLocalPlayer();
+  /** Moves every sprite to where the simulation says it is. */
+  syncViews(world, local, alpha, dt) {
     for (const p of world.players) {
       let view = this.playerViews.get(p.id);
       if (!view) {
@@ -121,20 +140,74 @@ export class GameScene extends Phaser.Scene {
     const open = shopIsOpen(world);
     this.vendorView?.update({ open, near: nearVendor(world, local) && !local.shopOpen, time: this.time.now / 1000 });
     this.abilityViews.sync(world, alpha, this.transport.renderTime);
+    const hidden = world.enemies.filter((e) => e.boss);
+    if (local.alive) hidden.push(local);
+    this.mapView.props?.update(hidden, dt);
+  }
 
-    const events = this.transport.drainEvents();
+  /** Visual reactions to simulation events. */
+  handleEvents(events, world) {
     this.mapView.handle(events);
     this.effects.handle(events);
+    this.requestHitStop(this.juice?.handle(events) ?? 0);
     this.hud.handle(events);
+    for (const e of events) {
+      if (e.type === 'shot') this.playerViews.get(e.playerId)?.onShot();
+      if (!GFX.boss) continue;
+      if (e.type === 'bossSpawned' && e.enemyType === 'crabEmperor') {
+        emperorIntro(this, this.config.display);
+        this.camFocus = { id: e.id, until: world.time + 1.8 };
+        this.cameraSystem.shake(600, 0.006);
+      } else if (e.type === 'enemyDied' && e.enemyType === 'crabEmperor') {
+        emperorDeath(this, e.x, e.y, (ms, k) => this.cameraSystem.shake(ms, k));
+      }
+    }
+  }
+
+  requestHitStop(frames) {
+    if (frames === 0 || this.time.now < this.nextHitStop) return;
+    this.hitStop = frames;
+    this.nextHitStop = this.time.now + HIT_STOP_GAP_MS;
+  }
+
+  update(_time, deltaMs) {
+    // Captures: nothing happens until the harness steps (it sets window.__t), and every
+    // step is exactly one tick, so two runs give the same frames.
+    if (CAPTURE) {
+      if (window.__t === undefined) return;
+      deltaMs = 1000 / 60;
+    }
+    const dt = deltaMs / 1000;
+
+    // 1. Input -> simulation
+    let input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick(), shop: this.shopPanel.takeChoice() };
+    if (SCRIPTED) input = scriptedInput(this.frame);
+    this.frame++;
+    this.lastInput = input;
+    // Solo: the pause menu freezes the game. (With other players it cannot, milestone 5.)
+    if (!this.pauseMenu.isOpen) this.transport.update(deltaMs, input);
+
+    // 2. Simulation -> visuals
+    const world = this.transport.world;
+    const alpha = this.transport.alpha;
+    const local = this.transport.getLocalPlayer();
+    // Hit-stop: the picture freezes for a few frames; the simulation does not.
+    if (this.hitStop > 0) this.hitStop--;
+    else this.syncViews(world, local, alpha, dt);
+
+    const events = this.transport.drainEvents();
+    this.handleEvents(events, world);
+    if (!world.paused && !this.pauseMenu.isOpen) this.juice?.update(dt, local);
+    this.lighting?.update(dt);
     this.hud.update(world, local);
-    this.minimap.update(world, local, open, this.time.now / 1000);
+    this.minimap.update(world, local, shopIsOpen(world), this.time.now / 1000);
     this.cardScreen.update(local);
     this.shopPanel.update(world, local);
     music.play(musicFor(world.match, { paused: this.pauseMenu.isOpen, shopping: local.shopOpen }));
 
     // 3. Auto-aim target marker
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
-    if (target && !target.dead) {
+    if (target && !target.dead && !(GFX.boss && target.boss)) { // brackets would cover a boss
       const c = this.enemyViews.bodyCenter(target, alpha);
       this.targetMark.setVisible(true).setPosition(c.x, c.y).setScale(Math.max(1, Math.round(target.radius / 5)));
     } else {
@@ -142,8 +215,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 4. Camera
-    const px = local.prevX + (local.x - local.prevX) * alpha;
-    const py = local.prevY + (local.y - local.prevY) * alpha;
+    let px = local.prevX + (local.x - local.prevX) * alpha;
+    let py = local.prevY + (local.y - local.prevY) * alpha;
+    if (this.camFocus && world.time < this.camFocus.until) {
+      const boss = world.enemies.find((e) => e.id === this.camFocus.id);
+      if (boss) {
+        px = boss.x;
+        py = boss.y - 20;
+      }
+    }
     this.cameraSystem.update(px, py, input.moveX, input.moveY, dt);
 
     this.fpsText.setVisible(settings.showFps);

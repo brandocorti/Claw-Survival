@@ -4,6 +4,8 @@
 //   ?boss      go straight to the final boss
 //   ?tough     10 hearts instead of 3
 //   ?cards=N   start with N level-up cards to pick
+//   ?bosshp=N  multiplies the final boss's health (e.g. 0.6)
+//   ?classic, ?gfx=..., ?capture, ?script   see gfx/flags.js
 //   ?seed=N    fixed random seed (same enemy spawns every run)
 // Returns a modified copy of the config; the original is never changed.
 
@@ -16,6 +18,7 @@ export function readDevOptions(baseConfig, search) {
   const params = new URLSearchParams(search);
   const config = structuredClone(baseConfig);
   if (params.has('fast')) config.match.durationSeconds = 100;
+  if (params.has('bosshp')) config.enemies.crabEmperor.hp *= Number(params.get('bosshp')) || 1;
   if (params.has('tough')) config.player.maxHealth = 20;
   const startRound = Math.max(1, Math.min(config.rounds.count, Number(params.get('round')) || 1));
   const startCards = Math.max(0, Math.min(40, Number(params.get('cards')) || 0));

@@ -75,6 +75,9 @@ export function createEnemy(id, type, x, y, stats, healthScale, spawnDelay) {
   };
 }
 
+/** Radius of the biggest enemy. Grid searches must reach this far past what they check. */
+export const MAX_ENEMY_RADIUS = 22;
+
 /** Bosses are giants: they crush rocks and wade through water. */
 export function travelOf(stats) {
   if (stats.flying) return 'fly';

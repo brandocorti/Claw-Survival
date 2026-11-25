@@ -1,0 +1,2032 @@
+diff --git a/src/client/devOptions.js b/src/client/devOptions.js
+index 3f28769..666410c 100644
+--- a/src/client/devOptions.js
++++ b/src/client/devOptions.js
+@@ -16,6 +16,7 @@ export function readDevOptions(baseConfig, search) {
+   const config = structuredClone(baseConfig);
+   if (params.has('fast')) config.match.durationSeconds = 100;
+   if (params.has('tough')) config.player.maxHealth = 20;
++  if (params.has('bosshp')) config.enemies.crabKing.hp *= Number(params.get('bosshp')) || 1; // prototype capture helper
+   const startRound = Math.max(1, Math.min(config.rounds.count, Number(params.get('round')) || 1));
+   const startCards = Math.max(0, Math.min(40, Number(params.get('cards')) || 0));
+   const seed = Number(params.get('seed')) || Math.floor(Math.random() * 1e9);
+diff --git a/src/client/entities/AbilityViews.js b/src/client/entities/AbilityViews.js
+index 4f06c34..061b2e6 100644
+--- a/src/client/entities/AbilityViews.js
++++ b/src/client/entities/AbilityViews.js
+@@ -1,5 +1,7 @@
+ // Draws ability effects: coconuts circling players and burning ground.
+ import { DEPTH } from '../systems/depth.js';
++import { GFX } from '../gfx/flags.js';
++import { addGlow } from '../gfx/lighting.js';
+ import { orbitPositions } from '../../shared/content/abilities/orbitCoconuts.js';
+ 
+ export class AbilityViews {
+@@ -49,7 +51,12 @@ export class AbilityViews {
+         .setDepth(f.y - 1)
+         .setFlipX(flicker)
+         .setAlpha(Math.min(1, f.life * 3)); // fades out at the end
++      if (GFX.light) {
++        const glow = (image.glow ??= addGlow(this.scene, 0xff8a2a, 1.3, 0.5));
++        glow.setVisible(true).setPosition(Math.round(f.x), Math.round(f.y) - 3).setDepth(f.y - 2)
++          .setAlpha(Math.min(1, f.life * 3) * (flicker ? 0.5 : 0.4));
++      }
+     });
+-    for (let i = world.fires.length; i < this.fires.length; i++) this.fires[i].setVisible(false);
++    for (let i = world.fires.length; i < this.fires.length; i++) { this.fires[i].setVisible(false); this.fires[i].glow?.setVisible(false); }
+   }
+ }
+diff --git a/src/client/entities/BulletViews.js b/src/client/entities/BulletViews.js
+index f051955..51740ee 100644
+--- a/src/client/entities/BulletViews.js
++++ b/src/client/entities/BulletViews.js
+@@ -2,6 +2,8 @@
+ // has a ground shadow; the bullet itself is drawn raised. Player shots are
+ // yellow pebbles, enemy shots are bigger red orbs.
+ import { DEPTH } from '../systems/depth.js';
++import { GFX } from '../gfx/flags.js';
++import { addGlow } from '../gfx/lighting.js';
+ 
+ const TEXTURE = { player: 'pebble', enemy: 'enemyBullet' };
+ 
+@@ -36,11 +38,22 @@ export class BulletViews {
+       const y = Math.round(b.prevY + (b.y - b.prevY) * alpha);
+       view.sprite.setPosition(x, y - this.height).setDepth(y);
+       view.shadow.setPosition(x, y);
++      if (view.glow) view.glow.setPosition(x, y - this.height).setDepth(y - 0.01);
++      if (view.trail) {
++        view.hist.unshift([x, y - this.height]);
++        if (view.hist.length > 7) view.hist.pop();
++        view.trail.forEach((t, k) => {
++          const h = view.hist[Math.min(view.hist.length - 1, (k + 1) * 2)];
++          t.setVisible(view.hist.length > (k + 1) * 2 - 1).setPosition(h[0], h[1]).setDepth(y - 0.02);
++        });
++      }
+     }
+     for (const [id, view] of this.active) {
+       if (this.seen.has(id)) continue;
+       view.sprite.setVisible(false);
+       view.shadow.setVisible(false);
++      view.glow?.setVisible(false);
++      view.trail?.forEach((t) => t.setVisible(false));
+       this.pools[view.team].push(view);
+       this.active.delete(id);
+     }
+@@ -52,6 +65,13 @@ export class BulletViews {
+       sprite: this.scene.add.image(0, 0, TEXTURE[team]),
+       shadow: this.scene.add.image(0, 0, 'bulletShadow').setDepth(DEPTH.SHADOW),
+     };
++    if (GFX.light && !view.glow) view.glow = addGlow(this.scene, team === 'player' ? 0xffc84a : 0xff3d4a, team === 'player' ? 0.7 : 0.9, team === 'player' ? 0.5 : 0.6);
++    if (GFX.juice && !view.trail && team === 'player') {
++      view.trail = [0.75, 0.5, 0.25].map((a, k) => this.scene.add.image(0, 0, 'px').setScale(k === 0 ? 1 : 0.5).setTint(k === 0 ? 0xfff7c2 : 0xffb52e).setAlpha(a));
++    }
++    if (view.hist) view.hist.length = 0; else view.hist = [];
++    view.glow?.setVisible(true);
++    view.trail?.forEach((t) => t.setVisible(false));
+     view.sprite.setVisible(true);
+     view.shadow.setVisible(true);
+     return view;
+diff --git a/src/client/entities/EnemyViews.js b/src/client/entities/EnemyViews.js
+index 7236e73..0b2b64f 100644
+--- a/src/client/entities/EnemyViews.js
++++ b/src/client/entities/EnemyViews.js
+@@ -2,6 +2,8 @@
+ // spawn swirl while appearing, white flash when hit, yellow blink while
+ // winding up an attack (so every attack is readable before it lands).
+ import { DEPTH } from '../systems/depth.js';
++import { GFX } from '../gfx/flags.js';
++import { EmperorView } from '../gfx/boss.js';
+ 
+ const HIT_FLASH_SECONDS = 0.07;
+ const TELEGRAPH_TINT = 0xffe066;
+@@ -53,6 +55,13 @@ export class EnemyViews {
+   draw(view, e, alpha, time) {
+     const x = e.prevX + (e.x - e.prevX) * alpha;
+     const y = e.prevY + (e.y - e.prevY) * alpha;
++    if (view.emperor) {
++      const p = this.scene.transport.getLocalPlayer();
++      const dt = view.lastTime != null ? Math.max(0, time - view.lastTime) : 0;
++      view.lastTime = time;
++      view.emperor.update(e, x, y, time, p && p.alive ? p : null, dt);
++      return;
++    }
+     const rx = Math.round(x);
+     const ry = Math.round(y);
+     const { sprite, shadow, mark } = view;
+@@ -84,6 +93,18 @@ export class EnemyViews {
+     if (e.vx < -1) sprite.setFlipX(true);
+     else if (e.vx > 1) sprite.setFlipX(false);
+ 
++    if (GFX.juice) {
++      // Squash on hit, pop in after spawning, idle breathing
++      const sinceHit = time - e.lastHitTime;
++      let sx = 1;
++      let sy = 1;
++      if (sinceHit < 0.14) { const k = 1 - sinceHit / 0.14; sx += 0.3 * k; sy -= 0.25 * k; }
++      else if (e.spawnDelay <= 0 && view.wasSpawning) { view.popT = 0.18; }
++      view.wasSpawning = e.spawnDelay > 0;
++      if (view.popT > 0) { view.popT -= 1 / 60; const k = view.popT / 0.18; sx -= 0.2 * k; sy += 0.35 * k; }
++      if (e.type !== 'coconut') sy += Math.sin(time * 5 + e.id) * 0.04;
++      sprite.setScale(sx, sy);
++    }
+     if (time - e.lastHitTime < HIT_FLASH_SECONDS) sprite.setTintFill(0xffffff);
+     else if (e.telegraph && Math.floor(time * 14) % 2 === 0) sprite.setTintFill(TELEGRAPH_TINT);
+     else sprite.clearTint();
+@@ -93,6 +114,14 @@ export class EnemyViews {
+     const pool = this.pools.get(type) ?? [];
+     this.pools.set(type, pool);
+     const view = pool.pop() ?? this.create(type);
++    if (GFX.boss && type === 'crabKing') {
++      view.emperor ??= new EmperorView(this.scene, this.scene.config.enemies.crabKing);
++      view.emperor.setVisible(true);
++      view.sprite.setVisible(false);
++      view.shadow.setVisible(false);
++      view.lastTime = null;
++      return view;
++    }
+     view.sprite.setVisible(true).clearTint().setRotation(0).setFlipX(false);
+     view.shadow.setVisible(true);
+     view.spin = 0;
+@@ -110,6 +139,7 @@ export class EnemyViews {
+   }
+ 
+   release(view) {
++    view.emperor?.setVisible(false);
+     view.sprite.setVisible(false);
+     view.shadow.setVisible(false);
+     view.mark.setVisible(false);
+diff --git a/src/client/entities/GemViews.js b/src/client/entities/GemViews.js
+index e749d86..01a313c 100644
+--- a/src/client/entities/GemViews.js
++++ b/src/client/entities/GemViews.js
+@@ -1,3 +1,7 @@
++import { GFX } from '../gfx/flags.js';
++import { addGlow } from '../gfx/lighting.js';
++
++const GEM_GLOW = { 1: 0x4de1ff, 5: 0x5dff8a, 20: 0xffd23a };
+ // Draws XP gems from a pool of images; they bob gently on the sand.
+ export class GemViews {
+   /** @param {Phaser.Scene} scene */
+@@ -26,10 +30,12 @@ export class GemViews {
+       const y = g.prevY + (g.y - g.prevY) * alpha;
+       const bob = g.targetId ? 0 : Math.round(Math.sin(time * 4 + g.id) * 1.2);
+       view.image.setPosition(Math.round(x), Math.round(y - 3 + bob)).setDepth(y);
++      view.glow?.setPosition(Math.round(x), Math.round(y - 3 + bob)).setDepth(y - 0.01).setAlpha(0.35 + 0.15 * Math.sin(time * 6 + g.id));
+     }
+     for (const [id, view] of this.active) {
+       if (this.seen.has(id)) continue;
+       view.image.setVisible(false);
++      view.glow?.setVisible(false);
+       this.pools.get(view.value).push(view);
+       this.active.delete(id);
+     }
+@@ -39,6 +45,8 @@ export class GemViews {
+     const pool = this.pools.get(value) ?? [];
+     this.pools.set(value, pool);
+     const view = pool.pop() ?? { value, image: this.scene.add.image(0, 0, `gem${value}`) };
++    if (GFX.light && !view.glow) view.glow = addGlow(this.scene, GEM_GLOW[value], value === 20 ? 0.9 : 0.6, 0.4);
++    view.glow?.setVisible(true);
+     view.image.setVisible(true);
+     return view;
+   }
+diff --git a/src/client/entities/MapView.js b/src/client/entities/MapView.js
+index 2cc26ed..f8977a0 100644
+--- a/src/client/entities/MapView.js
++++ b/src/client/entities/MapView.js
+@@ -4,6 +4,9 @@ import { TILE } from '../../shared/content/tiles.js';
+ import { tileAt } from '../../shared/sim/map.js';
+ import { TILE_ART } from '../art/tileArt.js';
+ import { DEPTH } from '../systems/depth.js';
++import { GFX } from '../gfx/flags.js';
++import { bakeTerrain } from '../gfx/terrain.js';
++import { createProps } from '../gfx/props.js';
+ 
+ export class MapView {
+   /**
+@@ -24,12 +27,22 @@ export class MapView {
+     const tileset = this.tilemap.addTilesetImage(tilesetKey, tilesetKey, ts, ts, 0, 0);
+     this.layer = this.tilemap.createLayer(0, tileset, 0, 0).setDepth(DEPTH.FLOOR);
+ 
++    if (GFX.terrain) {
++      const keys = scene.textures.exists('terrain0') ? ['terrain0', 'terrain1', 'terrain2'] : bakeTerrain(scene, map);
++      this.layer.setVisible(false);
++      const img = scene.add.image(0, 0, keys[0]).setOrigin(0).setDepth(DEPTH.FLOOR);
++      let f = 0;
++      scene.time.addEvent({ delay: 380, loop: true, callback: () => img.setTexture(keys[(f = (f + 1) % keys.length)]) });
++    }
++    if (GFX.props) this.props = createProps(scene, map);
++
+     this.rocks = [];
+     for (let y = 0; y < map.height; y++) {
+       for (let x = 0; x < map.width; x++) {
+         if (tileAt(map, x, y) !== TILE.ROCK) continue;
+         const bottom = (y + 1) * ts;
+         this.rocks.push(scene.add.image((x + 0.5) * ts, bottom, 'rock').setOrigin(0.5, 1).setDepth(bottom));
++        if (GFX.props) scene.add.image((x + 0.5) * ts + 3, bottom - 1, 'shadow').setScale(1.5, 1.4).setDepth(DEPTH.SHADOW);
+       }
+     }
+   }
+diff --git a/src/client/entities/PlayerView.js b/src/client/entities/PlayerView.js
+index 80b1972..34a38d3 100644
+--- a/src/client/entities/PlayerView.js
++++ b/src/client/entities/PlayerView.js
+@@ -1,6 +1,8 @@
+ // Draws one player: shadow, chibi body (facing the aim), slingshot in hand.
+ // Blinks while invulnerable after a hit, flashes red when hurt, lies down when dead.
+ import { DEPTH } from '../systems/depth.js';
++import { GFX } from '../gfx/flags.js';
++import { createHeroTextures } from '../gfx/hero.js';
+ 
+ const WALK_FPS = 8;
+ const HURT_FLASH_SECONDS = 0.12;
+@@ -13,8 +15,21 @@ export class PlayerView {
+   constructor(scene, playerCfg) {
+     this.cfg = playerCfg;
+     this.shadow = scene.add.image(0, 0, 'shadow').setDepth(DEPTH.SHADOW);
+-    this.body = scene.add.sprite(0, 0, 'castaway', 'down_0');
+-    this.weapon = scene.add.image(0, 0, 'slingshot').setOrigin(0.2, 0.5);
++    this.scene = scene;
++    if (GFX.hud) {
++      // Player marker ring: keeps the hero readable inside a horde (and colours players in multiplayer)
++      this.ring = scene.add.ellipse(0, 0, 18, 8).setStrokeStyle(1, 0x4de1ff, 0.9).setDepth(DEPTH.SHADOW + 1);
++      this.dust = scene.add.particles(0, 0, 'px', {
++        speed: { min: 4, max: 14 }, lifespan: 300, scale: { start: 0.8, end: 0 }, alpha: { start: 0.8, end: 0 },
++        tint: [0xf6dfa8, 0xd4ad6a], gravityY: -10, emitting: false,
++      }).setDepth(DEPTH.GROUND_FX);
++      this.lastStep = 0;
++    }
++    if (GFX.hero) createHeroTextures(scene);
++    this.body = GFX.hero ? scene.add.sprite(0, 0, 'hero', 'down_idle0') : scene.add.sprite(0, 0, 'castaway', 'down_0');
++    this.weapon = GFX.hero ? scene.add.sprite(0, 0, 'sling2', 'rest').setOrigin(0.2, 0.5) : scene.add.image(0, 0, 'slingshot').setOrigin(0.2, 0.5);
++    this.shotT = 9;
++    this.idleClock = 0;
+     this.walkClock = 0;
+   }
+ 
+@@ -33,6 +48,7 @@ export class PlayerView {
+     const s = Math.sin(p.aim);
+ 
+     this.shadow.setPosition(rx, ry + 3);
++    this.ring?.setPosition(rx, ry + 3).setVisible(p.alive).setStrokeStyle(1, 0x4de1ff, 0.55 + 0.35 * Math.sin(time * 5));
+ 
+     if (!p.alive) {
+       this.body.setFrame('down_0').setOrigin(0.5, 0.5).setPosition(rx, ry).setRotation(Math.PI / 2).setAlpha(0.8);
+@@ -48,33 +64,69 @@ export class PlayerView {
+ 
+     this.walkClock = p.moving ? this.walkClock + dtSeconds : 0;
+     const step = Math.floor(this.walkClock * WALK_FPS) % 2;
+-    this.body.setFrame(`${dir}_${step}`).setFlipX(dir === 'side' && c < 0).setDepth(y);
++    if (GFX.hero) {
++      this.idleClock += dtSeconds;
++      const sinceHitH = time - p.lastHitTime;
++      let frame;
++      if (sinceHitH < 0.35) frame = `${dir}_hurt`;
++      else if (p.moving) frame = `${dir}_walk${Math.floor(this.walkClock * 10) % 4}`;
++      else if (this.idleClock % 3.2 > 3.05) frame = dir === 'up' ? `${dir}_idle0` : `${dir}_blink`;
++      else frame = `${dir}_idle${Math.floor(this.idleClock * 2) % 2}`;
++      this.body.setTexture('hero', frame);
++      this.shotT += dtSeconds;
++      this.weapon.setFrame(this.shotT < 0.06 ? 'pull' : 'rest');
++    } else {
++      this.body.setFrame(`${dir}_${step}`);
++    }
++    this.body.setFlipX(dir === 'side' && c < 0).setDepth(y);
+ 
+     // Hurt: red flash, then blink while invulnerable (not during a roll: the spin shows it).
+     const sinceHit = time - p.lastHitTime;
+-    if (sinceHit < HURT_FLASH_SECONDS) this.body.setTintFill(0xff4040);
++    if (sinceHit < HURT_FLASH_SECONDS) this.body.setTintFill(GFX.hero ? 0xffffff : 0xff4040);
+     else this.body.clearTint();
+     const blinking = p.invulnerableTime > 0 && !p.rolling && sinceHit < 2;
+-    this.body.setAlpha(blinking && Math.floor(time * 16) % 2 === 0 ? 0.35 : 1);
++    if (GFX.hero) {
++      // i-frames: flicker a light tint instead of going transparent (stays readable)
++      this.body.setAlpha(1);
++      if (blinking && sinceHit >= HURT_FLASH_SECONDS && Math.floor(time * 16) % 2 === 0) this.body.setTint(0xffb0a0);
++    } else this.body.setAlpha(blinking && Math.floor(time * 16) % 2 === 0 ? 0.35 : 1);
+ 
+     if (p.rolling) {
+       // Spin and squash while rolling; the weapon is put away.
+       const t = 1 - p.rollTime / this.cfg.roll.duration;
+       const spin = (p.rollDirX < 0 ? -1 : 1) * t * Math.PI * 2;
+-      this.body.setOrigin(0.5, 0.5).setPosition(rx, ry - 4).setRotation(spin).setScale(1, 0.85);
++      if (GFX.hero) {
++        // real tuck-and-roll frames instead of spinning the standing sprite
++        const k = Math.floor(t * 8) % 4;
++        this.body.setTexture('heroRoll', String(p.rollDirX < 0 ? (4 - k) % 4 : k)).setOrigin(0.5, 1).setPosition(rx, ry + 4 - Math.round(Math.sin(t * Math.PI) * 4)).setRotation(0).setScale(1);
++      } else this.body.setOrigin(0.5, 0.5).setPosition(rx, ry - 4).setRotation(spin).setScale(1, 0.85);
+       this.weapon.setVisible(false);
+     } else {
+       this.body.setOrigin(0.5, 1).setPosition(rx, ry + 4).setRotation(0).setScale(1, 1);
++      if (GFX.hud) {
++        // Walk bounce, idle breathing, lean into movement, dust on each step
++        const bounce = p.moving && step === 1 ? -1 : 0;
++        const breathe = p.moving ? 1 : 1 + Math.sin(time * 4) * 0.04;
++        const lean = p.moving ? (p.x - p.prevX > 0.05 ? 0.07 : p.x - p.prevX < -0.05 ? -0.07 : 0) : 0;
++        this.body.setPosition(rx, ry + 4 + bounce).setScale(p.moving && step === 1 ? 1.06 : 1, (p.moving && step === 1 ? 0.94 : 1) * (2 - breathe)).setRotation(lean);
++        if (p.moving && step !== this.lastStep) this.dust.explode(2, rx, ry + 3);
++        this.lastStep = step;
++      }
+       // Hand position, slightly toward the aim side; weapon behind the body when aiming up.
+       this.weapon
+         .setVisible(true)
+-        .setPosition(Math.round(x + c * 3), Math.round(y - this.cfg.handHeight + 1))
++        .setPosition(Math.round(x + c * (GFX.hero ? (this.shotT < 0.06 ? 2 : 4) : 3)), Math.round(y - this.cfg.handHeight + (GFX.hero ? 0 : 1)))
+         .setRotation(p.aim)
+         .setFlipY(c < 0)
+         .setDepth(dir === 'up' ? y - 0.1 : y + 0.1);
+     }
+   }
+ 
++  /** Slingshot kick: band pulled for a moment, hand recoils. */
++  onShot() {
++    this.shotT = 0;
++  }
++
+   destroy() {
+     this.shadow.destroy();
+     this.body.destroy();
+diff --git a/src/client/gfx/boss.js b/src/client/gfx/boss.js
+new file mode 100644
+index 0000000..788e2dd
+--- /dev/null
++++ b/src/client/gfx/boss.js
+@@ -0,0 +1,248 @@
++// Villain prototype: the Crab Emperor as an animated rig, with per-attack
++// telegraphs on the ground, a phase-2 look below half health, an entrance card
++// and a death sequence. View-only: the simulation still drives the boss.
++import * as Phaser from 'phaser';
++import { empBody, empClaw, empLeg, empStalk, empCrown } from '../../shared/art/emperor.js';
++import { addOutline, createTextureFromGrid, createSpritesheet } from '../art/pixelArt.js';
++import { DEPTH } from '../systems/depth.js';
++import { addPixelText } from '../art/pixelFont.js';
++
++const O = '#1a1212';
++const RED = 0xff3d4a;
++
++export function createEmperorTextures(scene) {
++  if (scene.textures.exists('emp-body')) return;
++  createTextureFromGrid(scene, 'emp-body', addOutline(empBody(false), O));
++  createTextureFromGrid(scene, 'emp-body2', addOutline(empBody(true), O));
++  createSpritesheet(scene, 'emp-claw', [0, 1, 2].map((k) => ({ name: String(k), grid: addOutline(empClaw(k), O) })));
++  createTextureFromGrid(scene, 'emp-leg', addOutline(empLeg(), O));
++  createTextureFromGrid(scene, 'emp-stalk', addOutline(empStalk(), O));
++  createTextureFromGrid(scene, 'emp-crown', addOutline(empCrown(), O));
++}
++
++export class EmperorView {
++  /** @param {Phaser.Scene} scene @param {object} stats - config.enemies.crabKing */
++  constructor(scene, stats) {
++    createEmperorTextures(scene);
++    this.scene = scene;
++    this.stats = stats;
++    const add = (key, frame) => scene.add.image(0, 0, key, frame);
++    this.shadow = scene.add.ellipse(0, 0, 70, 16, 0x1a1212, 0.35).setDepth(DEPTH.SHADOW);
++    this.tele = scene.add.graphics().setDepth(DEPTH.SHADOW + 3);
++    this.c = scene.add.container(0, 0);
++    this.legs = [];
++    for (let i = 0; i < 3; i++) {
++      this.legs.push(add('emp-leg').setOrigin(0, 0.5));
++      this.legs.push(add('emp-leg').setOrigin(1, 0.5).setFlipX(true));
++    }
++    this.body = add('emp-body').setOrigin(0.5, 1);
++    this.stalkL = add('emp-stalk').setOrigin(0.5, 1);
++    this.stalkR = add('emp-stalk').setOrigin(0.5, 1);
++    this.pupilL = scene.add.rectangle(0, 0, 2, 2, 0x1a1212).setOrigin(0);
++    this.pupilR = scene.add.rectangle(0, 0, 2, 2, 0x1a1212).setOrigin(0);
++    this.crown = add('emp-crown').setOrigin(0.5, 1);
++    this.clawR = add('emp-claw', '0').setOrigin(0.1, 0.85);
++    this.clawL = add('emp-claw', '0').setOrigin(0.9, 0.85).setFlipX(true);
++    this.c.add([...this.legs, this.body, this.stalkL, this.stalkR, this.pupilL, this.pupilR, this.crown, this.clawL, this.clawR]);
++    this.parts = [...this.legs, this.body, this.stalkL, this.stalkR, this.crown, this.clawL, this.clawR];
++    this.steam = scene.add.particles(0, 0, 'px', {
++      speed: { min: 6, max: 18 }, angle: { min: 250, max: 290 }, lifespan: 700, scale: { start: 1, end: 2 },
++      alpha: { start: 0.5, end: 0 }, tint: [0xd8dce6, 0xff7a2a], frequency: 90, emitting: false,
++    });
++    this.charge = scene.add.particles(0, 0, 'px', {
++      speed: { min: -40, max: -20 }, lifespan: 260, scale: { start: 0.5, end: 1 }, alpha: { start: 0, end: 1 },
++      tint: [0xffe27a, 0xff6a4a], emitting: false, blendMode: 'ADD',
++      emitZone: { type: 'edge', source: new Phaser.Geom.Circle(0, 0, 12), quantity: 12 },
++    });
++    this.phase2 = false;
++    this.lastHitSeen = -1;
++    this.flashStart = -9;
++    this.wasState = null;
++    this.stateT = 0;
++  }
++
++  setVisible(v) {
++    [this.c, this.shadow, this.tele].forEach((o) => o.setVisible(v));
++    if (!v) { this.steam.emitting = false; this.charge.emitting = false; this.tele.clear(); }
++  }
++
++  /** @param {object} e enemy @param {number} x @param {number} y @param {number} time @param {{x:number,y:number}|null} target */
++  update(e, x, y, time, target, dt) {
++    const rx = Math.round(x);
++    const ry = Math.round(y);
++    if (e.state !== this.wasState) { this.wasState = e.state; this.stateT = 0; }
++    this.stateT += dt;
++    const spawning = e.spawnDelay > 0;
++    const moving = Math.hypot(e.vx, e.vy) > 2;
++    const windup = e.state && e.state.endsWith('Windup');
++    const charging = e.state === 'charge';
++
++    // body bob and stance
++    const bob = spawning ? 0 : Math.round(Math.sin(time * (moving ? 10 : 3)) * (moving ? 1 : 1));
++    const rise = spawning ? Math.round((e.spawnDelay / e.spawnDuration) * 30) : 0; // burrows up out of the sand
++    this.c.setPosition(rx, ry + 4 + rise).setDepth(y);
++    this.c.setAlpha(spawning ? 1 - (e.spawnDelay / e.spawnDuration) * 0.6 : 1);
++    this.shadow.setPosition(rx, ry + 4).setScale(spawning ? 0.6 : 1, 1);
++    const lean = charging ? Math.sign(e.dirX || 1) * 0.12 : 0;
++    this.c.setRotation(lean);
++
++    this.body.setPosition(0, -2 + bob);
++    // legs scuttle
++    this.legs.forEach((leg, i) => {
++      const side = i % 2 === 0 ? 1 : -1;
++      const row = Math.floor(i / 2);
++      const swing = moving || charging ? Math.sin(time * (charging ? 30 : 14) + row * 2 + (side > 0 ? 0 : Math.PI)) * 0.35 : 0;
++      leg.setPosition(side * 15, -10 + row * 4 + bob).setRotation(side * (0.25 + row * 0.25 + swing));
++    });
++    // eye stalks + pupils that track the hero
++    const sway = Math.sin(time * 2.2) * 1.5;
++    this.stalkL.setPosition(-13, -24 + bob).setRotation(-0.15 + sway * 0.04);
++    this.stalkR.setPosition(13, -24 + bob).setRotation(0.15 - sway * 0.04);
++    let lx = 0;
++    let ly = 0;
++    if (target) {
++      const a = Math.atan2(target.y - y, target.x - x);
++      lx = Math.round(Math.cos(a) * 1.4);
++      ly = Math.round(Math.sin(a) * 1.4);
++    }
++    this.pupilL.setPosition(-14 + lx, -37 + bob + ly);
++    this.pupilR.setPosition(12 + lx, -37 + bob + ly);
++    const angry = this.phase2 || windup;
++    this.pupilL.setFillStyle(angry ? RED : 0x1a1212);
++    this.pupilR.setFillStyle(angry ? RED : 0x1a1212);
++    this.crown.setPosition(0, -27 + bob).setRotation(this.phase2 ? -0.18 : Math.sin(time * 1.5) * 0.04);
++
++    // claws: idle snapping, raised and wide open while winding up, forward while charging
++    const snap = Math.floor(time * 2.5) % 4 === 0 ? 1 : 0;
++    let clawFrame = String(snap);
++    let raise = 0;
++    let clawRot = Math.sin(time * 2) * 0.05;
++    if (windup) {
++      const k = Math.min(1, this.stateT / 0.25);
++      raise = Math.round(10 * k);
++      clawFrame = '2';
++      clawRot = -0.35 * k + Math.sin(time * 40) * 0.03;
++    } else if (charging) {
++      clawFrame = '1';
++      clawRot = 0.3;
++    } else if (this.stateT < 0.15 && (this.wasState === 'walk')) {
++      clawFrame = '0'; // snap shut right after firing
++      clawRot = 0.15;
++    }
++    this.clawR.setFrame(clawFrame).setPosition(20, -12 - raise + bob).setRotation(clawRot);
++    this.clawL.setFrame(clawFrame).setPosition(-20, -12 - raise + bob).setRotation(-clawRot);
++
++    // phase 2
++    const p2 = e.hp <= e.maxHp / 2;
++    if (p2 !== this.phase2) {
++      this.phase2 = p2;
++      this.body.setTexture(p2 ? 'emp-body2' : 'emp-body');
++      this.steam.emitting = p2;
++    }
++    if (p2) this.steam.setPosition(rx + Math.sin(time * 7) * 14, ry - 22);
++
++    // hit flash / telegraph flash on all parts
++    // throttled hit flash: at most one short flash every 0.2 s, so a stream of pebbles never turns it into a white blob
++    if (e.lastHitTime > this.lastHitSeen) {
++      this.lastHitSeen = e.lastHitTime;
++      if (time - this.flashStart > 0.3) this.flashStart = time;
++    }
++    const hit = time - this.flashStart < 0.035;
++    this.c.setScale(hit ? 1.04 : 1, hit ? 0.96 : 1);
++    for (const p of this.parts) {
++      if (hit) p.setTintFill(0xffffff);
++      else if (windup && Math.floor(time * 14) % 2 === 0) p.setTint(0xffd0a0);
++      else p.clearTint();
++    }
++    // charge sparks converge on the claws during the wind-up
++    this.charge.emitting = windup && e.state !== 'chargeWindup';
++    if (this.charge.emitting) this.charge.setPosition(rx + 26 * (Math.floor(time * 20) % 2 ? 1 : -1), ry - 20 - raise);
++
++    this.drawTelegraph(e, x, y, time, target);
++  }
++
++  drawTelegraph(e, x, y, time, target) {
++    const g = this.tele;
++    g.clear();
++    if (!e.state || !e.state.endsWith('Windup')) return;
++    const s = this.stats;
++    const pulse = 0.18 + 0.14 * Math.sin(time * 18);
++    const fill = Math.min(1, this.stateT / (s[e.state.replace('Windup', '')]?.windup ?? 0.6));
++    if (e.state === 'chargeWindup') {
++      const len = s.charge.speed * s.charge.duration;
++      const a = Math.atan2(e.dirY, e.dirX);
++      const w = e.radius * 2 + 10;
++      const pts = (l, off) => {
++        const cx = x + Math.cos(a) * l;
++        const cy = y + Math.sin(a) * l;
++        return { x: cx - Math.sin(a) * off, y: cy + Math.cos(a) * off };
++      };
++      const quad = (l0, l1) => [pts(l0, -w / 2), pts(l1, -w / 2), pts(l1, w / 2), pts(l0, w / 2)];
++      g.fillStyle(RED, pulse).fillPoints(quad(0, len), true);
++      g.fillStyle(RED, 0.35).fillPoints(quad(0, len * fill), true);
++      g.lineStyle(1, RED, 0.9).strokePoints(quad(0, len), true);
++      for (let k = 0; k < 4; k++) { // moving chevrons
++        const l = ((time * 120 + k * (len / 4)) % len);
++        const p0 = pts(l - 6, -w / 3); const p1 = pts(l, 0); const p2 = pts(l - 6, w / 3);
++        g.lineStyle(2, 0xffe27a, 0.8).beginPath().moveTo(p0.x, p0.y).lineTo(p1.x, p1.y).lineTo(p2.x, p2.y).strokePath();
++      }
++    } else if (e.state === 'fanWindup' && target) {
++      const a = Math.atan2(target.y - y, target.x - x);
++      const r = 110;
++      g.fillStyle(RED, pulse).slice(x, y, r, a - s.fan.spread / 2, a + s.fan.spread / 2, false).fillPath();
++      g.fillStyle(RED, 0.3).slice(x, y, r * fill, a - s.fan.spread / 2, a + s.fan.spread / 2, false).fillPath();
++      g.lineStyle(1, RED, 0.9).slice(x, y, r, a - s.fan.spread / 2, a + s.fan.spread / 2, false).strokePath();
++    } else if (e.state === 'ringWindup') {
++      g.lineStyle(2, RED, 0.9).strokeCircle(x, y, 14 + fill * 50);
++      g.fillStyle(RED, pulse * 0.8).fillCircle(x, y, 14 + fill * 50);
++      for (let k = 0; k < s.ring.count; k++) {
++        const a = (k / s.ring.count) * Math.PI * 2;
++        g.fillStyle(0xffe27a, 0.9).fillRect(Math.round(x + Math.cos(a) * (18 + fill * 46)), Math.round(y + Math.sin(a) * (18 + fill * 46)), 2, 2);
++      }
++    }
++  }
++
++  destroy() {
++    [this.c, this.shadow, this.tele, this.steam, this.charge].forEach((o) => o.destroy());
++  }
++}
++
++/** Entrance card: letterbox bars + name plate; returns nothing, cleans itself up. */
++export function emperorIntro(scene, display) {
++  const { width: w, height: h } = display;
++  const fixed = (o) => o.setScrollFactor(0).setDepth(DEPTH.MENU);
++  const top = fixed(scene.add.rectangle(0, -24, w, 24, 0x0d0a08).setOrigin(0));
++  const bot = fixed(scene.add.rectangle(0, h, w, 24, 0x0d0a08).setOrigin(0));
++  const plate = fixed(scene.add.rectangle(w / 2, 196, 220, 34, 0x0d0a08, 0.85)).setScale(0, 1);
++  const title = fixed(addPixelText(scene, w / 2, 186, 'CRAB EMPEROR').setOrigin(0.5).setScale(2)).setTint(0xf0c040).setAlpha(0);
++  const sub = fixed(addPixelText(scene, w / 2, 204, 'TYRANT OF THE TIDE').setOrigin(0.5)).setTint(0xff6a4a).setAlpha(0);
++  const line = fixed(scene.add.rectangle(w / 2, 213, 180, 1, 0xf0c040)).setScale(0, 1);
++  scene.tweens.add({ targets: top, y: 0, duration: 300, ease: 'Quad.Out' });
++  scene.tweens.add({ targets: bot, y: h - 24, duration: 300, ease: 'Quad.Out' });
++  scene.tweens.add({ targets: plate, scaleX: 1, duration: 260, delay: 250, ease: 'Back.Out' });
++  scene.tweens.add({ targets: line, scaleX: 1, duration: 400, delay: 350 });
++  scene.tweens.add({ targets: [title, sub], alpha: 1, duration: 200, delay: 380 });
++  scene.time.delayedCall(2300, () => {
++    scene.tweens.add({ targets: [top], y: -24, duration: 300 });
++    scene.tweens.add({ targets: [bot], y: h, duration: 300 });
++    scene.tweens.add({ targets: [plate, title, sub, line], alpha: 0, duration: 300, onComplete: () => [top, bot, plate, title, sub, line].forEach((o) => o.destroy()) });
++  });
++}
++
++/** Death: chain explosions, then the crown pops off and lands (it stays as a trophy). */
++export function emperorDeath(scene, x, y, shake) {
++  for (let k = 0; k < 7; k++) {
++    scene.time.delayedCall(k * 120, () => {
++      const ex = x + Math.sin(k * 2.3) * 18;
++      const ey = y - 14 + Math.cos(k * 1.7) * 10;
++      const ring = scene.add.image(ex, ey, 'ring').setTint(k % 2 ? 0xffe27a : 0xff6a4a).setScale(0.2).setDepth(DEPTH.FX);
++      scene.tweens.add({ targets: ring, scale: 1.1, alpha: 0, duration: 300, onComplete: () => ring.destroy() });
++      const flash = scene.add.image(ex, ey, 'muzzle').setScale(3).setDepth(DEPTH.FX).setBlendMode('ADD');
++      scene.time.delayedCall(60, () => flash.destroy());
++      shake(120, 0.008);
++    });
++  }
++  const crown = scene.add.image(x, y - 28, 'emp-crown').setOrigin(0.5, 1).setDepth(y + 1);
++  scene.tweens.add({ targets: crown, y: y - 70, angle: 200, duration: 450, ease: 'Quad.Out', delay: 700,
++    onComplete: () => scene.tweens.add({ targets: crown, y: y + 6, angle: 340, duration: 420, ease: 'Bounce.Out' }) });
++}
+diff --git a/src/client/gfx/flags.js b/src/client/gfx/flags.js
+new file mode 100644
+index 0000000..456ac95
+--- /dev/null
++++ b/src/client/gfx/flags.js
+@@ -0,0 +1,16 @@
++// Prototype graphics upgrades, switched on from the URL: ?gfx=all or ?gfx=terrain,props,light,juice,hud
++const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
++const raw = params.get('gfx') ?? '';
++const all = raw === 'all';
++const set = new Set(raw.split(',').filter(Boolean));
++export const GFX = Object.freeze({
++  terrain: all || set.has('terrain'),
++  props: all || set.has('props'),
++  light: all || set.has('light'),
++  juice: all || set.has('juice'),
++  hud: all || set.has('hud'),
++  boss: all || set.has('boss'),
++  hero: all || set.has('hero'),
++});
++export const SCRIPTED = params.has('script');
++export const CAPTURE = params.has('capture');
+diff --git a/src/client/gfx/hero.js b/src/client/gfx/hero.js
+new file mode 100644
+index 0000000..9c72051
+--- /dev/null
++++ b/src/client/gfx/hero.js
+@@ -0,0 +1,43 @@
++// Hero prototype textures: 'hero' spritesheet (walk/idle/blink/hurt per direction,
++// roll0..3) and a bigger slingshot with rest / pulled frames.
++import { heroFrame, heroRollBall, rotateGrid } from '../../shared/art/hero.js';
++import { addOutline, createSpritesheet, gridFromStrings } from '../art/pixelArt.js';
++import { PALETTE as P } from '../art/palette.js';
++
++const O = '#1a1212';
++
++const SLING_REST = [
++  '......WWw.',
++  '.......WB.',
++  'hhhwWWW.B.',
++  'hhhwWWW.L.',
++  '.......WB.',
++  '......WWw.',
++];
++const SLING_PULL = [
++  '......WWw.',
++  '.....BBW..',
++  'hhhwLWW...',
++  'hhhwWWW...',
++  '.....BBW..',
++  '......WWw.',
++];
++
++export function createHeroTextures(scene, traits = {}) {
++  if (scene.textures.exists('hero')) return;
++  const frames = [];
++  for (const dir of ['down', 'up', 'side']) {
++    for (let i = 0; i < 4; i++) frames.push({ name: `${dir}_walk${i}`, grid: addOutline(heroFrame(traits, dir, { walk: i, tail: i % 2 }), O) });
++    for (let i = 0; i < 2; i++) frames.push({ name: `${dir}_idle${i}`, grid: addOutline(heroFrame(traits, dir, { idle: i, tail: i }), O) });
++    frames.push({ name: `${dir}_blink`, grid: addOutline(heroFrame(traits, dir, { blink: true }), O) });
++    frames.push({ name: `${dir}_hurt`, grid: addOutline(heroFrame(traits, dir, { hurt: true }), O) });
++  }
++  createSpritesheet(scene, 'hero', frames);
++  const ball = heroRollBall(traits);
++  createSpritesheet(scene, 'heroRoll', [0, 1, 2, 3].map((k) => ({ name: String(k), grid: addOutline(rotateGrid(ball, k), O) })));
++  const colors = { W: P.wood, w: P.woodDark, B: P.band, L: '#8a5a3a', h: '#c88a50' };
++  createSpritesheet(scene, 'sling2', [
++    { name: 'rest', grid: addOutline(gridFromStrings(SLING_REST, colors), O) },
++    { name: 'pull', grid: addOutline(gridFromStrings(SLING_PULL, colors), O) },
++  ]);
++}
+diff --git a/src/client/gfx/juice.js b/src/client/gfx/juice.js
+new file mode 100644
+index 0000000..20a9731
+--- /dev/null
++++ b/src/client/gfx/juice.js
+@@ -0,0 +1,158 @@
++// Upgrade 4 - combat juice and persistent debris: enemies burst into chunks that
++// arc, bounce and stay on the ground (Gungeon-style), scorch marks after
++// explosions, death "poof" rings, footprints in the sand.
++import { DEPTH } from '../systems/depth.js';
++import { hash2 } from './noise.js';
++
++const CHUNKS = {
++  crab: ['#e2553a', '#ff9b70', '#b8341f', '#ffffff'],
++  coconut: ['#7a4a26', '#a06a3c', '#f2ead8', '#5a3216'],
++  skeleton: ['#f2ead8', '#c9bfa8', '#2b2420', '#f2ead8'],
++  tiki: ['#b0703a', '#5a9a48', '#ffcf3a', '#6e3d1a'],
++  crabKing: ['#e2553a', '#f0c040', '#ffffff', '#b8341f'],
++};
++const STAIN = { crab: '#c9a06a', coconut: '#f7eed8', skeleton: '#cbb48a', tiki: '#c39a62', crabKing: '#c9a06a' };
++
++function ensureTextures(scene) {
++  if (scene.textures.exists('chunk2')) return;
++  for (const [k, w, h] of [['chunk2', 2, 2], ['chunk3', 3, 2], ['chunk1', 1, 1]]) {
++    const t = scene.textures.createCanvas(k, w, h);
++    const ctx = t.getContext();
++    ctx.fillStyle = '#ffffff';
++    ctx.fillRect(0, 0, w, h);
++    t.refresh();
++  }
++  // irregular stain blob (white, tinted when stamped)
++  {
++    const t = scene.textures.createCanvas('stain', 14, 8);
++    const ctx = t.getContext();
++    ctx.fillStyle = '#ffffff';
++    for (let y = 0; y < 8; y++) for (let x = 0; x < 14; x++) {
++      const d = ((x - 6.5) / 7) ** 2 + ((y - 3.5) / 4) ** 2;
++      if (d < 0.55 || (d < 1 && hash2(x, y, 9) < 0.45)) ctx.fillRect(x, y, 1, 1);
++    }
++    t.refresh();
++  }
++  {
++    const t = scene.textures.createCanvas('scorch', 40, 24);
++    const ctx = t.getContext();
++    for (let y = 0; y < 24; y++) for (let x = 0; x < 40; x++) {
++      const ang = Math.atan2((y - 11.5) * 1.6, x - 19.5);
++      const jag = 0.75 + 0.25 * Math.sin(ang * 7) + (hash2(Math.round(ang * 9), 0, 4) - 0.5) * 0.2;
++      const d = Math.sqrt(((x - 19.5) / 20) ** 2 + ((y - 11.5) / 12) ** 2) / jag;
++      if (d > 1) continue;
++      ctx.fillStyle = d < 0.45 ? 'rgba(40,22,14,0.75)' : d < 0.8 ? 'rgba(70,40,20,0.55)' : 'rgba(110,70,35,0.4)';
++      ctx.fillRect(x, y, 1, 1);
++    }
++    t.refresh();
++  }
++  {
++    const t = scene.textures.createCanvas('footprint', 2, 2);
++    const ctx = t.getContext();
++    ctx.fillStyle = 'rgba(150,110,60,0.55)';
++    ctx.fillRect(0, 0, 2, 2);
++    t.refresh();
++  }
++}
++
++export class Juice {
++  constructor(scene, map, localPlayerId) {
++    this.scene = scene;
++    this.localPlayerId = localPlayerId;
++    ensureTextures(scene);
++    const W = map.width * map.tileSize;
++    const H = map.height * map.tileSize;
++    this.decals = scene.add.renderTexture(0, 0, W, H).setOrigin(0).setDepth(DEPTH.SHADOW - 20);
++    this.stamp = scene.make.image({ x: 0, y: 0, key: 'chunk2', add: false });
++    this.chunks = [];
++    this.pool = [];
++    this.rings = [];
++    this.n = 0;
++    this.lastFoot = null;
++    this.footSide = 1;
++    this.footprints = [];
++  }
++
++  rand() {
++    this.n++;
++    return hash2(this.n, 17, 5);
++  }
++
++  handle(events) {
++    for (const e of events) {
++      if (e.type === 'enemyDied') this.burst(e);
++      else if (e.type === 'explosion') this.drawDecal('scorch', e.x, e.y, 0xffffff, Math.min(0.7, e.radius / 40), 0.85);
++    }
++  }
++
++  drawDecal(key, x, y, tint, scale = 1, alpha = 1, angle = 0) {
++    this.stamp.setTexture(key).setTint(tint).setScale(scale).setAlpha(alpha).setAngle(angle).setOrigin(0.5);
++    this.decals.draw(this.stamp, Math.round(x), Math.round(y));
++  }
++
++  burst(e) {
++    const colors = CHUNKS[e.enemyType] ?? CHUNKS.crab;
++    const n = e.boss ? 30 : 5;
++    this.drawDecal('stain', e.x, e.y + 1, parseInt((STAIN[e.enemyType] ?? '#c9a06a').slice(1), 16), e.boss ? 2.4 : 0.8, 0.4);
++    for (let i = 0; i < n; i++) {
++      const c = this.pool.pop() ?? this.scene.add.image(0, 0, 'chunk2');
++      const r = this.rand();
++      c.setTexture(r < 0.3 ? 'chunk3' : r < 0.8 ? 'chunk2' : 'chunk1')
++        .setTint(parseInt(colors[i % colors.length].slice(1), 16)).setVisible(true).setAlpha(1);
++      const a = this.rand() * Math.PI * 2;
++      const sp = (e.boss ? 60 : 30) + this.rand() * 60;
++      this.chunks.push({ img: c, x: e.x, y: e.y, z: 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, vz: 60 + this.rand() * 90, bounces: 0 });
++    }
++    // white death poof
++    const ring = this.rings.pop() ?? this.scene.add.image(0, 0, 'ring').setDepth(DEPTH.FX);
++    ring.setPosition(Math.round(e.x), Math.round(e.y - 6)).setVisible(true).setAlpha(0.9).setScale(0.15).setTint(0xffffff);
++    this.scene.tweens.add({
++      targets: ring, scale: e.boss ? 2 : 0.7, alpha: 0, duration: 220, ease: 'Quad.Out',
++      onComplete: () => { ring.setVisible(false); this.rings.push(ring); },
++    });
++  }
++
++  update(dt, player) {
++    const g = 420;
++    for (let i = this.chunks.length - 1; i >= 0; i--) {
++      const c = this.chunks[i];
++      c.vz -= g * dt;
++      c.x += c.vx * dt;
++      c.y += c.vy * dt;
++      c.z += c.vz * dt;
++      if (c.z <= 0) {
++        c.z = 0;
++        c.bounces++;
++        c.vz = -c.vz * 0.35;
++        c.vx *= 0.5;
++        c.vy *= 0.5;
++        if (c.bounces >= 2) {
++          this.decals.draw(c.img.setPosition(Math.round(c.x), Math.round(c.y)), Math.round(c.x), Math.round(c.y));
++          c.img.setVisible(false);
++          this.pool.push(c.img);
++          this.chunks.splice(i, 1);
++          continue;
++        }
++      }
++      c.img.setPosition(Math.round(c.x), Math.round(c.y - c.z)).setDepth(c.y);
++    }
++
++    // Footprints in the sand
++    if (player && player.alive && !player.rolling) {
++      const p = { x: player.x, y: player.y };
++      if (!this.lastFoot) this.lastFoot = p;
++      const dx = p.x - this.lastFoot.x;
++      const dy = p.y - this.lastFoot.y;
++      const d = Math.hypot(dx, dy);
++      if (d > 7) {
++        this.footSide *= -1;
++        const nx = (-dy / d) * 2 * this.footSide;
++        const ny = (dx / d) * 2 * this.footSide;
++        const f = this.footprints.pop() ?? this.scene.add.image(0, 0, 'footprint').setDepth(DEPTH.SHADOW - 5);
++        f.setPosition(Math.round(p.x + nx), Math.round(p.y + 3 + ny)).setAlpha(1).setVisible(true);
++        this.scene.tweens.add({ targets: f, alpha: 0, delay: 1200, duration: 1600, onComplete: () => { f.setVisible(false); this.footprints.push(f); } });
++        this.lastFoot = p;
++      }
++    } else if (player) this.lastFoot = { x: player.x, y: player.y };
++  }
++}
+diff --git a/src/client/gfx/lighting.js b/src/client/gfx/lighting.js
+new file mode 100644
+index 0000000..b6f6e6e
+--- /dev/null
++++ b/src/client/gfx/lighting.js
+@@ -0,0 +1,101 @@
++// Upgrade 3 - light and atmosphere: golden-hour grade, dithered vignette, warm sun
++// bloom from the top-left, drifting cloud shadows, additive glows, floating motes.
++import * as Phaser from 'phaser';
++import { DEPTH } from '../systems/depth.js';
++import { bayer, valueNoise } from './noise.js';
++
++function makeTex(scene, key, w, h, fn) {
++  if (scene.textures.exists(key)) return;
++  const tex = scene.textures.createCanvas(key, w, h);
++  const ctx = tex.getContext();
++  const img = ctx.createImageData(w, h);
++  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
++    const c = fn(x, y);
++    if (!c) continue;
++    const i = (y * w + x) * 4;
++    img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = c[3];
++  }
++  ctx.putImageData(img, 0, 0);
++  tex.refresh();
++}
++
++export function createGlowTextures(scene) {
++  // Stepped (pixel-art) radial glow, white, tinted per use.
++  makeTex(scene, 'glow', 24, 24, (x, y) => {
++    const d = Math.hypot(x - 11.5, y - 11.5) / 12;
++    if (d > 1) return null;
++    const a = d < 0.3 ? 200 : d < 0.55 ? 120 : d < 0.8 ? 60 : bayer(x, y) < 0.5 ? 30 : 0;
++    return [255, 255, 255, a];
++  });
++}
++
++export class Lighting {
++  /** @param {Phaser.Scene} scene @param {{ width: number, height: number }} display @param {object} map */
++  constructor(scene, display, map) {
++    this.scene = scene;
++    const { width: w, height: h } = display;
++    createGlowTextures(scene);
++
++    makeTex(scene, 'vignette', w, h, (x, y) => {
++      const dx = (x - w / 2) / (w / 2);
++      const dy = (y - h / 2) / (h / 2);
++      const d = Math.hypot(dx * 0.85, dy);
++      let a = Math.max(0, (d - 0.6) / 0.62);
++      a = Math.min(1, a) ** 1.3 * 0.7;
++      return a > 0 ? [26, 12, 20, Math.round(a * 255)] : null;
++    });
++    makeTex(scene, 'sunwash', w, h, (x, y) => {
++      const d = Math.hypot(x / w, (y / h) * 0.7);
++      const a = Math.max(0, 1 - d * 1.25) ** 1.3;
++      return a > 0 ? [255, 196, 110, Math.round(a * 255)] : null;
++    });
++    makeTex(scene, 'cloud', 200, 110, (x, y) => {
++      const dx = (x - 100) / 100;
++      const dy = (y - 55) / 55;
++      const n = 1 - Math.hypot(dx, dy) + (valueNoise(x, y, 18, 4) - 0.5) * 0.7;
++      const a = Math.max(0, Math.min(1, (n - 0.2) / 0.35));
++      return a > 0 ? [20, 30, 60, Math.round(a * 255)] : null;
++    });
++
++    const fixed = (o) => o.setScrollFactor(0).setOrigin(0);
++    this.sun = fixed(scene.add.image(0, 0, 'sunwash')).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.08).setDepth(DEPTH.FX + 50);
++    this.vignette = fixed(scene.add.image(0, 0, 'vignette')).setDepth(DEPTH.FX + 51);
++
++    // Colour grade (WebGL only): a little more saturation and contrast.
++    try {
++      const cm = scene.cameras.main.postFX.addColorMatrix();
++      cm.saturate(0.15);
++      cm.contrast(0.05, true);
++      cm.brightness(0.95, true);
++    } catch { /* canvas renderer: skip */ }
++
++    const W = map.width * map.tileSize;
++    const H = map.height * map.tileSize;
++    this.clouds = [0, 1, 2].map((i) => scene.add.image((i * 330) % W, (i * 210 + 60) % H, 'cloud')
++      .setAlpha(0.08).setScale(1.4 + (i % 2) * 0.5).setDepth(DEPTH.FX - 10));
++    this.W = W;
++    this.H = H;
++
++    this.motes = scene.add.particles(0, 0, 'px', {
++      x: { min: 0, max: w }, y: { min: 0, max: h },
++      lifespan: 4000, speedY: { min: -6, max: -2 }, speedX: { min: 2, max: 8 },
++      scale: 0.5, alpha: { onEmit: () => 0, onUpdate: (p, k, t) => 0.7 * Math.sin(t * Math.PI) }, tint: 0xfff1b0,
++      frequency: 160, blendMode: 'ADD',
++    }).setScrollFactor(0).setDepth(DEPTH.FX + 49);
++  }
++
++  update(dt) {
++    for (const c of this.clouds) {
++      c.x += 7 * dt;
++      c.y += 2 * dt;
++      if (c.x > this.W + 200) c.x = -200;
++      if (c.y > this.H + 120) c.y = -120;
++    }
++  }
++}
++
++/** Adds an additive glow sprite. */
++export function addGlow(scene, tint, scale = 1, alpha = 0.55) {
++  createGlowTextures(scene);
++  return scene.add.image(0, 0, 'glow').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setScale(scale).setAlpha(alpha);
++}
+diff --git a/src/client/gfx/noise.js b/src/client/gfx/noise.js
+new file mode 100644
+index 0000000..8ce00ed
+--- /dev/null
++++ b/src/client/gfx/noise.js
+@@ -0,0 +1,63 @@
++// Small deterministic noise helpers for baked pixel art.
++export function hash2(x, y, seed = 0) {
++  let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
++  h = Math.imul(h ^ (h >>> 13), 1274126177);
++  h ^= h >>> 16;
++  return (h >>> 0) / 4294967295;
++}
++
++/** Smooth value noise in 0..1, `scale` = cell size in pixels. */
++export function valueNoise(x, y, scale, seed = 0) {
++  const fx = x / scale;
++  const fy = y / scale;
++  const x0 = Math.floor(fx);
++  const y0 = Math.floor(fy);
++  const tx = fx - x0;
++  const ty = fy - y0;
++  const sx = tx * tx * (3 - 2 * tx);
++  const sy = ty * ty * (3 - 2 * ty);
++  const a = hash2(x0, y0, seed);
++  const b = hash2(x0 + 1, y0, seed);
++  const c = hash2(x0, y0 + 1, seed);
++  const d = hash2(x0 + 1, y0 + 1, seed);
++  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
++}
++
++const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
++/** 4x4 ordered-dither threshold in 0..1. */
++export function bayer(x, y) {
++  return BAYER[(y & 3) * 4 + (x & 3)];
++}
++
++/** Separable box blur on a Float32Array (w*h), radius r, in place-ish (returns new). */
++export function boxBlur(src, w, h, r) {
++  const tmp = new Float32Array(w * h);
++  const out = new Float32Array(w * h);
++  const n = r * 2 + 1;
++  for (let y = 0; y < h; y++) {
++    let acc = 0;
++    for (let x = -r; x <= r; x++) acc += src[y * w + Math.min(w - 1, Math.max(0, x))];
++    for (let x = 0; x < w; x++) {
++      tmp[y * w + x] = acc / n;
++      const add = Math.min(w - 1, x + r + 1);
++      const sub = Math.max(0, x - r);
++      acc += src[y * w + add] - src[y * w + sub];
++    }
++  }
++  for (let x = 0; x < w; x++) {
++    let acc = 0;
++    for (let y = -r; y <= r; y++) acc += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
++    for (let y = 0; y < h; y++) {
++      out[y * w + x] = acc / n;
++      const add = Math.min(h - 1, y + r + 1);
++      const sub = Math.max(0, y - r);
++      acc += tmp[add * w + x] - tmp[sub * w + x];
++    }
++  }
++  return out;
++}
++
++export function hexRgb(hex) {
++  const n = parseInt(hex.slice(1), 16);
++  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
++}
+diff --git a/src/client/gfx/props.js b/src/client/gfx/props.js
+new file mode 100644
+index 0000000..7be755b
+--- /dev/null
++++ b/src/client/gfx/props.js
+@@ -0,0 +1,228 @@
++// Upgrade 2 - set dressing: swaying palm trees, the beached shipwreck at the spawn,
++// grass tufts, shells, starfish, driftwood, crates, barrels and bones.
++// Decorative only in this prototype (no collision).
++import { TILE } from '../../shared/content/tiles.js';
++import { tileAt } from '../../shared/sim/map.js';
++import { addOutline, createTextureFromGrid } from '../art/pixelArt.js';
++import { DEPTH } from '../systems/depth.js';
++import { hash2 } from './noise.js';
++
++const OUT = '#1a1212';
++
++function canvas(w, h) {
++  const g = Array.from({ length: h }, () => Array(w).fill(null));
++  const px = (x, y, c) => {
++    x = Math.round(x); y = Math.round(y);
++    if (x >= 0 && y >= 0 && x < w && y < h) g[y][x] = c;
++  };
++  const rect = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px(x, y, c); };
++  const ellipse = (cx, cy, rx, ry, c) => {
++    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++)
++      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++)
++        if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) px(x, y, typeof c === 'function' ? c(x, y) : c);
++  };
++  const line = (x0, y0, x1, y1, c, th = 1) => {
++    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2 + 1;
++    for (let i = 0; i <= n; i++) {
++      const x = x0 + ((x1 - x0) * i) / n;
++      const y = y0 + ((y1 - y0) * i) / n;
++      for (let k = 0; k < th; k++) px(x, y + k, c);
++    }
++  };
++  return { g, px, rect, ellipse, line, w, h };
++}
++
++function makeTextures(scene) {
++  if (scene.textures.exists('palmTrunk')) return;
++
++  // Palm trunk: curved, segmented, lit from the left
++  {
++    const c = canvas(12, 42);
++    for (let y = 0; y < 42; y++) {
++      const t = 1 - y / 41;
++      const cx = 4 + Math.round(t * t * 5);
++      const wdt = y > 34 ? 3 : 2;
++      for (let x = cx - wdt; x <= cx + wdt - 1; x++) {
++        let col = x === cx - wdt ? '#c88a50' : x >= cx + wdt - 2 ? '#6e3d1a' : '#a0612d';
++        if (y % 4 === 0) col = '#5a3216';
++        else if (y % 4 === 1 && x === cx - wdt) col = '#e0a868';
++        c.px(x, y, col);
++      }
++    }
++    createTextureFromGrid(scene, 'palmTrunk', addOutline(c.g, OUT));
++  }
++  // Palm crown: drooping fronds + coconuts
++  {
++    const c = canvas(50, 30);
++    const cx = 25;
++    const cy = 11;
++    const fronds = [[-2.9, 20], [-2.3, 17], [-1.6, 12], [-0.85, 17], [-0.25, 20], [0.4, 15], [2.7, 14], [3.35, 13]];
++    for (const [a, L] of fronds) {
++      for (let s = 0; s <= 1.0001; s += 0.02) {
++        const x = cx + Math.cos(a) * L * s;
++        const y = cy + Math.sin(a) * L * s * 0.55 + s * s * L * 0.55;
++        const th = s < 0.15 ? 2 : s < 0.75 ? 3 : 2;
++        for (let k = 0; k < th; k++) c.px(x, y + k, k === 0 ? '#5a9a48' : k === th - 1 ? '#2c5a2c' : '#3e7a3a');
++        if (s > 0.2 && Math.round(s * 50) % 3 === 0) { c.px(x, y + th, '#2c5a2c'); c.px(x + 1, y + th + 1, '#3e7a3a'); }
++        if (s > 0.3 && s < 0.8 && Math.round(s * 50) % 4 === 0) c.px(x, y - 1, '#7fbf5a');
++      }
++    }
++    c.ellipse(cx, cy, 5, 3, (x, y) => (y < cy - 1 ? '#7fbf5a' : y < cy + 1 ? '#5a9a48' : '#3e7a3a'));
++    for (const [ox, oy] of [[-3, 4], [1, 5], [4, 3]]) c.ellipse(cx + ox, cy + oy, 1.8, 1.8, (x, y) => (x < cx + ox && y < cy + oy ? '#a06a3c' : '#6b4020'));
++    createTextureFromGrid(scene, 'palmCrown', addOutline(c.g, OUT));
++  }
++  // Palm shadow (frond blob), soft
++  {
++    const c = canvas(44, 14);
++    c.ellipse(22, 7, 20, 5.5, 'rgba(40,24,16,0.26)');
++    for (const [ox, r] of [[-14, 5], [14, 5], [-7, 6], [8, 6]]) c.ellipse(22 + ox, 7 + (r - 5), r, 3, 'rgba(40,24,16,0.26)');
++    createTextureFromGrid(scene, 'palmShadow', c.g);
++  }
++  // Shipwreck: broken hull half-buried in sand, snapped mast, torn sail
++  {
++    const W = 84;
++    const c = canvas(W, 56);
++    const top = (x) => 22 + Math.round((x - 42) ** 2 / 180) + (x > 52 && x < 62 ? 4 + ((x * 7) % 3) : 0) + (x < 14 ? 2 : 0);
++    const bot = (x) => 40 + Math.round(Math.sin((Math.PI * (x - 4)) / 76) * 7);
++    for (let x = 4; x < 80; x++) {
++      for (let y = top(x); y <= bot(x); y++) {
++        const r = y - top(x);
++        let col = r < 2 ? '#c08048' : ((y >> 2) % 2 ? '#a0612d' : '#8a5126');
++        if (r >= 2 && r < 7 && x > 10 && x < 72) col = x % 9 === 0 ? '#7a4a26' : '#3a2414'; // inside, ribs
++        if (y === bot(x)) col = '#5a3216';
++        if ((x + y * 3) % 23 === 0 && r > 7) col = '#5a3216';
++        c.px(x, y, col);
++      }
++    }
++    // planks sticking up (broken ribs)
++    for (const [x, h] of [[18, 7], [27, 9], [36, 6], [66, 8]]) c.rect(x, top(x) - h, x + 1, top(x), '#7a4a26');
++    // snapped mast + sail
++    c.line(34, 30, 50, 4, '#5a3216', 2);
++    c.line(35, 30, 51, 4, '#8a5126', 1);
++    for (let y = 6; y < 26; y++) {
++      const x0 = 50 - (y - 6) * 0.45;
++      const x1 = x0 + 4 + (y - 6) * 0.9 - (y > 18 ? (y - 18) * 1.6 : 0);
++      for (let x = Math.round(x0) + 2; x < x1; x++) {
++        if (hash2(x, y, 3) < 0.06) continue; // holes
++        c.px(x, y, (x + y) % 7 === 0 ? '#c9b892' : y % 5 === 0 ? '#d9cba8' : '#efe3c4');
++      }
++    }
++    const og = addOutline(c.g, OUT);
++    // sand drifted against the hull (no outline, so it melts into the beach)
++    const sandC = canvas(86, 58);
++    sandC.g = og;
++    const mound = (cx, cy, rx, ry) => {
++      for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
++        const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
++        if (d > 1 || y < 0 || y >= og.length || x < 0 || x >= og[0].length) continue;
++        og[y][x] = d > 0.75 && hash2(x, y, 6) < 0.5 ? null : y < cy - ry * 0.3 ? '#f6dfa8' : '#e8c98a';
++      }
++    };
++    mound(22, 50, 20, 6);
++    mound(62, 51, 19, 5);
++    createTextureFromGrid(scene, 'wreck', og);
++  }
++  // Small props
++  const small = (key, w, h, draw, outline = OUT) => {
++    const c = canvas(w, h);
++    draw(c);
++    createTextureFromGrid(scene, key, outline ? addOutline(c.g, outline) : c.g);
++  };
++  for (let v = 0; v < 3; v++) {
++    small(`tuft${v}`, 9, 7, (c) => {
++      const blades = [[1, 3], [3, 6], [4, 4], [6, 5], [7, 2]].slice(v, v + 4);
++      for (const [x, h] of blades) for (let k = 0; k < h; k++) c.px(x + (k > h - 2 ? (v % 2 ? 1 : -1) : 0), 6 - k, k > h - 3 ? '#7fbf5a' : k > 1 ? '#5a9a48' : '#3e7a3a');
++    }, '#244a26');
++  }
++  small('shell', 4, 3, (c) => { c.rect(0, 1, 3, 2, '#f0a8a0'); c.px(1, 0, '#ffd6cf'); c.px(2, 0, '#ffd6cf'); c.px(1, 2, '#c97870'); }, null);
++  small('starfish', 5, 5, (c) => { c.rect(2, 0, 2, 4, '#ff8a50'); c.rect(0, 2, 4, 2, '#ff8a50'); c.px(1, 4, '#ff8a50'); c.px(3, 4, '#ff8a50'); c.px(2, 2, '#ffd0a0'); }, '#8a3a1a');
++  small('driftwood', 20, 5, (c) => { c.rect(0, 1, 19, 3, '#b99a78'); c.rect(0, 1, 19, 1, '#d8c2a2'); c.rect(4, 3, 16, 3, '#8f7458'); c.rect(14, 0, 16, 0, '#b99a78'); });
++  small('crate', 12, 12, (c) => {
++    c.rect(0, 0, 11, 3, '#c88a50'); c.rect(0, 4, 11, 11, '#a0612d');
++    c.rect(0, 4, 11, 4, '#6e3d1a'); c.line(0, 5, 11, 11, '#6e3d1a'); c.rect(0, 7, 11, 7, '#8a5126'); c.px(1, 1, '#e0a868');
++  });
++  small('barrel', 10, 13, (c) => {
++    c.ellipse(4.5, 2, 4.5, 2, '#c88a50'); c.rect(0, 2, 9, 11, '#a0612d'); c.rect(0, 2, 1, 11, '#c88a50'); c.rect(8, 2, 9, 11, '#6e3d1a');
++    c.rect(0, 4, 9, 4, '#4a4a55'); c.rect(0, 9, 9, 9, '#4a4a55'); c.ellipse(4.5, 2, 3, 1, '#5a3216');
++  });
++  small('bones', 9, 4, (c) => { c.rect(1, 1, 7, 1, '#f2ead8'); c.px(0, 0, '#f2ead8'); c.px(0, 2, '#f2ead8'); c.px(8, 0, '#f2ead8'); c.px(8, 2, '#f2ead8'); c.px(4, 2, '#c9bfa8'); }, '#6b5f50');
++}
++
++/**
++ * Places props deterministically around the arena.
++ * @param {Phaser.Scene} scene
++ * @param {{ width: number, height: number, tileSize: number, spawn: { x: number, y: number } }} map
++ */
++export function createProps(scene, map) {
++  makeTextures(scene);
++  const ts = map.tileSize;
++  const t = (x, y) => tileAt(map, x, y);
++  const sand = (x, y) => t(x, y) === TILE.SAND;
++  const near = (x, y, type, r) => {
++    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (t(x + dx, y + dy) === type) return true;
++    return false;
++  };
++  const sx = Math.floor(map.spawn.x / ts);
++  const sy = Math.floor(map.spawn.y / ts);
++  const objs = [];
++
++  // Shipwreck beside the spawn (the castaways' boat)
++  const wx = (sx - 11) * ts;
++  const wy = (sy + 2) * ts + 8;
++  objs.push(scene.add.image(wx + 30, wy + 2, 'palmShadow').setScale(2.2, 1.3).setDepth(DEPTH.SHADOW));
++  objs.push(scene.add.image(wx, wy, 'wreck').setOrigin(0.5, 1).setDepth(wy));
++  for (const [ox, oy, key, fl] of [[-46, 6, 'crate', false], [-34, 10, 'barrel', false], [44, 4, 'driftwood', true], [30, 16, 'crate', false], [-20, 22, 'driftwood', false]]) {
++    objs.push(scene.add.image(wx + ox + 2, wy + oy, 'shadow').setDepth(DEPTH.SHADOW));
++    objs.push(scene.add.image(wx + ox, wy + oy, key).setOrigin(0.5, 1).setFlipX(fl).setDepth(wy + oy));
++  }
++
++  // Palms near cliffs and water
++  const palms = [];
++  for (let y = 2; y < map.height - 2; y++) {
++    for (let x = 2; x < map.width - 2; x++) {
++      if (!sand(x, y) || !sand(x, y - 1)) continue;
++      if (!(near(x, y, TILE.CLIFF, 2) || near(x, y, TILE.WATER, 2))) continue;
++      if (near(x, y, TILE.ROCK, 1)) continue;
++      if (Math.abs(x - sx) < 5 && Math.abs(y - sy) < 4) continue;
++      if (Math.abs(x - (sx - 11)) < 5 && Math.abs(y - (sy + 2)) < 3) continue;
++      if (!near(x, y, TILE.CLIFF, 2) && hash2(x, y, 78) > 0.35) continue;
++      if (hash2(x, y, 77) > 0.25) continue;
++      if (palms.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 10)) continue;
++      palms.push({ x, y });
++    }
++  }
++  palms.forEach((p, i) => {
++    const bx = (p.x + 0.5) * ts + Math.round((hash2(p.x, p.y, 1) - 0.5) * 8);
++    const by = (p.y + 0.8) * ts;
++    const flip = hash2(p.x, p.y, 2) < 0.5;
++    objs.push(scene.add.image(bx + 14, by + 1, 'palmShadow').setDepth(DEPTH.SHADOW));
++    objs.push(scene.add.image(bx, by, 'palmTrunk').setOrigin(0.5, 1).setFlipX(flip).setDepth(by));
++    const topX = bx + (flip ? -4 : 4);
++    const crown = scene.add.image(topX, by - 41, 'palmCrown').setOrigin(0.5, 0.4).setFlipX(flip).setDepth(by + 0.5);
++    scene.tweens.add({ targets: crown, angle: { from: -2.5, to: 2.5 }, duration: 1600 + i * 97, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: i * 131 });
++    objs.push(crown);
++  });
++
++  // Scatter
++  for (let y = 1; y < map.height - 1; y++) {
++    for (let x = 1; x < map.width - 1; x++) {
++      if (!sand(x, y)) continue;
++      const h = hash2(x, y, 300);
++      const px = x * ts + Math.floor(hash2(x, y, 301) * 12) + 2;
++      const py = y * ts + Math.floor(hash2(x, y, 302) * 12) + 4;
++      const byCliff = near(x, y, TILE.CLIFF, 1);
++      const byWater = near(x, y, TILE.WATER, 1);
++      if ((byCliff && h < 0.55) || h < 0.025) {
++        objs.push(scene.add.image(px, py, `tuft${Math.floor(hash2(x, y, 303) * 3)}`).setOrigin(0.5, 1).setDepth(py));
++        if (byCliff && h < 0.3) objs.push(scene.add.image(px + 6, py - 2, `tuft${Math.floor(hash2(x, y, 304) * 3)}`).setOrigin(0.5, 1).setDepth(py - 2));
++      } else if (byWater && h < 0.35) {
++        objs.push(scene.add.image(px, py, h < 0.08 ? 'starfish' : 'shell').setDepth(DEPTH.SHADOW + 2));
++      } else if (h > 0.985) {
++        const key = ['driftwood', 'bones', 'crate', 'barrel'][Math.floor(hash2(x, y, 305) * 4)];
++        if (key === 'crate' || key === 'barrel') objs.push(scene.add.image(px + 1, py, 'shadow').setDepth(DEPTH.SHADOW));
++        objs.push(scene.add.image(px, py, key).setOrigin(0.5, 1).setDepth(key === 'bones' || key === 'driftwood' ? DEPTH.SHADOW + 2 : py));
++      }
++    }
++  }
++  return objs;
++}
+diff --git a/src/client/gfx/terrain.js b/src/client/gfx/terrain.js
+new file mode 100644
+index 0000000..93e5c8c
+--- /dev/null
++++ b/src/client/gfx/terrain.js
+@@ -0,0 +1,191 @@
++// Upgrade 1 - baked terrain: organic shorelines with foam and depth, wet sand,
++// tall shaded 3/4 cliff faces with vines, cast shadows, dithered sand with ripples.
++// Collision is still the tile grid; only the picture changes.
++import { TILE } from '../../shared/content/tiles.js';
++import { tileAt } from '../../shared/sim/map.js';
++import { valueNoise, bayer, boxBlur, hexRgb, hash2 } from './noise.js';
++
++const C = Object.fromEntries(Object.entries({
++  sand: '#e8c98a', sandMid: '#dfbd7d', sandDark: '#d4ad6a', sandLight: '#f6dfa8', ripple: '#d6b273',
++  wet1: '#c9a265', wet2: '#b38a55', wet3: '#a07746', bank1: '#8f6a40', bank2: '#6e5032',
++  shallow: '#56cfc2', water: '#22a7a6', waterDark: '#1b8a8e', deep: '#167683', waterLight: '#8debdd', foam: '#e6fff8',
++  j0: '#244a26', j1: '#2c5a2c', j2: '#3e7a3a', j3: '#5a9a48', j4: '#7fbf5a', jEdge: '#1b331d',
++  face0: '#97836b', face1: '#7d6b58', face2: '#66574a', strata: '#5a4c40', crack: '#3f352d', base: '#2a221d', faceHi: '#b3a088',
++  vine: '#2c5a2c', vineHi: '#4f8f42',
++}).map(([k, v]) => [k, hexRgb(v)]));
++
++const FACE = 26; // cliff face height in pixels (taller than one tile)
++
++/**
++ * Bakes the arena floor into `frames` textures (water animates between them).
++ * @returns {string[]} texture keys
++ */
++export function bakeTerrain(scene, map, keyPrefix = 'terrain', frames = 3) {
++  const ts = map.tileSize;
++  const W = map.width * ts;
++  const H = map.height * ts;
++  const tileOf = (x, y) => tileAt(map, Math.floor(x / ts), Math.floor(y / ts));
++
++  const waterMask = new Float32Array(W * H);
++  const cliff = new Uint8Array(W * H);
++  for (let y = 0; y < H; y++) {
++    for (let x = 0; x < W; x++) {
++      const t = tileOf(x, y);
++      if (t === TILE.WATER) waterMask[y * W + x] = 1;
++      if (t === TILE.CLIFF) cliff[y * W + x] = 1;
++    }
++  }
++  const wf = boxBlur(boxBlur(waterMask, W, H, 5), W, H, 4);
++  const wv = new Float32Array(W * H);
++  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
++    const i = y * W + x;
++    wv[i] = cliff[i] ? 0 : wf[i] + (valueNoise(x, y, 7, 3) - 0.5) * 0.14;
++  }
++  const isWater = (x, y) => x >= 0 && y >= 0 && x < W && y < H && wv[y * W + x] > 0.5;
++
++  // Distance (down) from each cliff pixel to the open ground below it, per column.
++  const dDown = new Int16Array(W * H).fill(999);
++  const dUp = new Int16Array(W * H).fill(999); // sand: distance up to the cliff
++  for (let x = 0; x < W; x++) {
++    let d = 999;
++    for (let y = H - 1; y >= 0; y--) {
++      const i = y * W + x;
++      d = cliff[i] ? d + 1 : 0;
++      dDown[i] = cliff[i] ? d : 0;
++    }
++    d = 999;
++    for (let y = 0; y < H; y++) {
++      const i = y * W + x;
++      d = cliff[i] ? 0 : d + 1;
++      dUp[i] = d;
++    }
++  }
++  // Rows where a column's face is actually long enough to be a face (bottom open).
++  const base = new Uint8ClampedArray(W * H * 4);
++  const put = (i, c) => { base[i * 4] = c[0]; base[i * 4 + 1] = c[1]; base[i * 4 + 2] = c[2]; base[i * 4 + 3] = 255; };
++  const mul = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
++
++  for (let y = 0; y < H; y++) {
++    for (let x = 0; x < W; x++) {
++      const i = y * W + x;
++      const b = bayer(x, y);
++      if (cliff[i]) {
++        const dd = dDown[i];
++        const openBelow = dd < 999;
++        const sideOpen = (x > 0 && !cliff[i - 1]) || (x < W - 1 && !cliff[i + 1]);
++        if (openBelow && dd <= FACE) {
++          const fy = FACE - dd; // 0 = top of the face
++          const vineLen = hash2(x >> 1, 7) < 0.3 ? 2 + Math.floor(hash2(x >> 1, 8) * 9) : 0;
++          let c;
++          if (fy <= 1) c = fy === 0 ? C.j3 : C.j2;
++          else if (fy - 2 < vineLen) c = (fy + (x >> 1)) % 3 === 0 ? C.vineHi : C.vine;
++          else if (dd <= 2) c = dd === 1 ? C.base : C.crack;
++          else {
++            const t = fy / FACE;
++            const wob = Math.round(valueNoise(x, 0, 9, 4) * 4);
++            const strata = (fy + wob) % 7 === 0;
++            const aboveStrata = (fy + wob + 1) % 7 === 0;
++            const crack = hash2(x >> 0, 99) < 0.06 && ((fy + Math.floor(hash2(x, 98) * 20)) % 20) < 7;
++            if (strata || crack) c = crack ? C.crack : C.strata;
++            else if (aboveStrata && hash2(x, fy, 5) < 0.5) c = C.faceHi;
++            else c = t + (b - 0.5) * 0.35 < 0.45 ? C.face0 : t + (b - 0.5) * 0.35 < 0.8 ? C.face1 : C.face2;
++          }
++          if (sideOpen) c = C.crack;
++          put(i, c);
++        } else {
++          // Canopy seen from above: round leafy bush clumps, lit from the top-left
++          const cell = 10;
++          const gx = Math.floor(x / cell);
++          const gy = Math.floor(y / cell);
++          let best = 1e9;
++          let bdx = 0;
++          let bdy = 0;
++          let rad = 7;
++          for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
++            const cx = (gx + ox) * cell + hash2(gx + ox, gy + oy, 31) * cell;
++            const cy = (gy + oy) * cell + hash2(gx + ox, gy + oy, 32) * cell;
++            const r = 6 + hash2(gx + ox, gy + oy, 33) * 4;
++            // prefer the clump whose surface is "highest" (lower on screen draws on top)
++            const d = Math.hypot(x - cx, y - cy) / r - cy * 0.002;
++            if (d < best) { best = d; bdx = x - cx; bdy = y - cy; rad = r; }
++          }
++          const rel = (bdx + bdy * 1.1) / rad + (b - 0.5) * 0.35;
++          let c;
++          if (best > 0.95) c = C.j0;
++          else if (best > 0.8) c = bdy > 0 ? C.j0 : C.j1;
++          else if (rel < -0.55) c = C.j4;
++          else if (rel < -0.1) c = C.j3;
++          else if (rel < 0.45) c = C.j2;
++          else c = C.j1;
++          if (hash2(x, y, 34) < 0.015 && c !== C.j0) c = C.j4;
++          const edge = (x > 0 && !cliff[i - 1]) || (x < W - 1 && !cliff[i + 1]) || (y > 0 && !cliff[i - W]);
++          if (edge) c = C.jEdge;
++          put(i, c);
++        }
++        continue;
++      }
++
++      // Sand
++      const n = valueNoise(x, y, 56, 11) * 0.7 + valueNoise(x, y, 18, 12) * 0.3 + (b - 0.5) * 0.08;
++      let c = n < 0.34 ? C.sandMid : n > 0.7 ? C.sandLight : C.sand;
++      const rip = Math.sin(x * 0.11 + y * 0.55 + valueNoise(x, y, 30, 9) * 9);
++      if (rip > 0.94 && valueNoise(x, y, 60, 3) > 0.52) c = C.ripple;
++      const h = hash2(x, y, 21);
++      if (h < 0.006) c = C.sandDark;
++      else if (h > 0.996) c = C.sandLight;
++      // Wet sand ring near water
++      const w = wv[i];
++      if (w > 0.33) c = w + (b - 0.5) * 0.06 > 0.44 ? C.wet2 : w + (b - 0.5) * 0.08 > 0.38 ? C.wet1 : c;
++      // Shadows cast by cliffs (light from the top-left)
++      const up = dUp[i];
++      let shade = 1;
++      if (up <= 3) shade = 0.7;
++      else if (up <= 8 && b < (9 - up) / 6) shade = 0.82;
++      for (let k = 1; k <= 5 && shade > 0.7; k++) {
++        if (x - k >= 0 && cliff[i - k]) { shade = Math.min(shade, k <= 2 ? 0.74 : b < 0.5 ? 0.84 : shade); break; }
++      }
++      put(i, shade < 1 ? mul(c, shade) : c);
++    }
++  }
++
++  const keys = [];
++  for (let f = 0; f < frames; f++) {
++    const img = new Uint8ClampedArray(base);
++    const ph = (f / frames) * Math.PI * 2;
++    for (let y = 0; y < H; y++) {
++      for (let x = 0; x < W; x++) {
++        const i = y * W + x;
++        const w = wv[i];
++        if (w <= 0.5) continue;
++        const b = bayer(x, y);
++        let c;
++        const land1 = !isWater(x, y - 1);
++        const land2 = !isWater(x, y - 2);
++        const land3 = !isWater(x, y - 3);
++        if (land1) c = C.bank1;
++        else if (land2) c = C.bank2;
++        else if (land3) c = C.deep;
++        else {
++          const foamEdge = 0.535 + 0.02 * Math.sin(ph + valueNoise(x, y, 10, 5) * 6);
++          if (w < foamEdge) c = C.foam;
++          else if (w < foamEdge + 0.012 && b < 0.5) c = C.waterLight;
++          else if (w + (b - 0.5) * 0.08 < 0.66) c = C.shallow;
++          else if (w + (b - 0.5) * 0.1 < 0.86) c = C.water;
++          else c = w + (b - 0.5) * 0.06 < 0.97 ? C.waterDark : C.deep;
++          const wave = Math.sin(x * 0.3 + y * 0.8 + ph + valueNoise(x, y, 11, 6) * 7);
++          if (wave > 0.97 && w > 0.62) c = C.waterLight;
++          if (hash2(x, y, 40 + f) < 0.0016 && w > 0.6) c = C.foam;
++        }
++        // cliff shadow on water too
++        if (dUp[i] <= 4) c = mul(c, 0.75);
++        img[i * 4] = c[0]; img[i * 4 + 1] = c[1]; img[i * 4 + 2] = c[2]; img[i * 4 + 3] = 255;
++      }
++    }
++    const key = `${keyPrefix}${f}`;
++    const tex = scene.textures.createCanvas(key, W, H);
++    tex.getContext().putImageData(new ImageData(img, W, H), 0, 0);
++    tex.refresh();
++    keys.push(key);
++  }
++  return keys;
++}
+diff --git a/src/client/main.js b/src/client/main.js
+index 572f769..9b6c0eb 100644
+--- a/src/client/main.js
++++ b/src/client/main.js
+@@ -4,6 +4,7 @@ import { CONFIG } from '../shared/config.js';
+ import { BootScene } from './scenes/BootScene.js';
+ import { GameScene } from './scenes/GameScene.js';
+ import { installIntegerScaling } from './systems/integerScaling.js';
++import { CAPTURE } from './gfx/flags.js';
+ 
+ const { width, height } = CONFIG.display;
+ 
+@@ -13,6 +14,7 @@ const game = new Phaser.Game({
+   width,
+   height,
+   backgroundColor: '#1a1212',
++  render: { preserveDrawingBuffer: CAPTURE },
+   pixelArt: true, // nearest-neighbor filtering, no smoothing
+   roundPixels: true, // draw sprites on whole pixels
+   scale: {
+diff --git a/src/client/scenes/GameScene.js b/src/client/scenes/GameScene.js
+index 12e94be..be33d42 100644
+--- a/src/client/scenes/GameScene.js
++++ b/src/client/scenes/GameScene.js
+@@ -20,6 +20,21 @@ import { CardScreen } from '../ui/CardScreen.js';
+ import { addPixelText } from '../art/pixelFont.js';
+ import { readDevOptions } from '../devOptions.js';
+ import { TILESET_KEY } from './BootScene.js';
++import { GFX, SCRIPTED, CAPTURE } from '../gfx/flags.js';
++import { Lighting } from '../gfx/lighting.js';
++import { Juice } from '../gfx/juice.js';
++import { emperorIntro, emperorDeath } from '../gfx/boss.js';
++
++/** Deterministic wander used for side-by-side captures (?script). */
++function scriptedInput(frame) {
++  const t = frame / 60;
++  const a = Math.sin(t * 0.35) * 2.2 + Math.sin(t * 0.13) * 3;
++  const moveX = Math.abs(Math.cos(a)) > 0.38 ? Math.sign(Math.cos(a)) : 0;
++  const moveY = Math.abs(Math.sin(a)) > 0.38 ? Math.sign(Math.sin(a)) : 0;
++  return { moveX, moveY, roll: frame % 170 === 0, pick: frame % 20 === 0 ? (Math.floor(frame / 20) % 3) : null };
++}
++
++const localId0 = (scene) => scene.transport.localPlayerId;
+ 
+ export class GameScene extends Phaser.Scene {
+   constructor() {
+@@ -50,6 +65,10 @@ export class GameScene extends Phaser.Scene {
+     });
+     this.hud = new Hud(this, config, localId);
+     this.cardScreen = new CardScreen(this, config);
++    if (GFX.light) this.lighting = new Lighting(this, config.display, world.map);
++    if (GFX.juice) this.juice = new Juice(this, world.map, localId);
++    this.frame = 0;
++    if (CAPTURE) { this.game.loop.sleep(); window.__ready = true; } // the capture harness steps frames itself
+     this.targetMark = this.add.image(0, 0, 'targetMark').setDepth(DEPTH.FX).setVisible(false);
+ 
+     this.fpsText = addPixelText(this, config.display.width - 4, config.display.height - 10, '')
+@@ -68,7 +87,9 @@ export class GameScene extends Phaser.Scene {
+     const dt = deltaMs / 1000;
+ 
+     // 1. Input -> simulation
+-    const input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick() };
++    let input = { ...this.inputSystem.read(), pick: this.cardScreen.takePick() };
++    if (SCRIPTED) input = scriptedInput(this.frame);
++    this.frame++;
+     this.lastInput = input;
+     this.transport.update(deltaMs, input);
+ 
+@@ -91,13 +112,25 @@ export class GameScene extends Phaser.Scene {
+ 
+     const events = this.transport.drainEvents();
+     this.effects.handle(events);
++    this.juice?.handle(events);
++    for (const e of events) {
++      if (e.type === 'shot' && e.playerId === localId0(this)) this.playerViews.get(e.playerId)?.onShot?.();
++      if (GFX.boss && e.type === 'bossSpawned') {
++        emperorIntro(this, this.config.display);
++        this.camFocus = { id: e.id, until: world.time + 1.8 };
++        this.cameraSystem.shake(600, 0.006);
++      }
++      if (GFX.boss && e.type === 'enemyDied' && e.boss) emperorDeath(this, e.x, e.y, (ms, k) => this.cameraSystem.shake(ms, k));
++    }
++    this.juice?.update(dt, local);
++    this.lighting?.update(dt);
+     this.hud.handle(events);
+     this.hud.update(world, local);
+     this.cardScreen.update(local);
+ 
+     // 3. Auto-aim target marker
+     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
+-    if (target && !target.dead) {
++    if (target && !target.dead && !(GFX.boss && target.boss)) {
+       const c = this.enemyViews.bodyCenter(target, alpha);
+       this.targetMark.setVisible(true).setPosition(c.x, c.y).setScale(target.boss ? 2 : 1);
+     } else {
+@@ -105,8 +138,12 @@ export class GameScene extends Phaser.Scene {
+     }
+ 
+     // 4. Camera
+-    const px = local.prevX + (local.x - local.prevX) * alpha;
+-    const py = local.prevY + (local.y - local.prevY) * alpha;
++    let px = local.prevX + (local.x - local.prevX) * alpha;
++    let py = local.prevY + (local.y - local.prevY) * alpha;
++    if (this.camFocus && world.time < this.camFocus.until) {
++      const b = world.enemies.find((en) => en.id === this.camFocus.id);
++      if (b) { px = b.x; py = b.y - 20; }
++    }
+     this.cameraSystem.update(px, py, input.moveX, input.moveY, dt);
+ 
+     this.fpsTimer -= dt;
+diff --git a/src/client/ui/Hud.js b/src/client/ui/Hud.js
+index 675a991..523b1ff 100644
+--- a/src/client/ui/Hud.js
++++ b/src/client/ui/Hud.js
+@@ -5,6 +5,7 @@ import { addPixelText } from '../art/pixelFont.js';
+ import { PALETTE as P, hexToInt } from '../art/palette.js';
+ import { DEPTH } from '../systems/depth.js';
+ import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
++import { GFX } from '../gfx/flags.js';
+ 
+ const MAX_HEARTS_DRAWN = 14;
+ const MARGIN = 4;
+@@ -51,7 +52,7 @@ export class Hud {
+         const last = e.round === this.config.rounds.count;
+         this.showBanner(`ROUND ${e.round}`, last ? 'FINAL ROUND - HOLD ON!' : 'THE TIDE RISES');
+       } else if (e.type === 'bossSpawned') {
+-        this.showBanner('CRAB KING!', 'THE KING OF THE BEACH IS ANGRY', P.enemyShot);
++        if (!GFX.boss) this.showBanner('CRAB KING!', 'THE KING OF THE BEACH IS ANGRY', P.enemyShot);
+       } else if (e.type === 'playerHit' && e.playerId === this.localPlayerId) {
+         this.heartShakeUntil = this.scene.time.now + 250;
+       }
+@@ -72,6 +73,7 @@ export class Hud {
+   update(world, player) {
+     const g = this.gfx;
+     g.clear();
++    if (GFX.hud) this.drawPanels(g, player, world);
+ 
+     // XP bar (top, full width)
+     const need = xpToNextLevel(player.level, this.config.xp.curve);
+@@ -80,6 +82,14 @@ export class Hud {
+     g.fillStyle(hexToInt(P.xpBarBack)).fillRect(MARGIN, 2, barW, 5);
+     g.fillStyle(hexToInt(P.xpBar)).fillRect(MARGIN, 2, Math.floor((barW * player.xp) / need), 5);
+     g.fillStyle(0xffffff, 0.35).fillRect(MARGIN, 2, Math.floor((barW * player.xp) / need), 1);
++    if (GFX.hud) {
++      const fw = Math.floor((barW * player.xp) / need);
++      g.fillStyle(0x1f9fd0).fillRect(MARGIN, 5, fw, 2);
++      for (let k = 1; k < 10; k++) g.fillStyle(0x0d1a22, 0.8).fillRect(MARGIN + Math.round((barW * k) / 10), 2, 1, 5);
++      const shine = (Math.floor(this.scene.time.now / 8) % (barW + 60)) - 30;
++      if (shine > 0 && shine < fw - 3) g.fillStyle(0xffffff, 0.7).fillRect(MARGIN + shine, 2, 3, 3);
++      g.fillStyle(0xffffff, 0.9).fillRect(MARGIN + fw - 1, 2, 1, 5);
++    }
+     this.levelText.setText(`LV ${player.level}`);
+ 
+     // Hearts (2 half hearts each)
+@@ -107,7 +117,7 @@ export class Hud {
+         };
+         this.abilityIcons.set(id, view);
+       }
+-      view.text.setText(String(level));
++      view.text.setText(GFX.hud ? '' : String(level));
+     });
+ 
+     // Round, timer, kills
+@@ -122,7 +132,22 @@ export class Hud {
+     // Boss health bar
+     const boss = world.enemies.find((e) => e.boss && !e.dead && e.spawnDelay <= 0);
+     this.bossText.setVisible(Boolean(boss));
+-    if (boss) {
++    if (boss && GFX.boss) {
++      this.bossText.setText(boss.hp <= boss.maxHp / 2 ? 'CRAB EMPEROR  - II -' : 'CRAB EMPEROR').setTint(0xf0c040).setY(this.h - 21);
++      const bw = 200;
++      const bx = (this.w - bw) / 2;
++      const by = this.h - 11;
++      this.ghost = this.ghost == null ? boss.hp : this.ghost + (boss.hp - this.ghost) * 0.04;
++      if (this.ghost < boss.hp) this.ghost = boss.hp;
++      g.fillStyle(0x0d0a08, 0.75).fillRect(bx - 6, by - 13, bw + 12, 22);
++      g.fillStyle(0xb8862a).fillRect(bx - 6, by - 13, bw + 12, 1).fillRect(bx - 6, by + 8, bw + 12, 1);
++      g.fillStyle(0x1a1212).fillRect(bx - 1, by - 1, bw + 2, 7);
++      g.fillStyle(0x3a1414).fillRect(bx, by, bw, 5);
++      g.fillStyle(0xffffff, 0.85).fillRect(bx, by, Math.ceil((bw * this.ghost) / boss.maxHp), 5);
++      g.fillStyle(0xc8322a).fillRect(bx, by, Math.ceil((bw * boss.hp) / boss.maxHp), 5);
++      g.fillStyle(0xff6a4a).fillRect(bx, by, Math.ceil((bw * boss.hp) / boss.maxHp), 1);
++      g.fillStyle(0xf0c040).fillRect(bx + bw / 2, by - 2, 1, 9); // phase notch
++    } else if (boss) {
+       this.bossText.setText('CRAB KING');
+       const bw = 160;
+       const bx = (this.w - bw) / 2;
+@@ -135,6 +160,40 @@ export class Hud {
+     if (!player.alive && !this.gameOver) this.showGameOver(world, player);
+   }
+ 
++  /** Upgrade 5: framed HUD plates (dark glass + wooden round sign + ability slots with level pips). */
++  drawPanels(g, player, world) {
++    const plate = (x, y, w, h) => {
++      g.fillStyle(0x0d0a08, 0.62).fillRect(x + 1, y, w - 2, h).fillRect(x, y + 1, w, h - 2);
++      g.fillStyle(0xffffff, 0.12).fillRect(x + 1, y, w - 2, 1);
++      g.fillStyle(0x000000, 0.35).fillRect(x + 1, y + h - 1, w - 2, 1);
++    };
++    const heartCount = Math.min(MAX_HEARTS_DRAWN, Math.ceil(player.maxHealth / 2));
++    plate(1, 8, 30 + heartCount * 10 + 3, 13);
++    // level chip
++    g.fillStyle(0x1f6f8b).fillRect(2, 9, 25, 11);
++    g.fillStyle(0x4de1ff, 0.6).fillRect(2, 9, 25, 1);
++    plate(this.w - 46, 8, 45, 19);
++    // wooden plank sign for the round
++    const rx = this.w / 2 - 33;
++    g.fillStyle(0x1a1212).fillRect(rx - 1, 7, 68, 13);
++    g.fillStyle(0xa0612d).fillRect(rx, 8, 66, 11);
++    g.fillStyle(0xc88a50).fillRect(rx, 8, 66, 1);
++    g.fillStyle(0x6e3d1a).fillRect(rx, 13, 66, 1).fillRect(rx, 18, 66, 1);
++    g.fillStyle(0x4a4a55).fillRect(rx + 2, 10, 1, 1).fillRect(rx + 63, 10, 1, 1).fillRect(rx + 2, 16, 1, 1).fillRect(rx + 63, 16, 1, 1);
++    // ability slots + level pips
++    Object.entries(player.abilities).forEach(([id, level], i) => {
++      const y = 26 + i * 16;
++      g.fillStyle(0x1a1212).fillRect(1, y - 1, 18, 17);
++      g.fillStyle(0x2a1f1a, 0.9).fillRect(2, y, 16, 15);
++      g.fillStyle(0xc88a50).fillRect(2, y, 16, 1);
++      const max = this.config.abilities?.[id]?.maxLevel ?? 5;
++      for (let k = 0; k < Math.min(max, 6); k++) {
++        g.fillStyle(0x1a1212).fillRect(20 + k * 4, y + 5, 4, 4);
++        g.fillStyle(k < level ? 0xffd23a : 0x4a3a3a).fillRect(21 + k * 4, y + 6, 2, 2);
++      }
++    });
++  }
++
+   showGameOver(world, player) {
+     const s = this.scene;
+     const fixed = (obj) => obj.setScrollFactor(0).setDepth(DEPTH.HUD + 10);
+diff --git a/src/shared/art/emperor.js b/src/shared/art/emperor.js
+new file mode 100644
+index 0000000..80f3e0c
+--- /dev/null
++++ b/src/shared/art/emperor.js
+@@ -0,0 +1,164 @@
++// Villain prototype: the Crab Emperor as separate parts (body, claws, legs, eye
++// stalks, crown, phase-2 cracks) so the client can animate them independently.
++// Navy armour + crimson claws + gold crown. Purple stays reserved for curses.
++
++export const EMP = Object.freeze({
++  deep: '#0f1828', navy: '#1f3352', mid: '#2f4d78', light: '#4f78a8', hi: '#8fb4e0',
++  gold: '#f0c040', goldDark: '#b8862a', goldLight: '#ffe27a',
++  red: '#c8322a', redDark: '#8a1e1a', redLight: '#ff6a4a',
++  barn: '#e8e0cc', barnShade: '#a89c84', fang: '#f6efe0', mouth: '#2a0c0c',
++  gemRed: '#ff3a3a', gemTeal: '#3ad8d0', crack: '#ff7a2a', crackCore: '#ffe08a', white: '#ffffff',
++});
++
++const grid = (w, h) => Array.from({ length: h }, () => Array(w).fill(null));
++function P(g) {
++  const px = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (y >= 0 && y < g.length && x >= 0 && x < g[0].length) g[y][x] = c; };
++  const disc = (cx, cy, r, c) => {
++    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
++      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
++        if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) px(x, y, typeof c === 'function' ? c(x, y) : c);
++  };
++  return { px, disc };
++}
++const hash = (x, y) => {
++  let h = (x * 374761393 + y * 668265263) | 0;
++  h = Math.imul(h ^ (h >>> 13), 1274126177);
++  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
++};
++
++/** Carapace seen in 3/4: domed top, gold filigree band, front face with fanged mouth. */
++export function empBody(phase2 = false) {
++  const W = 52;
++  const H = 32;
++  const g = grid(W, H);
++  const { px, disc } = P(g);
++  const cx = 25.5;
++  const cy = 14;
++  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
++    const dx = (x - cx) / 25;
++    const dy = (y - cy) / 13;
++    const d = dx * dx + dy * dy;
++    // front face: a band below the dome
++    const faceTop = cy + Math.sqrt(Math.max(0, 1 - dx * dx)) * 9;
++    const inFace = Math.abs(dx) < 0.86 && y >= faceTop - 1 && y <= faceTop + 8 - Math.abs(dx) * 4;
++    if (d > 1 && !inFace) continue;
++    let c;
++    if (inFace && d > 0.55) {
++      c = y > faceTop + 5 ? EMP.deep : EMP.navy;
++    } else {
++      const light = dx + dy * 1.2; // top-left lit
++      c = light < -0.95 ? EMP.hi : light < -0.45 ? EMP.light : light < 0.35 ? EMP.mid : light < 0.9 ? EMP.navy : EMP.deep;
++      if (d > 0.88) c = EMP.deep;
++      // gold filigree band
++      const band = Math.abs(Math.sqrt(d) - 0.78);
++      if (band < 0.05 && dy > -0.2) c = (x + y) % 4 === 0 ? EMP.goldDark : EMP.gold;
++      if (band < 0.05 && dy > -0.2 && dy < 0.1 && x % 6 === 0) c = EMP.goldLight;
++    }
++    g[y][x] = c;
++  }
++  // ridge spikes along the top
++  for (const sx of [12, 19, 26, 33, 40]) {
++    const h = sx === 26 ? 4 : 3;
++    for (let k = 0; k < h; k++) for (let w = -Math.floor((h - k) / 2); w <= Math.floor((h - k) / 2); w++) {
++      const y = cy - 13 + 1 - k + Math.round(Math.abs(sx - cx) / 9);
++      px(sx + w, y, k === h - 1 ? EMP.hi : EMP.light);
++    }
++  }
++  // barnacles
++  for (const [bx, by, r] of [[36, 6, 1.6], [39, 9, 1.2], [33, 8, 1], [14, 10, 1.2], [42, 12, 1]]) {
++    disc(bx, by, r, (x, y) => (x + y < bx + by ? EMP.barn : EMP.barnShade));
++  }
++  // mouth with fangs on the front face
++  for (let x = 18; x <= 33; x++) {
++    const y0 = 24 + Math.round(Math.abs(x - 25.5) / 6);
++    px(x, y0, EMP.mouth); px(x, y0 + 1, EMP.mouth);
++    if (x % 3 === 0) px(x, y0, EMP.fang);
++  }
++  px(17, 24, EMP.redDark); px(34, 24, EMP.redDark); // mandible hinges
++  if (phase2) {
++    const crack = (pts) => {
++      for (let i = 0; i < pts.length - 1; i++) {
++        const [x0, y0] = pts[i];
++        const [x1, y1] = pts[i + 1];
++        const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
++        for (let s = 0; s <= n; s++) {
++          const x = x0 + ((x1 - x0) * s) / n;
++          const y = y0 + ((y1 - y0) * s) / n;
++          px(x, y, EMP.crackCore); px(x + 1, y, EMP.crack);
++        }
++      }
++    };
++    crack([[22, 3], [20, 7], [24, 10], [21, 15]]);
++    crack([[31, 4], [34, 8], [31, 12], [35, 17]]);
++    crack([[12, 13], [16, 16], [13, 19]]);
++  }
++  return g;
++}
++
++/** Right claw (left = mirrored). `open` 0..2 = closed / half / wide open. */
++export function empClaw(open = 0) {
++  const W = 30;
++  const H = 26;
++  const g = grid(W, H);
++  const { disc } = P(g);
++  const shade = (x, y, cx, cy) => (x - cx + (y - cy) < -3 ? EMP.redLight : x - cx + (y - cy) > 4 ? EMP.redDark : EMP.red);
++  // arm + palm
++  for (let i = 0; i <= 6; i++) disc(2 + i, 22 - i * 0.8, 2.6, (x, y) => shade(x, y, 5, 19));
++  disc(12, 15, 7.5, (x, y) => shade(x, y, 12, 15));
++  // pincers: arcs from the palm
++  const pincer = (baseAng, len, thick, tipGold) => {
++    for (let s = 0; s <= 1.0001; s += 0.04) {
++      const a = baseAng + s * 0.55;
++      const x = 15 + Math.cos(a) * len * s;
++      const y = 12 + Math.sin(a) * len * s;
++      const r = thick * (1 - s * 0.65);
++      disc(x, y, r, (px, py) => (s > 0.78 && tipGold ? (px + py < x + y ? EMP.goldLight : EMP.gold) : shade(px, py, x, y)));
++    }
++  };
++  const spread = [0.12, 0.5, 0.9][open];
++  pincer(-1.15 - spread, 15, 3.6, true); // upper (moving) pincer
++  pincer(-0.45 + spread * 0.25, 13, 3.2, true); // lower pincer
++  // knuckle studs
++  disc(10, 12, 1.1, EMP.gold);
++  disc(13, 18, 1, EMP.gold);
++  return g;
++}
++
++export function empLeg() {
++  const g = grid(16, 6);
++  const { disc } = P(g);
++  for (let s = 0; s <= 1.0001; s += 0.05) {
++    const x = 1 + s * 14;
++    const y = 1.5 + s * s * 3.5;
++    disc(x, y, 1.6 * (1 - s * 0.6), s > 0.45 && s < 0.55 ? EMP.navy : s > 0.85 ? EMP.gold : EMP.redDark);
++  }
++  return g;
++}
++
++export function empStalk() {
++  const g = grid(8, 14);
++  const { disc, px } = P(g);
++  for (let y = 7; y < 14; y++) { px(3, y, EMP.mid); px(4, y, EMP.navy); }
++  disc(3.5, 3.5, 3.5, (x, y) => (x + y < 5 ? EMP.white : '#d8dce6'));
++  return g;
++}
++
++export function empCrown() {
++  const g = grid(22, 13);
++  const { px, disc } = P(g);
++  for (let x = 1; x <= 20; x++) for (let y = 8; y <= 12; y++) px(x, y, y === 8 ? EMP.goldLight : y === 12 ? EMP.goldDark : EMP.gold);
++  for (const [tx, h] of [[2, 4], [6, 6], [11, 8], [16, 6], [20, 4]]) {
++    for (let k = 0; k < h; k++) {
++      const w = Math.max(0, Math.floor((h - k) / 3));
++      for (let o = -w; o <= w; o++) px(tx + o, 8 - k, o < 0 ? EMP.goldLight : EMP.gold);
++    }
++    disc(tx, 8 - h, 0.8, EMP.goldLight);
++  }
++  disc(11, 10, 1.6, EMP.gemRed);
++  px(10, 9, EMP.white);
++  disc(5, 10, 1, EMP.gemTeal);
++  disc(17, 10, 1, EMP.gemTeal);
++  return g;
++}
++
++export { hash as empHash };
+diff --git a/src/shared/art/hero.js b/src/shared/art/hero.js
+new file mode 100644
+index 0000000..62af8a4
+--- /dev/null
++++ b/src/shared/art/hero.js
+@@ -0,0 +1,184 @@
++// Upgrade H1/H2 prototype: bigger, higher-contrast castaway (18 x 23 before outline)
++// with 4-frame walks in 3 directions, idle breathing + blink, hurt, and a tuck-roll.
++// Pure color grids (no canvas), like chibi.js, so the server can reuse it for skins.
++
++export const HERO_W = 18;
++export const HERO_H = 23;
++
++export const HERO_TRAITS = Object.freeze({
++  skin: '#f2c29b', skinShade: '#d9966a', skinLight: '#ffe0c2',
++  hair: '#5a3520', hairLight: '#80502c', hairDark: '#3a2012',
++  bandana: '#d9452b', bandanaDark: '#9e2a18', bandanaLight: '#ff7a55',
++  shirt: '#f4e9d0', shirtShade: '#c9b892',
++  vest: '#2f7f9e', vestLight: '#55b4cc', vestDark: '#1d5468',
++  shorts: '#2b3a5c', shortsShade: '#1c2640',
++  rope: '#c9a45c', feet: '#8a5a3a', eyes: '#1a1212', white: '#ffffff', blush: '#e8857a', mouth: '#a0523a',
++});
++
++function blank(w = HERO_W, h = HERO_H) {
++  return Array.from({ length: h }, () => Array(w).fill(null));
++}
++
++function painter(g) {
++  const px = (x, y, c) => { if (y >= 0 && y < g.length && x >= 0 && x < g[0].length) g[y][x] = c; };
++  const rect = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px(x, y, c); };
++  return { px, rect };
++}
++
++/** Walk cycle: contact, pass, contact (other leg), pass. Body drops 1 px on contacts. */
++const WALK = [
++  { lift: 'L', drop: 1, arm: 1 },
++  { lift: null, drop: 0, arm: 0 },
++  { lift: 'R', drop: 1, arm: -1 },
++  { lift: null, drop: 0, arm: 0 },
++];
++
++/**
++ * @param {Partial<typeof HERO_TRAITS>} traits
++ * @param {'down'|'up'|'side'} dir
++ * @param {{ walk?: number, idle?: number, blink?: boolean, hurt?: boolean, tail?: number }} pose
++ */
++export function heroFrame(traits, dir, pose = {}) {
++  const t = { ...HERO_TRAITS, ...traits };
++  const g = blank();
++  const { px, rect } = painter(g);
++  const w = pose.walk != null ? WALK[pose.walk] : { lift: null, drop: 0, arm: 0 };
++  const breathe = pose.idle === 1 ? 1 : 0;
++  const d = w.drop; // upper body offset
++  const tail = pose.tail ?? 0;
++
++  // ---------- legs (fixed at the bottom: rows 20-22) ----------
++  const leg = (x0, lifted, sandalExtra) => {
++    if (lifted) { rect(x0, 20, x0 + 1, 20, t.skin); rect(x0 - sandalExtra, 21, x0 + 1 + (sandalExtra ? 0 : 0), 21, t.feet); }
++    else { rect(x0, 20, x0 + 1, 21, t.skin); px(x0 + 1, 21, t.skinShade); rect(x0 - sandalExtra, 22, x0 + 1, 22, t.feet); }
++  };
++  if (dir === 'side') {
++    if (w.lift === 'L') { rect(11, 20, 12, 21, t.skin); rect(11, 22, 13, 22, t.feet); rect(5, 20, 6, 20, t.skinShade); rect(4, 21, 6, 21, t.feet); }
++    else if (w.lift === 'R') { rect(5, 20, 6, 21, t.skinShade); rect(5, 22, 7, 22, t.feet); rect(11, 20, 12, 20, t.skin); rect(11, 21, 13, 21, t.feet); }
++    else { rect(7, 20, 8, 21, t.skinShade); rect(9, 20, 10, 21, t.skin); rect(7, 22, 11, 22, t.feet); }
++  } else {
++    leg(6, w.lift === 'L', 0);
++    leg(10, w.lift === 'R', 0);
++  }
++
++  // ---------- shorts + torso (rows 12-19, shifted by d) ----------
++  const y = (v) => v + d;
++  if (dir === 'side') {
++    rect(6, y(18), 12, y(19), t.shorts); rect(6, y(19), 12, y(19), t.shortsShade);
++    rect(6, y(13) - breathe, 12, y(16), t.shirt);
++    rect(6, y(13) - breathe, 8, y(16), t.vest); px(6, y(13) - breathe, t.vestLight); rect(6, y(16), 8, y(16), t.vestDark);
++    rect(12, y(14), 12, y(16), t.shirtShade);
++    rect(6, y(17), 12, y(17), t.rope);
++    // front arm swings
++    const ax = 9 + w.arm;
++    rect(ax, y(14), ax + 1, y(16), t.skin); px(ax + 1, y(16), t.skinShade); rect(ax, y(17), ax + 1, y(17), t.skin);
++    px(9, y(12), t.skinShade); px(10, y(12), t.skinShade);
++  } else {
++    rect(5, y(18), 12, y(19), t.shorts); rect(5, y(19), 12, y(19), t.shortsShade); px(8, y(19), t.shortsShade); px(9, y(19), null);
++    rect(5, y(13) - breathe, 12, y(16), t.shirt);
++    if (dir === 'down') {
++      rect(5, y(13) - breathe, 7, y(16), t.vest); rect(10, y(13) - breathe, 12, y(16), t.vest);
++      px(5, y(13) - breathe, t.vestLight); rect(5, y(14), 5, y(15), t.vestLight); rect(12, y(14), 12, y(16), t.vestDark);
++      px(7, y(16), t.vestDark); px(10, y(16), t.vestDark);
++      px(8, y(16), t.shirtShade); px(9, y(16), t.shirtShade); px(9, y(14), t.shirtShade);
++    } else {
++      rect(5, y(13) - breathe, 12, y(16), t.vest); px(5, y(13) - breathe, t.vestLight); rect(8, y(13), 9, y(16), t.vestDark); rect(12, y(14), 12, y(16), t.vestDark);
++    }
++    rect(5, y(17), 12, y(17), t.rope); px(9, y(17), t.bandanaDark);
++    // arms (swing opposite to legs)
++    const la = -w.arm;
++    const ra = w.arm;
++    rect(3, y(13) + la, 4, y(16) + la, t.skin); px(4, y(15) + la, t.skinShade); rect(3, y(17) + la, 4, y(17) + la, t.skinShade);
++    rect(13, y(13) + ra, 14, y(16) + ra, t.skin); px(14, y(14) + ra, t.skinShade); px(14, y(15) + ra, t.skinShade); rect(13, y(17) + ra, 14, y(17) + ra, t.skinShade);
++    rect(7, y(12), 10, y(12), t.skinShade);
++  }
++
++  // ---------- head (rows 0-11, shifted by d) ----------
++  const H = (v) => v + d;
++  if (dir === 'down') {
++    rect(5, H(0), 12, H(0), t.hair);
++    rect(3, H(1), 14, H(1), t.hair); rect(5, H(1), 7, H(1), t.hairLight);
++    rect(2, H(2), 15, H(2), t.hair); rect(4, H(2), 6, H(2), t.hairLight);
++    rect(2, H(3), 15, H(3), t.bandana); rect(4, H(3), 6, H(3), t.bandanaLight); px(15, H(3), t.bandanaDark);
++    rect(3, H(4), 14, H(10), t.skin);
++    rect(2, H(4), 10, H(4), t.hair); rect(4, H(4), 6, H(4), t.hairLight); rect(14, H(4), 15, H(4), t.hair);
++    rect(2, H(5), 3, H(5), t.hair); rect(8, H(5), 10, H(5), t.hair); px(10, H(5), t.hairDark);
++    rect(2, H(6), 2, H(8), t.hair); rect(15, H(5), 15, H(8), t.hairDark);
++    rect(14, H(5), 14, H(10), t.skinShade); rect(4, H(11), 13, H(11), t.skinShade);
++    px(4, H(5), t.skinLight);
++    if (pose.hurt) {
++      px(5, H(6), t.eyes); px(6, H(7), t.eyes); px(5, H(8), t.eyes);
++      px(12, H(6), t.eyes); px(11, H(7), t.eyes); px(12, H(8), t.eyes);
++      rect(8, H(9), 9, H(10), t.mouth);
++    } else if (pose.blink) {
++      rect(5, H(8), 6, H(8), t.eyes); rect(11, H(8), 12, H(8), t.eyes);
++      rect(8, H(10), 9, H(10), t.mouth);
++    } else {
++      rect(5, H(6), 6, H(8), t.eyes); px(5, H(6), t.white);
++      rect(11, H(6), 12, H(8), t.eyes); px(11, H(6), t.white);
++      rect(8, H(10), 9, H(10), t.mouth);
++    }
++    px(4, H(9), t.blush); px(13, H(9), t.blush);
++    // bandana tails flutter on the right
++    px(16, H(3) + tail, t.bandana); px(17, H(4) + tail, t.bandanaDark); px(16, H(4), t.bandanaDark);
++  } else if (dir === 'up') {
++    rect(5, H(0), 12, H(0), t.hair);
++    rect(3, H(1), 14, H(1), t.hair); rect(5, H(1), 7, H(1), t.hairLight);
++    rect(2, H(2), 15, H(9), t.hair); rect(3, H(10), 14, H(10), t.hair); rect(4, H(2), 6, H(2), t.hairLight);
++    rect(2, H(3), 15, H(3), t.bandana); rect(4, H(3), 6, H(3), t.bandanaLight);
++    rect(8, H(3), 9, H(4), t.bandanaDark); // knot
++    px(7, H(5), t.bandana); px(6, H(6) + tail, t.bandanaDark); px(10, H(5), t.bandana); px(11, H(6) + tail, t.bandanaDark);
++    rect(4, H(5), 5, H(6), t.hairLight); px(4, H(7), t.hairLight); rect(14, H(5), 15, H(9), t.hairDark); rect(13, H(10), 14, H(10), t.hairDark);
++    rect(5, H(11), 12, H(11), t.skinShade);
++    px(2, H(7), t.skinShade); px(15, H(7), t.skinShade); // ears
++  } else {
++    // side, facing right
++    rect(6, H(0), 12, H(0), t.hair);
++    rect(4, H(1), 13, H(1), t.hair); rect(7, H(1), 9, H(1), t.hairLight);
++    rect(3, H(2), 14, H(2), t.hair);
++    rect(3, H(3), 14, H(3), t.bandana); rect(9, H(3), 11, H(3), t.bandanaLight);
++    rect(4, H(4), 14, H(10), t.skin);
++    rect(3, H(4), 7, H(8), t.hair); rect(3, H(9), 5, H(9), t.hair); rect(4, H(6), 5, H(8), t.hairDark); rect(5, H(4), 6, H(4), t.hairLight);
++    rect(8, H(4), 9, H(4), t.hair); rect(12, H(4), 14, H(4), t.hair); px(14, H(5), t.hair);
++    px(8, H(7), t.skinShade); px(8, H(8), t.skinShade); // ear
++    px(15, H(8), t.skin); // nose
++    rect(5, H(11), 13, H(11), t.skinShade); rect(4, H(10), 8, H(10), t.skinShade);
++    if (pose.hurt) { px(12, H(6), t.eyes); px(13, H(7), t.eyes); px(12, H(8), t.eyes); rect(13, H(10), 14, H(10), t.mouth); }
++    else if (pose.blink) { rect(12, H(8), 13, H(8), t.eyes); px(13, H(10), t.mouth); }
++    else { rect(12, H(6), 13, H(8), t.eyes); px(12, H(6), t.white); px(13, H(10), t.mouth); }
++    px(11, H(9), t.blush);
++    // tails stream behind
++    px(2, H(3), t.bandanaDark); px(1, H(4) + tail, t.bandana); px(0, H(5) + tail, t.bandanaDark); px(2, H(4), t.bandana);
++  }
++  return g;
++}
++
++/** Tucked ball for the roll; the client rotates it in 90-degree steps. */
++export function heroRollBall(traits) {
++  const t = { ...HERO_TRAITS, ...traits };
++  const g = blank(16, 16);
++  const { px, rect } = painter(g);
++  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
++    const dx = x - 7.5;
++    const dy = y - 7.5;
++    if (dx * dx + dy * dy > 56) continue;
++    let c = dy < -1 ? t.hair : dy < 1 ? t.bandana : dy < 5 ? t.vest : t.shorts;
++    if (dy < -4 && dx < -1) c = t.hairLight;
++    if (dx > 4) c = dy < 1 ? t.hairDark : t.vestDark;
++    g[y][x] = c;
++  }
++  rect(9, 9, 11, 11, t.skin); px(11, 11, t.skinShade); // knees
++  rect(3, 11, 4, 12, t.skin); // hand
++  px(2, 6, t.bandana); px(1, 7, t.bandanaDark);
++  return g;
++}
++
++/** Rotates a square grid by 90 degrees clockwise, `times` times. */
++export function rotateGrid(g, times) {
++  let out = g;
++  for (let k = 0; k < times; k++) {
++    const n = out.length;
++    out = Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => out[n - 1 - x][y]));
++  }
++  return out;
++}

@@ -18,7 +18,9 @@ export class BootScene extends Phaser.Scene {
     createCardTextures(this);
     createTileset(this, TILESET_KEY, CONFIG.display.tileSize);
     createPixelFont(this);
-    // Dev options in the URL (?fast, ?boss...) skip the start menu.
-    this.scene.start(window.location.search ? 'Game' : 'Menu');
+    // Dev options in the URL (?fast, ?boss...) skip the start menu; look options do not.
+    const look = new Set(['classic', 'gfx']);
+    const skipMenu = [...new URLSearchParams(window.location.search).keys()].some((key) => !look.has(key));
+    this.scene.start(skipMenu ? 'Game' : 'Menu');
   }
 }

@@ -4,6 +4,9 @@ import { TILE } from '../../shared/content/tiles.js';
 import { tileAt } from '../../shared/sim/map.js';
 import { TILE_ART } from '../art/tileArt.js';
 import { DEPTH } from '../systems/depth.js';
+import { GFX } from '../gfx/flags.js';
+import { bakeTerrain } from '../gfx/terrain.js';
+import { PropViews } from '../gfx/props.js';
 
 export class MapView {
   /**
@@ -24,13 +27,25 @@ export class MapView {
     const tileset = this.tilemap.addTilesetImage(tilesetKey, tilesetKey, ts, ts, 0, 0);
     this.layer = this.tilemap.createLayer(0, tileset, 0, 0).setDepth(DEPTH.FLOOR);
 
-    /** @type {Map<string, Phaser.GameObjects.Image>} by 'tx,ty' */
+    if (GFX.terrain) {
+      // The painted ground replaces the tilemap picture; collision stays on the tile grid.
+      const keys = scene.textures.exists('terrain0') ? ['terrain0', 'terrain1', 'terrain2'] : bakeTerrain(scene, map);
+      this.layer.setVisible(false);
+      const ground = scene.add.image(0, 0, keys[0]).setOrigin(0).setDepth(DEPTH.FLOOR);
+      let frame = 0;
+      scene.time.addEvent({ delay: 380, loop: true, callback: () => ground.setTexture(keys[(frame = (frame + 1) % keys.length)]) });
+    }
+    this.props = GFX.props ? new PropViews(scene, map) : null;
+
+    /** @type {Map<string, Phaser.GameObjects.Image[]>} rock and its shadow, by 'tx,ty' */
     this.rocks = new Map();
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (tileAt(map, x, y) !== TILE.ROCK) continue;
         const bottom = (y + 1) * ts;
-        this.rocks.set(`${x},${y}`, scene.add.image((x + 0.5) * ts, bottom, 'rock').setOrigin(0.5, 1).setDepth(bottom));
+        const parts = [scene.add.image((x + 0.5) * ts, bottom, 'rock').setOrigin(0.5, 1).setDepth(bottom)];
+        if (GFX.props) parts.push(scene.add.image((x + 0.5) * ts + 3, bottom - 1, 'shadow').setScale(1.5, 1.4).setDepth(DEPTH.SHADOW));
+        this.rocks.set(`${x},${y}`, parts);
       }
     }
   }
@@ -39,7 +54,7 @@ export class MapView {
   handle(events) {
     for (const e of events) {
       if (e.type !== 'rockCrushed') continue;
-      this.rocks.get(`${e.tx},${e.ty}`)?.destroy();
+      this.rocks.get(`${e.tx},${e.ty}`)?.forEach((part) => part.destroy());
       this.rocks.delete(`${e.tx},${e.ty}`);
     }
   }

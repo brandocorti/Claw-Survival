@@ -1,6 +1,6 @@
 // Abilities: turns the cards a player owns into numbers (player.stats) and runs
 // the abilities that act every tick (orbiting coconuts, fire trail).
-import { isActive } from '../entities/enemy.js';
+import { isActive, MAX_ENEMY_RADIUS } from '../entities/enemy.js';
 import { damageEnemy } from './damage.js';
 
 /**
@@ -75,7 +75,7 @@ function updateFires(world, dt) {
  * @param {(enemy: object) => boolean} [filter]
  */
 export function hitEnemiesAround(world, at, hit, ownerId, key, filter = () => true) {
-  world.grid.forEachNear(at.x, at.y, hit.radius + 16, (e) => {
+  world.grid.forEachNear(at.x, at.y, hit.radius + MAX_ENEMY_RADIUS, (e) => {
     if (!isActive(e) || !filter(e)) return;
     if ((e.hitCooldowns[key] ?? 0) > world.time) return;
     const r = e.radius + hit.radius;
