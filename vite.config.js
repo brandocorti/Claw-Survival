@@ -44,6 +44,7 @@ function saveEvidencePlugin() {
 }
 
 export default defineConfig({
+  base: './', // relative paths, so the game works at brandocorti.github.io/GEN_AI/
   root: path.join(repoRoot, 'src', 'client'),
   server: {
     port: 5173,

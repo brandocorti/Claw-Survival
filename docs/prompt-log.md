@@ -131,6 +131,23 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   rock impossible to hit, because rocks stop shots, so bosses crush rocks. The time spent stuck fell to
   0.1 to 0.3 s. The author played it and answered "ok perfect push it". Open question for milestone 8: how this duel fits with the final PvP of the original spec.
 
+### [Deployment] Set up GitHub Pages from the plan — 2026-11-25 — brandocorti
+- **Goal:** put the game online, following `docs/deployment-plan.md`, working on a dedicated `deployment`
+  branch and merging into `main` only at the end.
+- **Tool/model:** Claude Code (Sonnet 5.5) in VS Code.
+- **Prompt:** "guarda il deployment_pla.md e dimmi cosa ce da fare", then "in questo branch andiamo a fare
+  tutta la spec di deployment quindi prima pusheremo su deployment e poi andiamo a mergeare in seguito,
+  organizza e inizia a organizzare il codice e dimmi quello che posso fare io".
+- **Result:** the agent first only read the plan and compared it with the repo (no `base`, no workflow, no
+  README link). After the second prompt it added `base: './'`, created `.github/workflows/deploy.yml` and
+  ran `npm run smoke` (134 tests, build OK).
+- **Problem found:** the plan says to push to `main`, but the team wants to work on `deployment` first. The
+  workflow only triggers on `main`, so a push to `deployment` publishes nothing (this is intended). Also
+  the Pages setting can only be changed by the repo owner, so the agent cannot finish this alone.
+- **Change made and why:** kept the workflow trigger as in the plan instead of adding `deployment`, so a
+  half-finished branch can never overwrite the public site. The agent did not commit or push; that stays a
+  human step.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

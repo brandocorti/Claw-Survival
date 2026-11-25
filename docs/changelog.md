@@ -6,6 +6,19 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Deploy to GitHub Pages (setup) — brandocorti — commit TBD (fill in after committing)
+- **Type:** feature
+- **What changed:** the game can now be published as a static site. `vite.config.js` uses relative asset
+  paths (`base: './'`), so the build also works from a sub-path such as `brandocorti.github.io/GEN_AI/`.
+  A new GitHub Actions workflow runs `npm run smoke` (tests and build) and publishes `dist/` to GitHub
+  Pages. It only triggers on pushes to `main`, so nothing is published from the `deployment` branch.
+- **Modules/files touched:** `vite.config.js`, `.github/workflows/deploy.yml`, `docs/deployment-plan.md`
+  (followed, not changed).
+- **Why:** the team needs a public link for the demo and the Moodle PDF (Phase A of the deployment plan).
+- **Evidence:** `npm run smoke` passes locally (134 tests, build OK) and `dist/index.html` loads its script
+  from `./assets/...`. Not yet verified online: the first real deploy needs Pages enabled by the repo owner.
+- **Prompt log:** [Deployment: set up GitHub Pages from the plan](prompt-log.md)
+
 ### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
 - **Type:** feature
 - **What changed:** when the 5 minutes run out, all enemies and their bullets vanish and, after 3 quiet
