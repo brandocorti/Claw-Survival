@@ -21,7 +21,7 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
   `production/qa/evidence/2026-11-25-*`. Balance has only been tried with a scripted player.
 - **Prompt log:** [Level-up cards](prompt-log.md#gameplay-level-up-cards-ask-for-a-recap-then-approve--2026-11-25--esteban).
 
-### 2026-11-25 — Corrections to earlier entries — Esteban — commit (pending)
+### 2026-11-25 — Corrections to earlier entries — Esteban — commit 9d4100e
 - **Type:** docs
 - **What changed:** three statements in the entries below are wrong. Old entries are never rewritten,
   so they are corrected here:
