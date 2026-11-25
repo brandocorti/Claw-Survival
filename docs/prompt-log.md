@@ -131,6 +131,17 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   rock impossible to hit, because rocks stop shots, so bosses crush rocks. The time spent stuck fell to
   0.1 to 0.3 s. The author played it and answered "ok perfect push it". Open question for milestone 8: how this duel fits with the final PvP of the original spec.
 
+### [Gameplay] Phase 1: timed status effects and buff pickups — 2026-11-25 — Team
+- **Goal:** prioritize a brainstormed list of ~22 buffs, debuffs, and map/combat ideas against the current Milestone 3 architecture, then plan and implement Phase 1 (timed status-effect framework, attacker source tracking, and buff pickup loop).
+- **Tool/model:** Antigravity IDE (Gemini 4 Hydrogen for prioritization/planning, Gemini 4 Neon for execution).
+- **Prompt (summary, multi-turn):**
+  1. Supplied the brainstorm list of buffs, debuffs, and map ideas and asked for complexity/feasibility ordering given multiplayer is not yet built.
+  2. Refined constraints: build the timed buff/debuff system now, keep multiplayer-dependent and auto-aim-conflicting ideas for later, target ~12 total buffs and debuffs, and outline "next plans".
+  3. Invoked `/plan phase 1` and approved the resulting implementation plan (`implementation_plan.md`).
+- **Result:** implemented the pure-JS `EFFECT_TYPES` registry, `effects.js` lifecycle system (`applyEffect`, `updateEffects`, `clearEffects`), `damagePlayer` `source` tracking + `onPlayerDamaged`/`onEnemyDamaged` hooks, `pickups.js` spawning/collection with `doubleXp` as the first buff, client pickup/HUD views, `?pickup` dev option, and unit tests (`effects.test.js`, `pickups.test.js`, `damage.test.js`, `art.test.js`).
+- **Problem found:** during verification, `damage.test.js` initially asserted `attackerId: null` for a player-killed coconut explosion, whereas `coconut.js` forwards `killerId` (`'p1'`) to `queueExplosion()` so chain-reaction kills credit the player.
+- **Change made and why:** updated the test expectation to match existing explosion credit propagation (`attackerId: 'p1'`) without changing coconut behavior.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

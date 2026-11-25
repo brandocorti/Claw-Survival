@@ -6,6 +6,13 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Phase 1: timed status effects, buff pickups, and attacker tracking — Team — commit 9a7091a
+- **Type:** feature
+- **What changed:** added a pure-simulation timed `statusEffects` system (`player.effects`) with `doubleXp` (2x XP for 9s) as the first buff, periodic buff pickups on walkable sand (`world.pickups`), right-edge HUD effect timer icons (buffs in gold, debuffs in reserved purple), and `?pickup` dev shortcut. Also added attacker `source` tracking to `damagePlayer()` and damage hooks on active effects.
+- **Modules/files touched:** `src/shared/content/effects/`, `src/shared/sim/systems/` (effects, pickups, abilities, damage, xp, combat, enemies), `src/shared/sim/entities/` (player, pickup), `src/shared/` (world, config, protocol), `src/client/` (effectArt, PickupViews, Hud, BootScene, GameScene, EffectsSystem, devOptions, LocalTransport), `tests/unit/`.
+- **Why:** builds the shared foundation required for Phase 2 solo buffs and Milestone 6 curses/sabotage credit without coupling game rules to Phaser.
+- **Prompt log:** [Phase 1 status effects and pickups](prompt-log.md#gameplay-phase-1-timed-status-effects-and-buff-pickups--2026-11-25--team).
+
 ### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
 - **Type:** feature
 - **What changed:** when the 5 minutes run out, all enemies and their bullets vanish and, after 3 quiet
