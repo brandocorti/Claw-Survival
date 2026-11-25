@@ -131,6 +131,36 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   rock impossible to hit, because rocks stop shots, so bosses crush rocks. The time spent stuck fell to
   0.1 to 0.3 s. The author played it and answered "ok perfect push it". Open question for milestone 8: how this duel fits with the final PvP of the original spec.
 
+### [Art] Milestone 4, first attempt (stopped) — 2026-11-25 — Esteban
+- **Goal:** the island art pass of the original spec.
+- **Tool/model:** Claude Code, Claude Opus 5.5, all art drawn in code.
+- **Prompt (exact):** "ok perfect push it and we can continue with phase 4", then, while the AI was
+  working: "stop, ill have a propper prompt with the art section and then ill pass it to you".
+- **Result:** a new island layout, a painted ground (rendered to an image, never seen in the game), and
+  untested code for props, lighting and particles. Set aside in a local git stash, not in the repository.
+- **Problem found:** the go-ahead gave no art direction beyond the spec, so the AI chose the style itself.
+- **Change made and why:** stopped by the author, who will write a dedicated art prompt.
+
+### [Gameplay] Salesman, money, hearts, menu and music — 2026-11-25 — Esteban
+- **Goal:** something to do between fights, a reason to collect drops, and a proper start to the game.
+- **Tool/model:** Claude Code, Claude Opus 5.5. Music: Suno and Google generative AI (see
+  `assets/audio/README.md`).
+- **Prompt (exact, with three songs attached):** "add a character that is a salesman and he can inform of
+  the status of the other players. mark it in the map somehow  you must interact with him with E to also
+  buy only one random buff roll. Add the posibility of enemies droping money randomly to trade later. Make
+  it balanced. Also that they can drop randomly hearts with a "low" rate. Add also a menu to start the run
+  with settings and things like that. Ill give to you the music of each phase."
+- **Result:** all of it ([changelog](changelog.md)).
+- **Problem found:** two ambiguities. "Only one random buff roll" was read as one per round, and the songs
+  were assigned to phases by their titles, since the AI cannot listen to them. "Make it balanced" had no
+  number: the AI's first guess for the drop rates nearly quintupled the bots' wins.
+- **Change made and why:** each effect was measured separately (hearts alone, shop alone), which showed
+  that hearts made the game easier far more than the shop, and the rates were set from that.
+- **Follow-up prompt (exact, in Spanish):** "hay 3 musicas diferentes, una para menú, pausa y salesman
+  (island pixel waves), para el juego normal (under the canopy), y por ultimo para el boss (claws of the
+  mangrove)" (there are 3 songs: one for menu, pause and salesman, one for the normal game, one for the
+  boss). The AI's guess from the titles was wrong for rounds 1-2, pause and salesman, and was replaced.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

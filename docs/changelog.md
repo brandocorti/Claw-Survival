@@ -6,6 +6,25 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Salesman, money, hearts, start menu and music — Esteban — commit 3b93e08
+- **Type:** feature, assets
+- **What changed:** enemies sometimes drop coins and, rarely, hearts. A salesman, marked by a coin over
+  his head and a gold dot on the new minimap, is talked to with E: he shows every player's status and
+  sells one random ability per round (10 coins, 5 more each time). He leaves when the waves end. New
+  start menu, settings (volume, sound, shake, map, FPS, full screen; remembered), pause menu (Esc) and
+  music: Island Pixel Waves (menu, pause, salesman, victory), Under the Canopy (rounds) and Claws of the
+  Mangrove (final boss). Drops over water now land on reachable ground.
+- **Modules/files touched:** `src/shared/sim/systems/` (pickups, shop, damage, xp, cards), `src/shared/sim/map.js`,
+  `src/client/` (menu scene, pause, settings, shop panel, minimap, music), `assets/audio/`.
+- **Why:** requested by the author, with three songs.
+- **Evidence:** 168 unit tests pass; menus, shop, pause and music checked in the browser; screenshots
+  `production/qa/evidence/2026-11-25-17-*`. Balance, 60 bot matches per setting: a first guess (12% coins,
+  1.2% hearts) took wins from 7 to 34 of 40, so rates were cut to 4.5% and 0.2%, and spawn growth raised
+  from 0.3 to 0.36 per round. Bots reaching round 4: 36 before, 35 after; winning: 13 before, 18 after.
+  Complete runs average 41 coins, 2 hearts and 2 purchases. Not yet judged by a person.
+- **Known limits:** with no multiplayer yet (milestone 5), the status list only shows you.
+- **Prompt log:** [Salesman, money and menu](prompt-log.md#gameplay-salesman-money-hearts-menu-and-music--2026-11-25--esteban).
+
 ### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
 - **Type:** feature
 - **What changed:** when the 5 minutes run out, all enemies and their bullets vanish and, after 3 quiet
