@@ -201,6 +201,55 @@ export const CONFIG = {
     choices: 3,
   },
 
+  /** Online play (milestone 5). Solo ignores this section. */
+  net: {
+    /** Port of the game server when PORT is not set. The client uses VITE_SERVER_URL. */
+    defaultPort: 2567,
+    /**
+     * Path on the web page's own host that the Vite dev/preview server forwards to the game
+     * server. Clients connect through it, so one address (localhost, Wi-Fi IP or a
+     * Cloudflare tunnel URL) serves both the page and the game.
+     */
+    proxyPath: '/colyseus',
+    /** Players per room, bots included. Only the host can start, and only with at least minPlayers. */
+    minPlayers: 2,
+    maxPlayers: 6,
+    /** Most bots the host can add. */
+    maxBots: 5,
+    /** Length of a room code such as "K7QD". */
+    roomCodeLength: 4,
+    /** Longest player name; longer names are cut. */
+    maxNameLength: 12,
+    /**
+     * Online the world never pauses for a card choice (the clock is shared).
+     * After this many seconds a random card is picked for the player.
+     */
+    cardTimeoutSeconds: 10,
+    /** A disconnected player keeps their arena this long and can rejoin; then they count as dead. */
+    reconnectGraceSeconds: 10,
+    /** Arena snapshots per second sent to each client (the sim runs at sim.tickRate). */
+    snapshotRate: 20,
+    /** Room summary updates per second (clock, levels, who is alive). */
+    summaryRate: 5,
+    /** Messages a client may send per second; extra ones are dropped. */
+    maxMessagesPerSecond: 40,
+    /** The win screen shows for this long, then everyone returns to the lobby. */
+    winScreenSeconds: 8,
+    /** Test bots: random walk, random rolls, random cards. */
+    bot: {
+      /** A bot keeps a direction for a random time in this range. */
+      turnIntervalMin: 0.6,
+      turnIntervalMax: 2.2,
+      /** Chance of standing still instead of walking, each time it turns. */
+      idleChance: 0.15,
+      /** Chance of rolling, each time it turns. */
+      rollChance: 0.2,
+      /** A bot "thinks" this long before picking a card. */
+      pickDelayMin: 0.5,
+      pickDelayMax: 3,
+    },
+  },
+
   /**
    * Ability cards. Picking a card again raises its level, up to maxLevel.
    * Code lives in shared/content/abilities/<id>.js.

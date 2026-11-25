@@ -42,6 +42,20 @@ npm test             # unit tests (Vitest)
 npm run smoke        # tests + production build into dist/
 ```
 
+### Play online with friends (any network)
+
+Install [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+once (macOS: `brew install cloudflared`, Windows: `winget install Cloudflare.cloudflared`). No account needed.
+
+```bash
+npm run online       # starts server + client + tunnel, prints a public link
+```
+
+Send the printed `https://….trycloudflare.com` link to the others. Everyone opens it, one player
+creates a room and the rest join with the 4-letter code. Your computer is the server, so keep it
+awake and keep the terminal open. The link changes every time you restart.
+On the same Wi-Fi you can skip the tunnel: run `npm run dev:all` and open the "Network" address Vite prints.
+
 ### Controls
 
 | Key | Action |

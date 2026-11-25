@@ -10,9 +10,19 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "vitest run && vite build"
+    "smoke": "vitest run && vite build",
+    "server": "node src/server/index.js",
+    "dev:all": "node tools/dev-all.js",
+    "bench:server": "node tools/bench-match.js",
+    "bench:bandwidth": "node tools/bench-bandwidth.js",
+    "dev:lan": "vite --host",
+    "online": "node tools/online.js"
   },
   "dependencies": {
+    "@colyseus/core": "0.18.30",
+    "@colyseus/schema": "5.0.51",
+    "@colyseus/sdk": "0.18.10",
+    "@colyseus/ws-transport": "0.18.5",
     "phaser": "3.90.0"
   },
   "devDependencies": {
@@ -20,6 +30,6 @@
     "vitest": "3.2.4"
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=22"
   }
 }

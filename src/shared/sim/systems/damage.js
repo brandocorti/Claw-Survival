@@ -8,16 +8,19 @@ import { dropGems } from './xp.js';
  * @param {object} world
  * @param {import('../entities/player.js').Player} player
  * @param {number} amount - half hearts
+ * @param {string|null} [attackerId] - player who dealt it (PvP); null = enemies or the environment
  * @returns {boolean} true if the damage was applied
  */
-export function damagePlayer(world, player, amount) {
+export function damagePlayer(world, player, amount, attackerId = null) {
   if (!player.alive || player.invulnerableTime > 0 || amount <= 0) return false;
+  if (player.pveImmune && attackerId == null) return false; // dev option for test bots
   player.health = Math.max(0, player.health - amount);
   player.lastHitTime = world.time;
   if (player.health === 0) {
     player.alive = false;
     player.rolling = false;
     player.targetId = null;
+    player.cardChoice = null; // online a dead player's arena stops, so close the choice now
     world.events.push({ type: 'playerDied', playerId: player.id, x: player.x, y: player.y });
   } else {
     player.invulnerableTime = world.config.player.hitInvulnerability;

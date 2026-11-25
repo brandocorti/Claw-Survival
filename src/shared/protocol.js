@@ -32,11 +32,12 @@ export function createEmptyInput() {
  *   | { type: 'gemCollected', playerId: string, value: number }
  *   | { type: 'levelUp', playerId: string, level: number }
  *   | { type: 'cardsOffered', playerId: string, cards: string[] }
- *   | { type: 'cardPicked', playerId: string, abilityId: string, level: number }
+ *   | { type: 'cardPicked', playerId: string, abilityId: string, level: number, auto: boolean }
  *   | { type: 'roundStarted', round: number }
  *   | { type: 'rockCrushed', tx: number, ty: number, x: number, y: number }
  *   | { type: 'enemyDespawned', x: number, y: number }
  *   | { type: 'finalBossIntro' }
  *   | { type: 'matchWon' }
+ *   | { type: 'wavesOver' }
  *   | { type: 'bossSpawned', id: number, enemyType: string }} SimEvent
  */

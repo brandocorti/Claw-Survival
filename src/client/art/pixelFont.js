@@ -87,5 +87,14 @@ export function createPixelFont(scene) {
  * @param {string} text
  */
 export function addPixelText(scene, x, y, text) {
-  return scene.add.bitmapText(x, y, PIXEL_FONT, String(text).toUpperCase()).setLetterSpacing(-1);
+  return scene.add.bitmapText(x, y, PIXEL_FONT, toPixelText(text)).setLetterSpacing(-1);
+}
+
+/**
+ * Text the pixel font can draw: uppercase, accents removed ("María" -> "MARIA").
+ * Use it for any text that did not come from us (player names) before setText().
+ * @param {unknown} text
+ */
+export function toPixelText(text) {
+  return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
 }

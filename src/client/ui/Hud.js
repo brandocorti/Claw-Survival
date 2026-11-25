@@ -1,7 +1,8 @@
 // Pixel-art HUD: XP bar across the top, level + hearts at the top left, round
 // in the middle, match timer and kills at the top right, boss bar at the bottom,
 // owned ability icons on the left, round / boss banners, and the end screen (lost or won).
-import { addPixelText } from '../art/pixelFont.js';
+// Online it also lists the other players (name, level, alive or out) under the timer.
+import { addPixelText, toPixelText } from '../art/pixelFont.js';
 import { PALETTE as P, hexToInt } from '../art/palette.js';
 import { DEPTH } from '../systems/depth.js';
 import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
@@ -15,11 +16,17 @@ export class Hud {
    * @param {Phaser.Scene} scene
    * @param {object} config - game config
    * @param {string} localPlayerId
+   * @param {{ room?: { state: object } }} [online] - the Colyseus room, for the other players and the winner
    */
-  constructor(scene, config, localPlayerId) {
+  constructor(scene, config, localPlayerId, { room = null } = {}) {
     this.scene = scene;
     this.config = config;
     this.localPlayerId = localPlayerId;
+    this.room = room;
+    /** @type {object[]} one text per other player (online) */
+    this.rivalTexts = [];
+    /** 'dead' | 'over' | 'won' | null: which end screen is showing */
+    this.endKind = null;
     this.w = config.display.width;
     this.h = config.display.height;
     const fixed = (obj) => obj.setScrollFactor(0).setDepth(DEPTH.HUD);
@@ -56,6 +63,8 @@ export class Hud {
         this.showBanner(`${BOSS_NAMES[e.enemyType]}!`, subtitle, P.enemyShot);
       } else if (e.type === 'finalBossIntro') {
         this.showBanner('TIME IS UP', 'THE BEACH GOES QUIET...', P.shotRim);
+      } else if (e.type === 'wavesOver') {
+        this.showBanner('TIME IS UP', 'YOU SURVIVED THE WAVES', P.shotRim);
       } else if (e.type === 'playerHit' && e.playerId === this.localPlayerId) {
         this.heartShakeUntil = this.scene.time.now + 250;
       }
@@ -117,7 +126,7 @@ export class Hud {
     // Round, timer, kills
     const m = world.match;
     const waves = m.phase === 'waves';
-    this.roundText.setText(waves ? `ROUND ${m.round}/${this.config.rounds.count}` : 'FINAL BOSS');
+    this.roundText.setText(waves ? `ROUND ${m.round}/${this.config.rounds.count}` : m.phase === 'wavesOver' ? 'TIME IS UP' : 'FINAL BOSS');
     this.timerText.setVisible(waves);
     const left = Math.max(0, this.config.match.durationSeconds - m.elapsed);
     const mm = String(Math.floor(left / 60)).padStart(2, '0');
@@ -138,9 +147,54 @@ export class Hud {
       g.fillStyle(hexToInt(P.bossBar)).fillRect(bx, by, Math.ceil((bw * boss.hp) / boss.maxHp), 4);
     }
 
+    if (this.room) {
+      this.updateRivals();
+      this.updateOnlineEnd(world, player);
+      return;
+    }
     if (this.endScreen) return;
     if (!player.alive) this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'PRESS R TO TRY AGAIN');
     else if (m.phase === 'won') this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'PRESS R TO PLAY AGAIN');
+  }
+
+  /** Online: one line per other player under the timer: name, level, or OUT. */
+  updateRivals() {
+    const others = [...this.room.state.players.entries()].filter(([id]) => id !== this.localPlayerId);
+    while (this.rivalTexts.length < others.length) {
+      const y = 28 + this.rivalTexts.length * 8;
+      this.rivalTexts.push(addPixelText(this.scene, this.w - MARGIN, y, '').setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH.HUD));
+    }
+    this.rivalTexts.forEach((text, i) => {
+      const entry = others[i];
+      if (!entry) return text.setVisible(false);
+      const [, p] = entry;
+      const status = !p.connected ? 'LEFT' : p.alive ? `LV ${p.level}` : 'OUT';
+      text.setVisible(true).setText(`${toPixelText(p.name)} ${status}`).setAlpha(p.alive ? 1 : 0.5)
+        .setTint(p.alive ? 0xffffff : hexToInt(P.rock));
+    });
+  }
+
+  /** Online end screens: out of the match (others play on), then the winner for everyone. */
+  updateOnlineEnd(world, player) {
+    const state = this.room.state;
+    if (state.phase === 'over' && this.endKind !== 'over') {
+      const winner = state.winnerId ? state.players.get(state.winnerId) : null;
+      const mine = state.winnerId === this.localPlayerId;
+      const heading = mine ? 'YOU WIN!' : winner ? `${toPixelText(winner.name)} WINS` : 'NOBODY WINS';
+      this.clearEnd();
+      this.showEnd(world, player, heading, mine ? '#5dff8a' : P.shotRim, 'PRESS R FOR THE MENU');
+      this.endKind = 'over';
+    } else if (!player.alive && !this.endKind) {
+      this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'THE OTHERS PLAY ON - PRESS R FOR THE MENU');
+      this.endKind = 'dead';
+    }
+  }
+
+  clearEnd() {
+    if (!this.endScreen) return;
+    this.scene.tweens.killTweensOf(this.endScreen);
+    for (const obj of this.endScreen) obj.destroy();
+    this.endScreen = null;
   }
 
   showEnd(world, player, heading, color, hint) {

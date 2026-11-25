@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import { CONFIG } from './src/shared/config.js';
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
 const evidenceDir = path.join(repoRoot, 'production', 'qa', 'evidence');
@@ -43,11 +44,37 @@ function saveEvidencePlugin() {
   };
 }
 
+/**
+ * Forwards CONFIG.net.proxyPath (HTTP matchmaking and WebSockets) to the game server, so
+ * players only need the page's address. Used by both `vite` and `vite preview`.
+ */
+const gameServerPort = Number(process.env.PORT) || CONFIG.net.defaultPort;
+const gameServerProxy = {
+  [CONFIG.net.proxyPath]: {
+    target: `http://localhost:${gameServerPort}`,
+    ws: true,
+    rewrite: (url) => url.slice(CONFIG.net.proxyPath.length) || '/',
+  },
+};
+
+/** Hosts allowed to serve the page besides localhost and IPs: Cloudflare quick tunnels. */
+const allowedHosts = ['.trycloudflare.com'];
+
 export default defineConfig({
   root: path.join(repoRoot, 'src', 'client'),
   server: {
     port: 5173,
+    strictPort: true, // `npm run online` tunnels to this exact port
+    host: true, // also listen on the Wi-Fi address, so other computers can join
+    allowedHosts,
     fs: { allow: [repoRoot] },
+    proxy: gameServerProxy,
+  },
+  preview: {
+    port: 5173,
+    host: true,
+    allowedHosts,
+    proxy: gameServerProxy,
   },
   build: {
     outDir: path.join(repoRoot, 'dist'),

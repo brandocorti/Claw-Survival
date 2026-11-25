@@ -80,6 +80,12 @@ export const TEST_CONFIG = Object.freeze({
     gemValues: [20, 5, 1],
   },
   cards: { choices: 3 },
+  net: {
+    defaultPort: 2567, minPlayers: 2, maxPlayers: 6, maxBots: 5, roomCodeLength: 4, maxNameLength: 12,
+    cardTimeoutSeconds: 2, reconnectGraceSeconds: 10, snapshotRate: 20, summaryRate: 5,
+    maxMessagesPerSecond: 40, winScreenSeconds: 8,
+    bot: { turnIntervalMin: 0.5, turnIntervalMax: 1, idleChance: 0.1, rollChance: 0.3, pickDelayMin: 0.2, pickDelayMax: 0.5 },
+  },
   abilities: {
     damage: { maxLevel: 5, damagePerLevel: 1 },
     fireRate: { maxLevel: 5, ratePerLevel: 0.25 },

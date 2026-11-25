@@ -1,5 +1,7 @@
-// Solo PvE: survive the rounds on the beach clearing. WASD moves, Space rolls,
-// the slingshot fires by itself at the nearest enemy. R restarts after the game ends.
+// The arena: survive the rounds on the beach clearing. WASD moves, Space rolls,
+// the slingshot fires by itself at the nearest enemy.
+// Solo: LocalTransport runs the simulation here; R restarts after the game ends.
+// Online: ColyseusTransport draws what the server sends; R goes back to the menu.
 import * as Phaser from 'phaser';
 import { CONFIG } from '../../shared/config.js';
 import { BEACH_ARENA } from '../../shared/content/arenas/beach.js';
@@ -21,16 +23,29 @@ import { addPixelText } from '../art/pixelFont.js';
 import { readDevOptions } from '../devOptions.js';
 import { TILESET_KEY } from './BootScene.js';
 
+/** Stand-in player for the card screen when no choice may be shown. */
+const NO_CARD_CHOICE = Object.freeze({ cardChoice: null });
+
 export class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
   }
 
-  create() {
-    const { config, startRound, startCards, startAtBoss, seed } = readDevOptions(CONFIG, window.location.search);
-    this.config = config;
+  /**
+   * @param {{ mode?: 'solo' | 'online', transport?: import('../network/ColyseusTransport.js').ColyseusTransport }} [data]
+   */
+  create(data = {}) {
+    this.online = data.mode === 'online';
+    if (this.online) {
+      this.transport = data.transport;
+      this.config = this.transport.config;
+    } else {
+      const { config, startRound, startCards, startAtBoss, seed } = readDevOptions(CONFIG, window.location.search);
+      this.config = config;
+      this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards, startAtBoss });
+    }
+    const config = this.config;
     const handHeight = config.player.handHeight;
-    this.transport = new LocalTransport({ config, arena: BEACH_ARENA, seed, startRound, startCards, startAtBoss });
     const world = this.transport.world;
     const localId = this.transport.localPlayerId;
 
@@ -48,8 +63,9 @@ export class GameScene extends Phaser.Scene {
       localPlayerId: localId,
       shake: (ms, intensity) => this.cameraSystem.shake(ms, intensity),
     });
-    this.hud = new Hud(this, config, localId);
-    this.cardScreen = new CardScreen(this, config);
+    const room = this.online ? this.transport.room : null;
+    this.hud = new Hud(this, config, localId, { room });
+    this.cardScreen = new CardScreen(this, config, { online: this.online });
     this.targetMark = this.add.image(0, 0, 'targetMark').setDepth(DEPTH.FX).setVisible(false);
 
     this.fpsText = addPixelText(this, config.display.width - 4, config.display.height - 10, '')
@@ -58,10 +74,20 @@ export class GameScene extends Phaser.Scene {
     this.lastInput = { moveX: 0, moveY: 0, roll: false };
 
     this.input.keyboard.on('keydown-R', () => {
-      const over = !this.transport.getLocalPlayer().alive || this.transport.world.match.phase === 'won';
-      if (over) this.scene.restart();
+      const local = this.transport.getLocalPlayer();
+      if (!local) return;
+      const over = !local.alive || this.transport.world.match.phase === 'won' || room?.state.phase === 'over';
+      if (!over) return;
+      if (this.online) this.backToMenu();
+      else this.scene.restart({ mode: 'solo' });
     });
-    installEvidenceHotkey(this, 'm3-final-boss');
+    if (this.online) {
+      // The server closed the room or the connection dropped (reconnecting is step 6).
+      this.onRoomLeave = () => this.scene.start('Lobby', { error: 'Disconnected from the game server.' });
+      room.onLeave(this.onRoomLeave);
+      this.events.once('shutdown', () => room.onLeave.remove(this.onRoomLeave));
+    }
+    installEvidenceHotkey(this, this.online ? 'm5-online' : 'm3-final-boss');
     if (import.meta.env.DEV) window.__scene = this; // for debugging in the console
   }
 
@@ -73,10 +99,12 @@ export class GameScene extends Phaser.Scene {
     this.lastInput = input;
     this.transport.update(deltaMs, input);
 
-    // 2. Simulation -> visuals
+    // 2. Simulation -> visuals (online: nothing to draw until the first snapshot)
     const world = this.transport.world;
     const alpha = this.transport.alpha;
     const local = this.transport.getLocalPlayer();
+    if (!local) return;
+    const room = this.online ? this.transport.room : null;
     for (const p of world.players) {
       let view = this.playerViews.get(p.id);
       if (!view) {
@@ -95,7 +123,9 @@ export class GameScene extends Phaser.Scene {
     this.effects.handle(events);
     this.hud.handle(events);
     this.hud.update(world, local);
-    this.cardScreen.update(local);
+    // No cards once you are out or the match is decided (online the last snapshot can still hold one).
+    const choosing = local.alive && room?.state.phase !== 'over';
+    this.cardScreen.update(choosing ? local : NO_CARD_CHOICE, world.time);
 
     // 3. Auto-aim target marker
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
@@ -116,5 +146,12 @@ export class GameScene extends Phaser.Scene {
       this.fpsTimer = 0.25;
       this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}  ${world.enemies.length}`);
     }
+  }
+
+  /** Online: leave the room and return to the start menu. */
+  backToMenu() {
+    this.transport.room.onLeave.remove(this.onRoomLeave);
+    this.transport.leave();
+    this.scene.start('Lobby');
   }
 }

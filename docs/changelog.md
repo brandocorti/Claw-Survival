@@ -6,6 +6,70 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-25 — Play with friends over the internet (`npm run online`) — alvarofeher — commit (pending)
+- **Type:** feature
+- **What changed:** `npm run online` starts the game server, the client and a free Cloudflare quick
+  tunnel, then prints a public `https://….trycloudflare.com` link. Anyone on any network opens it and
+  joins the room. The browser now reaches the game server through `/colyseus` on the page's own
+  address, so localhost, Wi-Fi and tunnel all use the same code path.
+- **Modules/files touched:** `vite.config.js` (proxy, `allowedHosts`, `host`, `strictPort`),
+  `src/client/network/serverUrl.js` (new, moved out of `LobbyScene`), `src/shared/config.js`
+  (`net.proxyPath`), `tools/online.js` (new), `package.json` (`online`),
+  `tests/unit/net/serverUrl.test.js` (new), `README.md`.
+- **Why:** before this, only players on the same Wi-Fi could join, and university Wi-Fi often blocks
+  devices from talking to each other.
+- **Prompt log:** [Play across the internet with a Cloudflare tunnel](prompt-log.md).
+
+### 2026-11-25 — Play online in the browser: menu, lobby, room codes, own island each — alvarofeher — commit (pending)
+- **Type:** feature
+- **What changed:**
+  - The game now opens on a menu: play solo, create a room, or join one with a 4-character code
+    or a `?room=CODE` link. Solo dev shortcuts (`?round=3`, `?boss`…) still skip the menu.
+  - The lobby lists the players; only the host sees Add bot, Remove bot and Start.
+  - Online, each player plays their own island, drawn from server snapshots 20 times per second
+    and smoothed between them. The HUD lists the other players (name, level, or OUT).
+  - Card choices don't pause online: shorter cards along the bottom edge, with an auto-pick countdown.
+  - End screens: "WASHED OUT" when you are out, then "YOU WIN!" or "<NAME> WINS" for everyone.
+    R returns to the menu.
+- **Modules/files touched:** `src/client/` (new `LobbyScene`, `ColyseusTransport`, `SnapshotBuffer`,
+  `LobbyOverlay`; changed `GameScene`, `Hud`, `CardScreen`, pixel font), `src/shared/net/snapshot.js`
+  (new), `src/server/` (snapshots, match length in the room state), `src/shared/sim/systems/damage.js`,
+  `tools/bench-bandwidth.js`, `package.json` (`dev:lan`, `bench:bandwidth`).
+- **Why:** milestone 5, online prompt v2, step 3.
+- **Fixed on the way (found by playing in the browser, not by the tests):**
+  - The guest's timer showed the 5-minute match while the host's `?fast` match lasted 100 s.
+    The server now sends the match length.
+  - Every player was disconnected a few seconds after the match ended (see the prompt log).
+  - A player who died with a card choice open kept seeing the cards over the end screen.
+  - Each fix has a regression test, seen failing first.
+- **Evidence:** 191 tests pass. Two headless Chrome tabs created and joined a room by code and started the
+  match. Both showed the same clock and the same timer, with different enemies, and entered round 2 on the
+  same tick (20.25 s). Choosing a card did not stop the clock, and pressing 1 picked the card. After the
+  match both stayed connected and saw the same winner. No console errors. Bandwidth per client, measured on
+  the bytes Colyseus sends (`npm run bench:bandwidth`): 13 KB/s in round 1, 38 KB/s in round 5, 97 KB/s
+  worst case. Screenshots: `production/qa/evidence/2026-11-25-19-5*_m5-*` (the `m5-bug-*` ones show
+  the bugs before the fixes).
+- **Prompt log:** [v2 run: step 3](prompt-log.md#multiplayer-v2-run-step-3-browser-client--2026-11-25--alvarofeher).
+
+### 2026-11-25 — Online server: own arenas on one shared clock, plus test bots — alvarofeher — commit (pending)
+- **Type:** feature
+- **What changed:** a game server (`npm run server`, port 2567). A host creates a room with a 4-character
+  code, others join with it, and the host starts with 2 to 6 players (bots count). Every player gets
+  their own arena on the server, and all arenas read one match clock, so everyone is in the same round.
+  Online, a card choice no longer pauses the game: after 10 s a random card is picked. When at most one
+  player is alive the match ends. The host can add bots (`bots: N`), which walk randomly and pick random
+  cards. Not playable in the browser yet: the client side is step 3. Solo is unchanged.
+- **Modules/files touched:** `src/server/` (new), `src/shared/sim/match.js` (new), `src/shared/net/` (new),
+  `src/shared/sim/systems/` (cards, spawner, damage: new options, solo defaults unchanged),
+  `src/shared/config.js` (`net` section), `tools/`, `vitest.config.js`, `package.json` (Colyseus 0.18,
+  Node 22 or newer).
+- **Why:** milestone 5, online prompt v2, step 2.
+- **Evidence:** 179 tests pass (134 old, 37 new unit tests, 8 tests against a real server over
+  WebSockets). Four rules were broken on purpose (shared clock, no pause, timeout, last alive) and the tests
+  caught each one. Server cost: 6 arenas with 462 enemies take 0.60 ms per tick on average, 1.50 ms at the
+  99th percentile; the budget is 16.67 ms (`npm run bench:server 6 5 stress`).
+- **Prompt log:** [v2 run: plan and server](prompt-log.md#multiplayer-v2-run-plan-step-1-and-server-step-2--2026-11-25--alvarofeher).
+
 ### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
 - **Type:** feature
 - **What changed:** when the 5 minutes run out, all enemies and their bullets vanish and, after 3 quiet

@@ -30,9 +30,16 @@ const NO_INPUT = Object.freeze(createEmptyInput());
  * @param {boolean} [options.cards] - false = level-ups never open the card choice (tests)
  * @param {object} [options.enemyTypes] - behaviour registry (tests can inject their own)
  * @param {object} [options.abilityTypes] - ability registry
+ * @param {boolean} [options.cardPause] - true (solo) = the world freezes while a card choice is open.
+ *   Online it is false, because every arena runs on the same clock.
+ * @param {number|null} [options.cardTimeout] - seconds; after this a random card is picked (online). null = wait forever
+ * @param {{ elapsed: number } | null} [options.clock] - shared match clock (online). null = this world keeps its own
+ * @param {'boss'|'external'} [options.finale] - what happens when the waves end: the final boss duel (solo),
+ *   or stop and let the online match decide (it starts the PvP)
  */
 export function createWorld({
   config, arena, seed = 1, spawning = true, cards = true, enemyTypes = ENEMY_TYPES, abilityTypes = ABILITY_TYPES,
+  cardPause = true, cardTimeout = null, clock = null, finale = 'boss',
 }) {
   const map = parseArena(arena, config.display.tileSize);
   return {
@@ -43,6 +50,10 @@ export function createWorld({
     abilityTypes,
     spawning,
     cards,
+    cardPause,
+    cardTimeout,
+    clock,
+    finale,
     /** True while a player in this arena is choosing a card: nothing moves. */
     paused: false,
     tick: 0,
@@ -93,8 +104,8 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
     }
   }
 
-  // Level-up cards. In PvE every player has their own arena, so freezing this
-  // world pauses the game for that player only.
+  // Level-up cards. In solo, freezing this world pauses the game for that player.
+  // Online (cardPause false) it never pauses: the choice times out instead.
   updateCards(world, inputs);
   if (world.paused) return;
 

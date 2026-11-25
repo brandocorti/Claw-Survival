@@ -4,6 +4,9 @@
 // and from round to round; boss rounds add a mini-boss near their end.
 // When the time is up the enemies vanish and the final boss duel starts:
 //   phase 'waves' -> 'bossIntro' -> 'boss' -> 'won'
+// Online (world.finale 'external') the waves end in 'wavesOver' instead and the
+// match moves the survivors to the PvP arena. Online the clock is also shared:
+// world.clock is advanced by the match, so every arena is in the same round.
 import { createEnemy, travelOf } from '../entities/enemy.js';
 import { boxBlocked } from '../map.js';
 import { clamp, EPSILON } from '../math.js';
@@ -46,6 +49,7 @@ export function updateSpawner(world, dt) {
   const m = world.match;
   if (!world.players.some((p) => p.alive)) return;
 
+  if (m.phase === 'wavesOver') return; // online: the match takes over from here
   if (m.phase !== 'waves') {
     updateFinalBoss(world, dt);
     return;
@@ -56,10 +60,12 @@ export function updateSpawner(world, dt) {
     world.events.push({ type: 'roundStarted', round: m.round });
   }
 
-  m.elapsed += dt;
+  if (world.clock) m.elapsed = world.clock.elapsed;
+  else m.elapsed += dt;
   m.roundElapsed += dt;
   if (m.elapsed >= config.match.durationSeconds - EPSILON) {
-    startFinalBossIntro(world);
+    if (world.finale === 'external') endWaves(world);
+    else startFinalBossIntro(world);
     return;
   }
   const len = roundLength(config);
@@ -70,6 +76,8 @@ export function updateSpawner(world, dt) {
     m.bossSpawned = false;
     world.events.push({ type: 'roundStarted', round });
   }
+  // The shared clock is the truth: derive the time into the round from it.
+  if (world.clock) m.roundElapsed = m.elapsed - (m.round - 1) * len;
 
   if (m.roundElapsed < config.rounds.breakSeconds) return;
 
@@ -124,15 +132,28 @@ function spawnBoss(world, type) {
   return boss;
 }
 
+/** Removes every enemy (with a puff for each) and every enemy bullet. */
+function clearEnemies(world) {
+  for (const e of world.enemies) world.events.push({ type: 'enemyDespawned', x: e.x, y: e.y });
+  world.enemies.length = 0;
+  clearEnemyBullets(world);
+}
+
+/** Online: time is up, the arena empties and waits for the match to start the PvP. */
+function endWaves(world) {
+  world.match.elapsed = world.config.match.durationSeconds;
+  world.match.phase = 'wavesOver';
+  clearEnemies(world);
+  world.events.push({ type: 'wavesOver' });
+}
+
 /** Time is up: clear the field so the duel is one against one. */
 function startFinalBossIntro(world) {
   const { match: m, config } = world;
   m.elapsed = config.match.durationSeconds;
   m.phase = 'bossIntro';
   m.introLeft = config.finalBoss.introSeconds;
-  for (const e of world.enemies) world.events.push({ type: 'enemyDespawned', x: e.x, y: e.y });
-  world.enemies.length = 0;
-  clearEnemyBullets(world);
+  clearEnemies(world);
   for (const p of world.players) {
     if (p.alive) p.health = Math.min(p.maxHealth, p.health + config.finalBoss.healBefore);
   }

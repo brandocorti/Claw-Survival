@@ -19,6 +19,8 @@
  * @property {Record<string, number>} abilities - ability id -> level
  * @property {object} stats - derived numbers (damage, fireRate...), see systems/abilities.js
  * @property {string[]|null} cardChoice - ability ids on offer while a level-up is open
+ * @property {number} cardOpenedAt - world time when the current card choice opened (for the online timeout)
+ * @property {boolean} pveImmune - takes no damage from enemies, only from players (dev option for test bots)
  * @property {number} kills
  * @property {string} weapon - key into config.weapons
  * @property {number} fireCooldown - seconds until the next shot
@@ -59,6 +61,8 @@ export function createPlayer(id, x, y, config) {
     abilities: {},
     stats: null,
     cardChoice: null,
+    cardOpenedAt: 0,
+    pveImmune: false,
     kills: 0,
     weapon: p.startingWeapon,
     fireCooldown: 0,
