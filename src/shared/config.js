@@ -18,6 +18,20 @@ export const CONFIG = {
     width: 480,
     height: 270,
     tileSize: 16,
+    /** Comic "HIT!" word that pops up next to a player who takes damage. */
+    hitText: {
+      /** Offset from the player's feet, in pixels (right and up). */
+      offsetX: 12,
+      offsetY: 24,
+      /** Pop-in time, then how long it stays, then how long it floats up and fades (seconds). */
+      popSeconds: 0.12,
+      holdSeconds: 0.22,
+      fadeSeconds: 0.2,
+      /** How far it floats up while fading, in pixels. */
+      rise: 8,
+      /** Random tilt, up to this many degrees either way. */
+      maxTiltDegrees: 10,
+    },
   },
 
   camera: {

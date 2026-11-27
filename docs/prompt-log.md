@@ -184,6 +184,20 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Change made and why:** each was fixed while porting, and the new collision, art and flags got tests. Shipping
   working reference code with target images made the result match far better than the earlier free attempt.
 
+### [Juice] Comic "HIT!" pop-up when the hero is hit — 2026-11-27 — alvarofeher
+- **Goal:** clearer feedback when the player takes damage.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact):** "put some feedback for the hits the character receives. make a HIT text appear in bold
+  thick white letters for a short time in a comic style next to the character."
+- **Result:** a "HIT!" sprite generated in code (chunky 2-px letters, thick dark outline, drop shadow, slanted)
+  that pops in with a random tilt next to the hero, holds, then floats up and fades (about 0.5 s).
+  [Changelog](changelog.md).
+- **Problem found:** in the first in-game capture (`production/qa/evidence/2026-11-27-14-52-59_hit-text-hold.png`)
+  the slant moved whole letter blocks, so the edges were jagged and the "H" looked like an "N". The game's
+  3x5 pixel font was too small to look "bold and thick", so the AI drew new glyphs instead of reusing it.
+- **Change made and why:** the slant now shifts one texture pixel every 3 rows, the letters are 7 rows tall and
+  the H has a wider gap. The second capture (`2026-11-27-14-53-35_hit-text-hold.png`) reads clearly.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

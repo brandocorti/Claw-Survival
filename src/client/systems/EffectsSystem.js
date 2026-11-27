@@ -2,6 +2,7 @@
 // Visual only: nothing here changes the game state.
 import { DEPTH } from './depth.js';
 import { PALETTE as P, hexToInt } from '../art/palette.js';
+import { HIT_TEXT_KEY } from '../art/hitText.js';
 
 /** Debris colors per enemy type, for death bursts. */
 const DEBRIS = {
@@ -20,9 +21,11 @@ export class EffectsSystem {
    * @param {number} options.shotHeight - player bullets fly this many pixels above the ground
    * @param {string} options.localPlayerId
    * @param {(ms: number, intensity: number) => void} options.shake
+   * @param {object} options.hitText - CONFIG.display.hitText (timings and offsets of the "HIT!" pop-up)
    */
-  constructor(scene, { shotHeight, localPlayerId, shake }) {
+  constructor(scene, { shotHeight, localPlayerId, shake, hitText }) {
     this.scene = scene;
+    this.hitTextConfig = hitText;
     this.shotHeight = shotHeight;
     this.localPlayerId = localPlayerId;
     this.shake = shake;
@@ -59,6 +62,7 @@ export class EffectsSystem {
 
     this.flashes = [];
     this.rings = [];
+    this.hitTexts = [];
   }
 
   /** @param {import('../../shared/protocol.js').SimEvent[]} events */
@@ -111,6 +115,7 @@ export class EffectsSystem {
         case 'playerHit':
           if (e.playerId === this.localPlayerId) this.shake(160, 0.008);
           this.redSparks.explode(8, e.x, e.y - 8);
+          this.hitText(e.x, e.y);
           break;
         case 'playerDied':
           if (e.playerId === this.localPlayerId) this.shake(350, 0.014);
@@ -131,6 +136,33 @@ export class EffectsSystem {
     this.scene.time.delayedCall(50, () => {
       img.setVisible(false);
       this.flashes.push(img);
+    });
+  }
+
+  /**
+   * Comic "HIT!" next to a player who took damage: pops in with a tilt,
+   * holds for a moment, then floats up and fades.
+   * @param {number} x - player's feet
+   * @param {number} y
+   */
+  hitText(x, y) {
+    const c = this.hitTextConfig;
+    if (!c) return;
+    const img = this.hitTexts.pop() ?? this.scene.add.image(0, 0, HIT_TEXT_KEY).setOrigin(0, 1).setDepth(DEPTH.FX + 1);
+    const tilt = (Math.random() * 2 - 1) * c.maxTiltDegrees;
+    const top = Math.round(y - c.offsetY);
+    img.setPosition(Math.round(x + c.offsetX), top).setAngle(tilt).setScale(0.3).setAlpha(1).setVisible(true);
+    this.scene.tweens.killTweensOf(img);
+    this.scene.tweens.chain({
+      targets: img,
+      tweens: [
+        { scale: 1, duration: c.popSeconds * 1000, ease: 'Back.Out' },
+        { y: top - c.rise, alpha: 0, delay: c.holdSeconds * 1000, duration: c.fadeSeconds * 1000, ease: 'Quad.In' },
+      ],
+      onComplete: () => {
+        img.setVisible(false);
+        this.hitTexts.push(img);
+      },
     });
   }
 

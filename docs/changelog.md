@@ -6,6 +6,17 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-27 — Comic "HIT!" pop-up on player damage — alvarofeher — commit (pending)
+- **Type:** feature
+- **What changed:** when a player takes damage, a bold white comic-style "HIT!" pops up next to them with a
+  random tilt, then floats up and fades after about half a second.
+- **Modules/files touched:** `src/client/art/hitText.js` (new), `src/client/systems/EffectsSystem.js`,
+  `src/client/scenes/BootScene.js`, `src/client/scenes/GameScene.js`, `src/shared/config.js`
+  (`display.hitText` timings and offsets), `tests/unit/art/hitText.test.js`.
+- **Why:** hits were easy to miss among the sparks and screen shake.
+- **Evidence:** `production/qa/evidence/2026-11-27-14-53-3*_hit-text-*.png` (the `14-52-*` shots are the first attempt).
+- **Prompt log:** [Comic "HIT!" pop-up](prompt-log.md#juice-comic-hit-pop-up-when-the-hero-is-hit--2026-11-27--alvarofeher).
+
 ### 2026-11-25 — Graphics upgrade M3: the hero — Esteban — commit 80e5856
 - **Type:** feature, assets
 - **What changed:** redrawn hero (18×23, teal vest) with 4-frame walks, idle, blink, hurt face, tuck roll and

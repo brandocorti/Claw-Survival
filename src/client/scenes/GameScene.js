@@ -78,6 +78,7 @@ export class GameScene extends Phaser.Scene {
       shotHeight: handHeight,
       localPlayerId: localId,
       shake: (ms, intensity) => this.cameraSystem.shake(ms, intensity),
+      hitText: config.display.hitText,
     });
     this.hud = new Hud(this, config, localId);
     this.lighting = GFX.light ? new Lighting(this, config.display, world.map) : null;
