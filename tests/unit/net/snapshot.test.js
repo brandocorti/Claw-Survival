@@ -36,7 +36,8 @@ describe('arena snapshots', () => {
     const events = drainEvents(world);
     const s = decodeSnapshot(overTheWire(encodeSnapshot(world, events)), TEST_CONFIG);
 
-    expect(s.time).toBeCloseTo(world.time, 3);
+    expect(s.time).toBeCloseTo(world.time, 3); // no server time given: the world's
+    expect(s.worldTime).toBeCloseTo(world.time, 3);
     expect(s.match).toEqual({ phase: world.match.phase, round: world.match.round, elapsed: expect.closeTo(world.match.elapsed, 3) });
     const [p] = world.players;
     const [sp] = s.players;

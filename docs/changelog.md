@@ -6,6 +6,40 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-27 — Online: every island plays the whole run up to the Crab Emperor; solo works after online — alvarofeher — commit (pending)
+- **Type:** fix + rule change
+- **What changed:**
+  - Online, each island now plays the whole solo run: 5 rounds, then its own Crab Emperor. Before,
+    the match ended for everyone as soon as only one player was alive (often during round 1), and
+    online islands skipped the final boss.
+  - A player who dies or leaves is out; the others play on. The match ends once every run is over.
+    Winner: whoever beat the boss (most kills if several); if nobody did, whoever lasted longest.
+    Alone, only beating the boss wins. Beating the boss first shows "YOU SURVIVED! Waiting for the others".
+    (The PvP final can later go between "every run is over" and the winner.)
+  - "Start run" after an online match starts a normal solo run again.
+- **Modules/files touched:** `src/shared/sim/match.js` (no `finale: 'external'`, `checkFinished` and
+  `pickWinner` replace `checkLastAlive`, summary field `bossBeaten` replaces `wavesDone`),
+  `src/server/rooms/schema.js`, `src/server/rooms/MatchRoom.js`, `src/client/ui/Hud.js`,
+  `src/client/scenes/MenuScene.js`, `src/client/scenes/GameScene.js`, `src/client/ui/PauseMenu.js`,
+  `tests/unit/sim/match.test.js`, `tests/integration/server/matchRoom.test.js`.
+- **Why:** the "last alive wins at once" rule came from the first online design (a shared PvP match);
+  with one solo run per island it cut runs short. The solo bug: Phaser reuses a scene's last start data
+  when `scene.start('Game')` gets none, so the menu restarted the game in online mode with the closed room.
+- **Prompt log:** [Ends after one round; no solo after online](prompt-log.md#bug-it-finishes-after-one-round--2026-11-27--alvarofeher).
+
+### 2026-11-27 — Fix: online the screen froze while shopping or picking cards — alvarofeher — commit (pending)
+- **Type:** fix
+- **What changed:** while your island is frozen (salesman or card choice), the screen now keeps
+  updating: a purchase shows at once, and the second card choice of a double level-up replaces the first.
+- **Modules/files touched:** `src/shared/net/snapshot.js` (each snapshot also carries the server's
+  clock), `src/server/rooms/MatchRoom.js`, `src/client/network/ColyseusTransport.js`,
+  `tools/bench-bandwidth.js`, `tests/unit/net/frozenIsland.test.js` (new), `tests/unit/net/snapshot.test.js`.
+- **Why:** snapshots were stamped with the island's own time, which stops while it is frozen. The
+  client drops a snapshot that is not newer than the last one (a late duplicate), so it dropped every
+  update while you shopped. Bug introduced by the merge below. The client now orders snapshots by the
+  server's clock and animates with the island's time.
+- **Prompt log:** [It gets frozen](prompt-log.md#bug-it-gets-frozen--2026-11-27--alvarofeher).
+
 ### 2026-11-27 — Online meets main: salesman, menu and graphics online; one clock per island — alvarofeher — commit (pending)
 - **Type:** feature (merge of `main` into `tryingOnline`)
 - **What changed:**

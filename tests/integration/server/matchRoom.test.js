@@ -200,11 +200,19 @@ describe('online room', () => {
     await waitFor(host, (s) => s.players.size === 2);
     host.send('start');
     await waitFor(host, (s) => s.phase === 'waves');
-    // The bot dies in its arena; the next tick ends the match (as when a player dies in play).
+    // The bot dies in its arena, the host a little later: every run is over, so the match
+    // ends and the host, who lasted longer, wins.
     const match = serverRoom(host.roomId).match;
-    const bot = getMatchPlayer(match, 'bot-1');
-    bot.invulnerableTime = 0;
-    damagePlayer(match.players.find((e) => e.id === 'bot-1').world, bot, 999);
+    const killNow = (id) => {
+      const p = getMatchPlayer(match, id);
+      p.invulnerableTime = 0;
+      p.pveImmune = false;
+      damagePlayer(match.players.find((e) => e.id === id).world, p, 999);
+    };
+    killNow('bot-1');
+    await new Promise((r) => setTimeout(r, 200));
+    expect(host.state.phase).toBe('waves'); // a death alone does not end the match
+    killNow(host.sessionId);
     await waitFor(host, (s) => s.phase === 'over' && s.winnerId === host.sessionId);
 
     let dropped = null;

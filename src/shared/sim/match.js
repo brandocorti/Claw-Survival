@@ -2,13 +2,15 @@
 // Pure JavaScript like the rest of the simulation: the Colyseus room only feeds it
 // inputs and sends its state, so every rule here is unit tested without a network.
 //
-//   phase 'lobby' -> 'waves' -> 'wavesOver' -> (step 5: 'pvpCountdown' -> 'pvp') -> 'over'
+//   phase 'lobby' -> 'waves' -> 'over'   (a later step can add a PvP final before 'over')
 //
-// Each island runs like a solo run: it freezes while its player picks a card or shops,
-// without affecting anyone else, so players can be in different rounds at the same time.
-// Rules owned by the match (not by a single world):
-//   - the waves end for the match once every player has finished theirs (or is out)
-//   - last alive: with 2+ players, the match ends as soon as at most one is alive
+// Each island is a whole solo run: 5 rounds, then the final boss. It freezes while its
+// player picks a card or shops, without affecting anyone else, so players can be in
+// different rounds at the same time. Rules owned by the match (not by a single world):
+//   - a player who dies (or leaves) is out; everyone else plays on
+//   - the match ends once every run is over (beat the final boss, or out)
+//   - the winner: whoever beat the boss (most kills if several); if nobody did, whoever
+//     lasted longest on their island. Alone, only beating the boss wins.
 import { createWorld, addPlayer, stepWorld, allPlayersDead } from './world.js';
 
 /**
@@ -76,12 +78,12 @@ export function forfeit(match, entry) {
     player.cardChoice = null;
     entry.world.events.push({ type: 'playerDied', playerId: player.id, x: player.x, y: player.y });
   }
-  checkLastAlive(match);
+  checkFinished(match);
 }
 
 /**
  * Starts the match: one world per player, each with its own clock, all on tick 0.
- * Online worlds end the waves without the final boss.
+ * Every world ends like a solo run, with the final boss.
  * @returns {boolean} false if it could not start (not in the lobby, or no players)
  */
 export function startMatch(match) {
@@ -95,7 +97,6 @@ export function startMatch(match) {
       arena: match.arena,
       seed: match.seed + i,
       ...match.worldOptions,
-      finale: 'external',
     });
     addPlayer(entry.world, entry.id);
   });
@@ -115,32 +116,46 @@ export function stepMatch(match, inputs, dt = 1 / match.config.sim.tickRate) {
   if (match.phase !== 'waves') return;
   match.tick++;
   for (const entry of match.players) {
-    if (allPlayersDead(entry.world)) continue; // a dead player's arena stops
+    if (runIsOver(entry.world)) continue; // a dead (or finished) player's arena stops
     stepWorld(entry.world, { [entry.id]: inputs[entry.id] }, dt);
   }
-  // milestone 7: the Gulag catches deaths here, before they count toward "last alive".
-  if (checkLastAlive(match)) return;
-  // Players who finish their waves first wait (the client shows "waiting") until everyone has.
-  if (match.players.every((e) => allPlayersDead(e.world) || e.world.match.phase === 'wavesOver')) {
-    // Step 5 starts the shared PvP arena from here.
-    match.phase = 'wavesOver';
-    match.events.push({ type: 'wavesOver' });
-  }
+  // Players who finish first wait (the client shows "waiting") until every run is over.
+  checkFinished(match);
+}
+
+/** True once this island's run is over: its player is out, or beat the final boss. */
+function runIsOver(world) {
+  return allPlayersDead(world) || world.match.phase === 'won';
 }
 
 /**
- * Ends the match if the last-alive rule applies: with 2+ players, when at most one is
- * alive; alone, when that player dies.
+ * Ends the match once every player's run is over, and picks the winner.
  * @returns {boolean} true if the match is over
  */
-export function checkLastAlive(match) {
+export function checkFinished(match) {
   if (match.phase === 'over') return true;
   if (match.phase === 'lobby') return false;
-  const alive = match.players.filter((e) => getMatchPlayer(match, e.id)?.alive);
-  const limit = match.players.length >= 2 ? 1 : 0;
-  if (alive.length > limit) return false;
-  endMatch(match, alive.length === 1 ? alive[0].id : null);
+  if (!match.players.every((e) => runIsOver(e.world))) return false;
+  endMatch(match, pickWinner(match));
   return true;
+}
+
+/**
+ * Whoever beat the final boss (most kills breaks a tie); if nobody did, whoever lasted
+ * longest (their island's time; it stops when they die). Alone, only beating the boss wins.
+ * @returns {string|null} null on a draw
+ */
+export function pickWinner(match) {
+  const runs = match.players.map((e) => ({
+    id: e.id,
+    won: e.world.match.phase === 'won',
+    score: e.world.match.phase === 'won' ? getMatchPlayer(match, e.id).kills : e.world.time,
+  }));
+  const winners = runs.filter((r) => r.won);
+  const pool = winners.length > 0 ? winners : match.players.length >= 2 ? runs : [];
+  const best = Math.max(...pool.map((r) => r.score));
+  const top = pool.filter((r) => r.score === best);
+  return top.length === 1 ? top[0].id : null;
 }
 
 function endMatch(match, winnerId) {
@@ -169,7 +184,7 @@ export function getMatchPlayer(match, id) {
  * The small summary every client gets about every player. Each player is in their own
  * round (their island has its own clock); the salesman shows these rows.
  * @returns {{ phase: string, winnerId: string|null, players: { id: string, level: number, alive: boolean,
- *   round: number, health: number, maxHealth: number, kills: number, wavesDone: boolean }[] }}
+ *   round: number, health: number, maxHealth: number, kills: number, bossBeaten: boolean }[] }}
  */
 export function matchSummary(match) {
   return {
@@ -186,7 +201,7 @@ export function matchSummary(match) {
         health: p?.health ?? match.config.player.maxHealth,
         maxHealth: p?.maxHealth ?? match.config.player.maxHealth,
         kills: p?.kills ?? 0,
-        wavesDone: m?.phase === 'wavesOver',
+        bossBeaten: m?.phase === 'won',
       };
     }),
   };

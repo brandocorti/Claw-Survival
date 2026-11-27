@@ -44,7 +44,7 @@ for (let t = 1; t <= totalTicks; t++) {
   stepMatch(match, inputs, dt);
   if (t % ticksPerSnapshot !== 0) continue;
   for (const entry of match.players) {
-    const data = encodeSnapshot(entry.world, drainEvents(entry.world));
+    const data = encodeSnapshot(entry.world, drainEvents(entry.world), t * dt);
     if (t > warmupSeconds * config.sim.tickRate) {
       sizes.push(getMessageBytes.raw(Protocol.ROOM_DATA, MSG.arena, data).length);
       enemies = Math.max(enemies, entry.world.enemies.length);

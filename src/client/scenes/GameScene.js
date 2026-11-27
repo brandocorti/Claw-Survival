@@ -279,6 +279,6 @@ export class GameScene extends Phaser.Scene {
   backToMenu() {
     this.transport.room.onLeave.remove(this.onRoomLeave);
     this.transport.leave();
-    this.scene.start('Lobby');
+    this.scene.start('Lobby', {}); // {}: not the last start data (e.g. an old error)
   }
 }

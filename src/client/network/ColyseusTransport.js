@@ -92,7 +92,9 @@ export class ColyseusTransport {
       this.events.push(...this.buffer.takeEvents(sample.to.time));
     }
     this.alpha = sample.alpha;
-    this.renderTimeValue = sample.renderTime;
+    // The buffer runs on the server's clock; the views animate in the arena's own time.
+    const { from, to, alpha } = sample;
+    this.renderTimeValue = from.worldTime + (to.worldTime - from.worldTime) * alpha;
   }
 
   /** World time matching `alpha`, for smooth animation between snapshots. */
@@ -161,7 +163,7 @@ export class ColyseusTransport {
   /** Fills this.world with `to`, taking prevX / prevY from `from` for each entity. */
   fillWorld(from, to) {
     const w = this.world;
-    w.time = to.time;
+    w.time = to.worldTime;
     w.match = to.match;
     w.players = withPrevious(from.players, to.players);
     w.enemies = withPrevious(from.enemies, to.enemies);
@@ -178,10 +180,13 @@ export class ColyseusTransport {
     const me = this.getLocalPlayer();
     if (me) {
       const prev = this.lastCardChoice;
-      if (me.cardChoice && prev && prev.openedAt === me.cardOpenedAt && sameIds(prev.cards, me.cardChoice)) {
-        me.cardChoice = prev.cards;
-      }
-      this.lastCardChoice = me.cardChoice ? { cards: me.cardChoice, openedAt: me.cardOpenedAt } : null;
+      // A frozen island opens the next choice of a double level-up at the same world time,
+      // so the level-ups left tell two choices apart too.
+      const same = prev && prev.openedAt === me.cardOpenedAt && prev.pending === me.pendingLevelUps;
+      if (me.cardChoice && same && sameIds(prev.cards, me.cardChoice)) me.cardChoice = prev.cards;
+      this.lastCardChoice = me.cardChoice
+        ? { cards: me.cardChoice, openedAt: me.cardOpenedAt, pending: me.pendingLevelUps }
+        : null;
     }
   }
 }

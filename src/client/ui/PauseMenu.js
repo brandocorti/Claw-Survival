@@ -49,7 +49,7 @@ export class PauseMenu {
       items: [
         { label: () => 'Resume', choose: () => this.close() },
         { label: () => 'Settings', choose: () => this.showSettings() },
-        ...(this.online ? [] : [{ label: () => 'Restart run', choose: () => this.scene.scene.restart() }]),
+        ...(this.online ? [] : [{ label: () => 'Restart run', choose: () => this.scene.scene.restart({ mode: 'solo' }) }]),
         { label: () => (this.online ? 'Leave the match' : 'Quit to menu'), choose: () => this.onQuit() },
       ],
     });

@@ -1,4 +1,4 @@
-// Online match: one arena per player, each on its own clock, last alive wins.
+// Online match: one arena per player, each on its own clock, each playing the whole run.
 import { describe, it, expect } from 'vitest';
 import {
   createMatch, addMatchPlayer, removeMatchPlayer, startMatch, stepMatch, drainMatchEvents,
@@ -30,6 +30,21 @@ function makeMatch(n = 2, { spawning = true, tough = true, seed = 1, arena = BIG
 }
 const runMatch = (match, ticks, inputs = {}) => {
   for (let i = 0; i < ticks; i++) stepMatch(match, inputs, TICK);
+};
+/** Runs until the islands of the players in `inputs` (the living ones) are in their final boss fight. */
+const runToBoss = (match, inputs) => {
+  const live = () => match.players.filter((e) => e.id in inputs && getMatchPlayer(match, e.id).alive);
+  for (let i = 0; i < seconds(TEST_CONFIG.match.durationSeconds * 3); i++) {
+    if (live().every((e) => e.world.match.phase === 'boss')) return;
+    stepMatch(match, inputs, TICK);
+  }
+  throw new Error('no final boss');
+};
+/** Removes that island's final boss; the next tick wins the run. */
+const beatBoss = (match, id) => {
+  const world = match.players.find((e) => e.id === id).world;
+  world.enemies = world.enemies.filter((e) => e.id !== world.match.bossId);
+  runMatch(match, 1, { [id]: PICK_FIRST });
 };
 const kill = (match, id) => {
   const p = getMatchPlayer(match, id);
@@ -139,51 +154,61 @@ describe('online match: one clock per island', () => {
     expect(w2.match.elapsed).toBeGreaterThan(t2);
   });
 
-  it('a player who finishes the waves first waits for the others', () => {
+  it('a player who beats the final boss first waits for the others', () => {
     const match = makeMatch(2);
     const w2 = match.players[1].world;
     grantXp(w2, getMatchPlayer(match, 'p2'), 5); // p2 stops for a card and falls behind
-    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p1: PICK_FIRST });
+    runToBoss(match, { p1: PICK_FIRST });
+    beatBoss(match, 'p1');
 
-    expect(match.players[0].world.match.phase).toBe('wavesOver');
+    expect(match.players[0].world.match.phase).toBe('won');
     expect(w2.match.phase).toBe('waves');
     expect(match.phase).toBe('waves');
-    expect(matchSummary(match).players.map((p) => p.wavesDone)).toEqual([true, false]);
-
-    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p2: PICK_FIRST });
-    expect(match.phase).toBe('wavesOver');
-  });
-
-  it('when the clock ends every arena empties, no final boss appears, and the match waits for the PvP', () => {
-    const match = makeMatch(2);
-    // Level-up cards freeze an island until picked (one tick each): both players take the first card.
-    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p1: PICK_FIRST, p2: PICK_FIRST });
-    expect(match.phase).toBe('wavesOver');
-    for (const e of match.players) {
-      expect(e.world.match.phase).toBe('wavesOver');
-      expect(e.world.enemies.length).toBe(0);
-      expect(e.world.bullets.some((b) => b.team === 'enemy')).toBe(false);
-    }
-    expect(drainMatchEvents(match).map((e) => e.type)).toContain('wavesOver');
-    // Nothing moves on after that (step 5 takes over).
-    const tick = match.tick;
-    runMatch(match, 60);
-    expect(match.tick).toBe(tick);
+    expect(matchSummary(match).players.map((p) => p.bossBeaten)).toEqual([true, false]);
   });
 });
 
-describe('online match: last alive', () => {
-  it('when all but one player die, the last one wins at once', () => {
+describe('online match: every island plays the whole run', () => {
+  it('after the last round every island empties and gets its own final boss, as in solo', () => {
+    const match = makeMatch(2);
+    runToBoss(match, { p1: PICK_FIRST, p2: PICK_FIRST });
+    expect(match.phase).toBe('waves');
+    for (const e of match.players) {
+      expect(e.world.match.phase).toBe('boss');
+      const boss = e.world.enemies.find((en) => en.id === e.world.match.bossId);
+      expect(boss?.type).toBe(TEST_CONFIG.finalBoss.type);
+    }
+  });
+
+  it('when a player dies the others play on: the match does not end', () => {
     const match = makeMatch(3, { spawning: false });
     runMatch(match, 5);
     kill(match, 'p2');
-    runMatch(match, 1);
-    expect(match.phase).toBe('waves');
     kill(match, 'p3');
-    runMatch(match, 1);
+    runMatch(match, 10);
+    expect(match.phase).toBe('waves');
+    expect(match.players[0].world.tick).toBe(15);
+  });
+
+  it('the match ends when every run is over; the one who beat the boss wins', () => {
+    const match = makeMatch(2);
+    kill(match, 'p2');
+    runToBoss(match, { p1: PICK_FIRST });
+    expect(match.phase).toBe('waves');
+    beatBoss(match, 'p1');
     expect(match.phase).toBe('over');
     expect(match.winnerId).toBe('p1');
     expect(drainMatchEvents(match)).toContainEqual({ type: 'matchOver', winnerId: 'p1' });
+  });
+
+  it('if nobody beats the boss, the one who lasted longest wins', () => {
+    const match = makeMatch(2, { spawning: false });
+    kill(match, 'p2');
+    runMatch(match, 30);
+    kill(match, 'p1');
+    runMatch(match, 1);
+    expect(match.phase).toBe('over');
+    expect(match.winnerId).toBe('p1');
   });
 
   it('if the last players die on the same tick, nobody wins', () => {
@@ -195,11 +220,11 @@ describe('online match: last alive', () => {
     expect(match.winnerId).toBe(null);
   });
 
-  it('a player who leaves during the match counts as dead', () => {
+  it('a player who leaves during the match is out; the others play on', () => {
     const match = makeMatch(2, { spawning: false });
     removeMatchPlayer(match, 'p2');
-    expect(match.phase).toBe('over');
-    expect(match.winnerId).toBe('p1');
+    expect(match.phase).toBe('waves');
+    expect(getMatchPlayer(match, 'p2').alive).toBe(false);
   });
 
   it('a dead player\'s arena stops; the others go on', () => {
@@ -214,14 +239,18 @@ describe('online match: last alive', () => {
     expect(w3.tick).toBe(t3);
   });
 
-  it('alone in a match, it only ends when that player dies', () => {
-    const match = makeMatch(1, { spawning: false });
-    runMatch(match, 10);
-    expect(match.phase).toBe('waves');
-    kill(match, 'p1');
-    runMatch(match, 1);
-    expect(match.phase).toBe('over');
-    expect(match.winnerId).toBe(null);
+  it('alone in a match, dying ends it with no winner; beating the boss wins it', () => {
+    const lost = makeMatch(1, { spawning: false });
+    runMatch(lost, 10);
+    kill(lost, 'p1');
+    runMatch(lost, 1);
+    expect(lost.phase).toBe('over');
+    expect(lost.winnerId).toBe(null);
+
+    const won = makeMatch(1);
+    runToBoss(won, { p1: PICK_FIRST });
+    beatBoss(won, 'p1');
+    expect(won.winnerId).toBe('p1');
   });
 });
 
@@ -241,10 +270,10 @@ describe('online match: lobby and summary', () => {
     kill(match, 'p2');
     runMatch(match, 1);
     expect(matchSummary(match)).toEqual({
-      phase: 'over', winnerId: 'p1',
+      phase: 'waves', winnerId: null,
       players: [
-        { id: 'p1', level: 2, alive: true, round: 1, health: 6, maxHealth: 6, kills: 0, wavesDone: false },
-        { id: 'p2', level: 1, alive: false, round: 1, health: 0, maxHealth: 6, kills: 0, wavesDone: false },
+        { id: 'p1', level: 2, alive: true, round: 1, health: 6, maxHealth: 6, kills: 0, bossBeaten: false },
+        { id: 'p2', level: 1, alive: false, round: 1, health: 0, maxHealth: 6, kills: 0, bossBeaten: false },
       ],
     });
   });

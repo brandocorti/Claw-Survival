@@ -56,7 +56,7 @@ Send the printed `https://….trycloudflare.com` link to the others. Everyone op
 **Play online** in the start menu; one player creates a room and the rest join with the 4-letter code
 (or the host shares the `?room=CODE` link, which opens the lobby directly).
 Each player plays their own island: level-up cards and the salesman pause only your island, never
-the others', so players can be in different rounds. If you finish your waves first, you wait for the rest. Your computer is the server, so keep it
+the others', so players can be in different rounds. Every island plays the whole run, up to its own Crab Emperor; a player who dies is out and the others play on. When every run is over, whoever beat the boss wins (if nobody did, whoever lasted longest). Your computer is the server, so keep it
 awake and keep the terminal open. The link changes every time you restart.
 On the same Wi-Fi you can skip the tunnel: run `npm run dev:all` and open the "Network" address Vite prints.
 

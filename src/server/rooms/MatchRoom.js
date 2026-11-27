@@ -232,7 +232,8 @@ export class MatchRoom extends Room {
   sendSnapshots() {
     this.ticksSinceSnapshot = 0;
     for (const entry of this.match.players) {
-      const data = encodeSnapshot(entry.world, drainEvents(entry.world));
+      // The match clock keeps running while an arena is frozen (shop, card choice).
+      const data = encodeSnapshot(entry.world, drainEvents(entry.world), this.match.tick / this.config.sim.tickRate);
       this.clients.get(entry.id)?.send(MSG.arena, data);
     }
   }
@@ -251,7 +252,7 @@ export class MatchRoom extends Room {
       s.health = p.health;
       s.maxHealth = p.maxHealth;
       s.kills = p.kills;
-      s.wavesDone = p.wavesDone;
+      s.bossBeaten = p.bossBeaten;
     }
   }
 
@@ -266,7 +267,7 @@ export class MatchRoom extends Room {
     s.health = this.config.player.maxHealth;
     s.maxHealth = this.config.player.maxHealth;
     s.kills = 0;
-    s.wavesDone = false;
+    s.bossBeaten = false;
     s.connected = true;
     s.isBot = isBot;
     this.state.players.set(id, s);

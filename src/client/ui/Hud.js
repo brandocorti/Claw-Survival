@@ -56,9 +56,6 @@ export class Hud {
       .setAlpha(0.9);
     scene.tweens.add({ targets: this.hint, alpha: 0, delay: 9000, duration: 1500 });
 
-    /** Online: shown while you wait for the others to finish their waves. */
-    this.waitText = fixed(addPixelText(scene, this.w / 2, 104, 'WAITING FOR THE OTHER PLAYERS TO FINISH THEIR WAVES').setOrigin(0.5))
-      .setVisible(false);
     this.endScreen = null;
     this.wonAt = null;
     this.bossGhost = { id: null, hp: 0 };
@@ -255,17 +252,18 @@ export class Hud {
       const entry = others[i];
       if (!entry) return text.setVisible(false);
       const [, p] = entry;
-      const status = !p.connected ? 'LEFT' : !p.alive ? 'OUT' : p.wavesDone ? `LV ${p.level} DONE` : `R${p.round} LV ${p.level}`;
+      const status = !p.connected ? 'LEFT' : !p.alive ? 'OUT' : p.bossBeaten ? `LV ${p.level} DONE` : `R${p.round} LV ${p.level}`;
       text.setVisible(true).setText(`${toPixelText(p.name)} ${status}`).setAlpha(p.alive ? 1 : 0.5)
         .setTint(p.alive ? 0xffffff : hexToInt(P.rock));
     });
   }
 
-  /** Online end screens: out of the match (others play on), then the winner for everyone. */
+  /**
+   * Online end screens: out, or boss beaten, while the others play on (every island has
+   * its own clock); then the winner for everyone once every run is over.
+   */
   updateOnlineEnd(world, player) {
     const state = this.room.state;
-    // Your island has its own clock: if you finish first, the others are still playing.
-    this.waitText.setVisible(player.alive && world.match.phase === 'wavesOver' && state.phase === 'waves');
     if (state.phase === 'over' && this.endKind !== 'over') {
       const winner = state.winnerId ? state.players.get(state.winnerId) : null;
       const mine = state.winnerId === this.localPlayerId;
@@ -276,6 +274,9 @@ export class Hud {
     } else if (!player.alive && !this.endKind) {
       this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'THE OTHERS PLAY ON - PRESS R FOR THE MENU');
       this.endKind = 'dead';
+    } else if (world.match.phase === 'won' && !this.endKind && this.victoryIsDue()) {
+      this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'WAITING FOR THE OTHERS - PRESS R FOR THE MENU');
+      this.endKind = 'won';
     }
   }
 

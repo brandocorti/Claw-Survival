@@ -13,8 +13,8 @@ export const PlayerSummary = schema({
   health: t.number(),
   maxHealth: t.number(),
   kills: t.number(),
-  /** True once this player has finished their waves and waits for the others. */
-  wavesDone: t.boolean(),
+  /** True once this player has beaten the final boss and waits for the others. */
+  bossBeaten: t.boolean(),
   connected: t.boolean(),
   isBot: t.boolean(),
 }, 'PlayerSummary');

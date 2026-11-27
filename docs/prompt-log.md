@@ -328,6 +328,45 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Open:** an optional cap on total pause time per player, so nobody can keep the others waiting forever;
   debuffs that wait until the player closes the shop or picks a card (prompt 3) are not built yet.
 
+### [Bug] "It gets frozen" — 2026-11-27 — alvarofeher
+- **Goal:** fix a freeze seen when testing the merged online mode by hand.
+- **Tool/model:** Claude Code (Claude Opus 5.5) in VS Code.
+- **Prompt:** "how can i test the online", then, after trying it: "it gets frozen".
+- **Result:** the model did not ask for more detail first. It reasoned about what the merge had
+  changed: frozen islands keep the same world time, and the client's snapshot buffer drops any snapshot
+  that is not newer (`SnapshotBuffer.push`). It wrote a test that sends a frozen island through the real
+  encode, wire, decode and buffer path. The test failed: the shop never even showed as open, and a
+  purchase or the second card choice never arrived. It then fixed the snapshot to carry the server's
+  clock (always moving) next to the island's own time, and the test passed.
+- **Problem found:** the model's own headless check of the merge had passed, because it bought nothing
+  and never had two level-ups at once. A two-word bug report from a person playing found what the
+  automated play-through missed.
+- **Change made and why:** a regression test (`tests/unit/net/frozenIsland.test.js`) now covers
+  buying and a double level-up on a frozen island. It was watched failing before the fix.
+
+### [Bug] "It finishes after one round" — 2026-11-27 — alvarofeher
+- **Goal:** online runs should last up to the final boss, and solo should still work after an online match.
+- **Tool/model:** Claude Code (Claude Opus 5.5) in VS Code.
+- **Prompt:** "it finishes after one round why? it should get till the boss. also if i finish the online
+  game and want to play solo I cant"
+- **Result:** the model traced both bugs to their causes before changing code:
+  1. The match still used the first online design's rule "with 2+ players, end as soon as at most one
+     is alive", and online islands were built without the final boss. With an idle second window, the
+     other player died in round 1 and the match ended for both.
+  2. Phaser's `Systems.start` only replaces a scene's data when new data is given (checked in
+     `node_modules/phaser/src/scene/Systems.js`), so the menu's `scene.start('Game')` reused
+     `{ mode: 'online', transport }` from the finished match.
+  It wrote the new rule tests first (7 failed on the old code), then changed `match.js`: every island
+  gets its final boss, deaths only take that player out, and the match ends when every run is over.
+  The winner rule was the model's own proposal and is a placeholder until the PvP final exists.
+  A two-browser run confirmed: the guest leaves and the host plays on; then the host goes back to the
+  menu and a solo run starts.
+- **Problem found:** the rule was written for a different game design (a shared PvP match) and survived
+  the merge because no test described the new design. One of the model's new tests also hung: it waited
+  for an island that was frozen on purpose by an unpicked card.
+- **Change made and why:** tests now state the per-island rules ("when a player dies the others play
+  on", "each island gets its own final boss"). Every scene start passes its data explicitly.
+
 ## Model limitations met so far (and how we handled them)
 
 - **A wrong diagnosis, and a test that could not fail.** All players were dropped about 3 s after a match
@@ -352,6 +391,14 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **A test that passes is not proof.** The first shared-clock test passed even when the arenas ignored
   the shared clock, because they all stepped together anyway. The model broke each new rule on purpose
   to see the tests fail. That showed the gap, and a test that moves the clock directly now catches it.
+- **A self-made bug the model's own check missed.** After the merge the model played a scripted online
+  match and declared it working; a person found a freeze within minutes. The script only did what the
+  model thought of (open the shop, pick one card), not what a player does (buy, level up twice).
+  Lesson: a scripted play-through tests the path the author imagined; hand testing is still needed.
+- **Stale rules survive a design change.** When the design moved from one shared PvP match to one solo run
+  per island, the old "last alive wins at once" rule stayed in the code and its tests stayed green. The
+  model only found it after a person reported runs ending in round 1. Lesson: when the design changes, ask
+  the model to list the old rules that no longer fit, not only to add the new ones.
 - **A design choice taken for a constraint.** Merging the branches, the model assumed online islands must
   share one clock and proposed a shop timeout. The person pointed out that separate islands need no shared
   clock, which made online play simpler (no timeouts) and identical to solo. Lesson: when the model says

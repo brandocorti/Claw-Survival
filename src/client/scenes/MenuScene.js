@@ -58,8 +58,10 @@ export class MenuScene extends Phaser.Scene {
       y: 112,
       depth: DEPTH.MENU,
       items: [
-        { label: () => 'Start run', choose: () => this.scene.start('Game') },
-        { label: () => 'Play online', choose: () => this.scene.start('Lobby') },
+        // Always pass the data: Phaser reuses a scene's last start data when none is given,
+        // so after an online match 'Game' would start online again with the closed room.
+        { label: () => 'Start run', choose: () => this.scene.start('Game', { mode: 'solo' }) },
+        { label: () => 'Play online', choose: () => this.scene.start('Lobby', {}) },
         { label: () => 'Settings', choose: () => this.showSettings() },
         { label: () => 'How to play', choose: () => this.showHelp() },
       ],

@@ -6,6 +6,11 @@
 //
 // encodeSnapshot() runs on the server, decodeSnapshot() in the browser; a unit test
 // checks that a decoded snapshot draws the same as the world it came from.
+//
+// Two clocks travel in each snapshot: the server's (always moving, it orders and spaces the
+// snapshots on the client) and the arena's own world time (what the views animate with). They
+// differ because an arena freezes while its player picks a card or shops, and the snapshots sent
+// meanwhile still carry news (a purchase, the next card choice).
 
 const POS = 10; // tenths of a pixel
 const MS = 1000;
@@ -35,12 +40,15 @@ const hitAge = (time, last) => Math.min(MAX_HIT_AGE_MS, Math.max(0, Math.round((
  * Packs one arena for the network.
  * @param {object} world - from createWorld()
  * @param {import('../protocol.js').SimEvent[]} events - events since the last snapshot
+ * @param {number} [serverTime] - seconds on the server's clock, which keeps running while this
+ *   arena is frozen (defaults to the world time, for a world that never freezes)
  * @returns {object} plain arrays and numbers, ready for client.send()
  */
-export function encodeSnapshot(world, events) {
+export function encodeSnapshot(world, events, serverTime = world.time) {
   const { time, config } = world;
   const enemyTypes = Object.keys(config.enemies);
   return {
+    s: q(serverTime, MS),
     t: q(time, MS),
     k: world.tick,
     m: [PHASES.indexOf(world.match.phase), world.match.round, q(world.match.elapsed, MS)],
@@ -74,15 +82,17 @@ export function encodeSnapshot(world, events) {
  * can draw them. prevX / prevY are set to x / y; the interpolation fills them in.
  * @param {object} data - from encodeSnapshot()
  * @param {object} config - the game config (enemy sizes and kinds are not sent)
- * @returns {{ time: number, tick: number, match: object, players: object[], enemies: object[],
+ * @returns {{ time: number, worldTime: number, tick: number, match: object, players: object[], enemies: object[],
  *   bullets: object[], gems: object[], fires: object[], pickups: object[], events: object[] }}
+ *   time: server clock (orders the snapshots); worldTime: the arena's own time (for the views)
  */
 export function decodeSnapshot(data, config) {
-  const time = data.t / MS;
+  const time = data.t / MS; // the arena's time: hit ages and lifetimes are relative to it
   const enemyTypes = Object.keys(config.enemies);
   const [phase, round, elapsed] = data.m;
   return {
-    time,
+    time: data.s / MS,
+    worldTime: time,
     tick: data.k,
     match: { phase: PHASES[phase], round, elapsed: elapsed / MS },
     players: data.p.map(([id, x, y, aim, flags, health, maxHealth, level, xp, kills, pendingLevelUps,
