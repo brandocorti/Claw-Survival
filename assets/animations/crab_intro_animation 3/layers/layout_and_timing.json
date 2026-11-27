@@ -1,0 +1,124 @@
+{
+  "screen": [
+    480,
+    270
+  ],
+  "fps": 30,
+  "pixel_scale_note": "all positions in native 480x270 pixels; scale with nearest-neighbour",
+  "layers_draw_order": [
+    {
+      "name": "dim",
+      "color_rgba": [
+        6,
+        4,
+        10,
+        214
+      ],
+      "note": "full-screen dark overlay over the game"
+    },
+    {
+      "name": "letterbox",
+      "bar_height_final": 26,
+      "anim": {
+        "start": 0.0,
+        "dur": 0.25,
+        "ease": "easeOutCubic",
+        "from": 0,
+        "to": 26
+      }
+    },
+    {
+      "name": "band",
+      "files": "band/band_###.png (90 frames, play at 30fps, loop or hold)",
+      "final_pos": [
+        -60,
+        55
+      ],
+      "anim": {
+        "start": 0.05,
+        "dur": 0.35,
+        "ease": "easeOutCubic",
+        "prop": "x",
+        "from": -660,
+        "to": -60
+      }
+    },
+    {
+      "name": "crab_portrait_shadow",
+      "file": "crab_portrait_shadow.png",
+      "final_pos": [
+        -10,
+        47
+      ]
+    },
+    {
+      "name": "crab_portrait",
+      "file": "crab_portrait.png",
+      "final_pos": [
+        -14,
+        42
+      ],
+      "anim": {
+        "start": 0.3,
+        "dur": 0.35,
+        "ease": "easeOutBack(c=1.9)",
+        "prop": "y",
+        "from": 162,
+        "to": 42
+      }
+    },
+    {
+      "name": "title",
+      "file": "title_crab_emperor.png",
+      "final_pos": [
+        238,
+        90
+      ],
+      "anim": {
+        "start": 0.4,
+        "dur": 0.22,
+        "ease": "easeOutCubic",
+        "prop": "x",
+        "from": 558,
+        "to": 238
+      }
+    },
+    {
+      "name": "subtitle",
+      "file": "subtitle_tyrant_of_the_tide.png",
+      "final_pos": [
+        256,
+        131
+      ],
+      "anim": {
+        "start": 0.6,
+        "dur": 0.22,
+        "ease": "easeOutCubic",
+        "prop": "x",
+        "from": 576,
+        "to": 256
+      }
+    }
+  ],
+  "effects": {
+    "white_flash": {
+      "start": 0.4,
+      "end": 0.5,
+      "alpha_from": 0.5,
+      "alpha_to": 0.0
+    },
+    "screen_shake": {
+      "start": 0.45,
+      "end": 0.75,
+      "amplitude_px_from": 5,
+      "amplitude_px_to": 1,
+      "applies_to": [
+        "band",
+        "crab_portrait",
+        "title",
+        "subtitle"
+      ]
+    }
+  },
+  "total_duration_s": 3.0
+}

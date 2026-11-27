@@ -1,10 +1,10 @@
-// Crab Emperor entrance: a pre-rendered animation (assets/animations/crab_intro_animation,
+// Crab Emperor entrance: a pre-rendered animation (assets/animations/crab_intro_animation 3,
 // 90 transparent 480x270 frames) played over the frozen game. GameScene stops the
 // simulation while it plays; the music is left alone, so it keeps running.
 import { DEPTH } from '../systems/depth.js';
 
 const FRAMES = import.meta.glob(
-  '../../../assets/animations/crab_intro_animation/frames_overlay/*.png',
+  '../../../assets/animations/crab_intro_animation 3/frames_overlay/*.png',
   { eager: true, query: '?url', import: 'default' },
 );
 // Sorted by file name (crab_intro_000...089), not by URL: the build inlines small frames

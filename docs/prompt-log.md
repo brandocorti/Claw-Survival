@@ -213,6 +213,16 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Change made and why:** the animation pauses together with the pause menu, so opening the menu during it does
   not skip it.
 
+### [Art] Boss entrance animation, second version — 2026-11-27 — alvarofeher
+- **Goal:** a stronger Crab Emperor portrait in the entrance animation.
+- **Tool/model:** animation: TODO (tool, and the prompt changes from the first version). Integration: Claude Code,
+  Claude Opus 5.5.
+- **Prompt (exact, integration):** "make it with the new crab intro animation. remove the old one if needed"
+- **Result:** a new 90-frame set with a muscular, open-jawed crab replacing the round one; same layout and timing,
+  so only the folder the game reads changed.
+- **Problem found:** TODO (what was wrong with the first portrait).
+- **Change made and why:** TODO (what changed in the generation prompt and why).
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

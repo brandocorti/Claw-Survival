@@ -6,7 +6,17 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
-### 2026-11-27 — Generated entrance animation for the Crab Emperor — alvarofeher — commit (pending)
+### 2026-11-27 — Boss entrance animation, second version — alvarofeher — commit (pending)
+- **Type:** assets
+- **What changed:** the boss entrance now uses the second generated version of the animation, which has a new,
+  more muscular and menacing Crab Emperor portrait. Same timing, banner and titles; the game still freezes while it plays.
+- **Modules/files touched:** `assets/animations/crab_intro_animation 3/` (new), `src/client/ui/BossIntroCutscene.js`
+  (reads the new frames). The first version in `assets/animations/crab_intro_animation/` is no longer used.
+- **Why:** the team preferred the new portrait.
+- **Evidence:** `production/qa/evidence/2026-11-27-15-29-*_new-boss-intro-*.png`.
+- **Prompt log:** [Boss entrance animation, second version](prompt-log.md#art-boss-entrance-animation-second-version--2026-11-27--alvarofeher).
+
+### 2026-11-27 — Generated entrance animation for the Crab Emperor — alvarofeher — commit c4217a1
 - **Type:** feature, assets
 - **What changed:** when the final boss appears, a generated 3-second animation (portrait, banner, "CRAB EMPEROR -
   TYRANT OF THE TIDE") plays over the game. The game is frozen while it plays and the boss music keeps running.
