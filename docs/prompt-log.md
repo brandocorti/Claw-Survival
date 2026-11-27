@@ -184,6 +184,22 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Change made and why:** each was fixed while porting, and the new collision, art and flags got tests. Shipping
   working reference code with target images made the result match far better than the earlier free attempt.
 
+### [Naming] Rename the game and the repo to Claw Survival — 2026-11-27 — brandocorti
+- **Goal:** replace the placeholder title `[GAME TITLE]` and the repository name `GEN_AI` with the final name,
+  everywhere.
+- **Tool/model:** Claude Code (Sonnet 5.5) in VS Code.
+- **Prompt** (originally in Italian, translated): "Can we change the name of the repo and the name of the game
+  everywhere to Claw Survival?"
+- **Result:** the agent searched the repo first, then asked two questions: which repo slug (answer:
+  `Claw-Survival`) and whether to touch the original prompt file (answer: leave it as it is). It then replaced the
+  names in the docs, `package.json`, the page title and the menu title.
+- **Problem found:** a blind find-and-replace would have rewritten history: the original prompt
+  (`prompts/game-prompt-v1.md`) and older changelog entries must keep the names they had at the time. The rename
+  was first done on the `deployment` branch; `main` had moved on and had two more places with the old name (the
+  menu title in `MenuScene.js` and the local-storage settings key), which a copy of the first change would have missed.
+- **Change made and why:** the agent searched `main` again instead of copying the diff, and applied the rename
+  there separately. It renamed the settings key too, for consistency, which resets saved settings once.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

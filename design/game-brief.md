@@ -1,4 +1,4 @@
-Make me a game: a browser-based, multiplayer, top-down pixel-art roguelike called "[GAME TITLE]" (working title), visually inspired by Enter the Gungeon but set on a tropical survival island.
+Make me a game: a browser-based, multiplayer, top-down pixel-art roguelike called "Claw Survival" (working title), visually inspired by Enter the Gungeon but set on a tropical survival island.
 
 You are acting as the lead game developer on a student team project. Build it step by step, keep the code clean and modular, and always keep the game runnable in a browser.
 

@@ -6,6 +6,20 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-27 — Rename the game to Claw Survival — brandocorti — commit TBD (fill in after committing)
+- **Type:** refactor
+- **What changed:** the working title `[GAME TITLE]` is now **Claw Survival**: main menu title, browser tab title,
+  README, how-to-play file, code guide and game brief. The GitHub repository is renamed from `GEN_AI` to
+  `Claw-Survival` (clone address and folder name in the docs updated; GitHub redirects the old address). The npm
+  package is now `claw-survival`. The settings key in the browser's local storage is now `claw-survival-settings`,
+  so everyone's saved settings (volume, etc.) reset once.
+- **Modules/files touched:** `src/client/scenes/MenuScene.js`, `src/client/settings.js`, `src/client/index.html`,
+  `src/README.md`, `README.md`, `HOW_TO_PLAY.txt`, `package.json`, `package-lock.json`, `design/game-brief.md`.
+- **Why:** the team chose the final name.
+- **Left unchanged on purpose:** `prompts/game-prompt-v1.md` (the original prompt, kept as written) and older
+  changelog entries, which still say `GEN_AI` because that was the name when they were written.
+- **Prompt log:** [Naming: rename the game and the repo](prompt-log.md)
+
 ### 2026-11-25 — Graphics upgrade M3: the hero — Esteban — commit 80e5856
 - **Type:** feature, assets
 - **What changed:** redrawn hero (18×23, teal vest) with 4-frame walks, idle, blink, hurt face, tuck roll and

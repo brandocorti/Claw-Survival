@@ -34,7 +34,7 @@ export class MenuScene extends Phaser.Scene {
     this.mapView = new MapView(this, this.map, TILESET_KEY);
     const fixed = (obj) => obj.setScrollFactor(0).setDepth(DEPTH.MENU);
     fixed(this.add.rectangle(0, 0, width, height, 0x0d0a08, 0.45).setOrigin(0));
-    fixed(addPixelText(this, width / 2, 52, '[GAME TITLE]').setOrigin(0.5).setScale(4)).setTint(hexToInt(P.shotRim));
+    fixed(addPixelText(this, width / 2, 52, 'Claw Survival').setOrigin(0.5).setScale(4)).setTint(hexToInt(P.shotRim));
     fixed(addPixelText(this, width / 2, 78, 'ONE ISLAND. ONE SEAT ON THE BOAT.').setOrigin(0.5));
     this.page = [];
     this.list = null;

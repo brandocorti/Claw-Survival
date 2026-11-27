@@ -1,7 +1,7 @@
 // Player settings, remembered in this browser. Reading and writing never throws
 // (storage can be blocked or empty); bad values fall back to the defaults.
 
-const KEY = 'island-roguelike-settings';
+const KEY = 'claw-survival-settings';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   /** 0 to 10 */
