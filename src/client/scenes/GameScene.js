@@ -33,7 +33,8 @@ import { TILESET_KEY } from './BootScene.js';
 import { GFX, SCRIPTED, CAPTURE } from '../gfx/flags.js';
 import { Lighting } from '../gfx/lighting.js';
 import { Juice } from '../gfx/juice.js';
-import { emperorIntro, emperorDeath } from '../gfx/boss.js';
+import { emperorDeath } from '../gfx/boss.js';
+import { BossIntroCutscene } from '../ui/BossIntroCutscene.js';
 
 /** Shortest time between two hit-stops, so chains of explosions do not stutter. */
 const HIT_STOP_GAP_MS = 500;
@@ -81,6 +82,7 @@ export class GameScene extends Phaser.Scene {
       hitText: config.display.hitText,
     });
     this.hud = new Hud(this, config, localId);
+    this.bossIntro = new BossIntroCutscene(this, config.finalBoss.introCutscene);
     this.lighting = GFX.light ? new Lighting(this, config.display, world.map) : null;
     this.juice = GFX.juice ? new Juice(this, world.map, localId) : null;
     /** Frames left with the picture frozen (the simulation keeps running). */
@@ -156,7 +158,7 @@ export class GameScene extends Phaser.Scene {
       if (e.type === 'shot') this.playerViews.get(e.playerId)?.onShot();
       if (!GFX.boss) continue;
       if (e.type === 'bossSpawned' && e.enemyType === 'crabEmperor') {
-        emperorIntro(this, this.config.display);
+        this.bossIntro.play(); // freezes the game until it ends (see update)
         this.camFocus = { id: e.id, until: world.time + 1.8 };
         this.cameraSystem.shake(600, 0.006);
       } else if (e.type === 'enemyDied' && e.enemyType === 'crabEmperor') {
@@ -185,8 +187,10 @@ export class GameScene extends Phaser.Scene {
     if (SCRIPTED) input = scriptedInput(this.frame);
     this.frame++;
     this.lastInput = input;
-    // Solo: the pause menu freezes the game. (With other players it cannot, milestone 5.)
-    if (!this.pauseMenu.isOpen) this.transport.update(deltaMs, input);
+    // Solo: the pause menu and the boss intro freeze the game. (With other players they cannot, milestone 5.)
+    const frozen = this.pauseMenu.isOpen || this.bossIntro.isPlaying;
+    if (!frozen) this.transport.update(deltaMs, input);
+    this.bossIntro.update(this.pauseMenu.isOpen ? 0 : dt);
 
     // 2. Simulation -> visuals
     const world = this.transport.world;
@@ -198,7 +202,7 @@ export class GameScene extends Phaser.Scene {
 
     const events = this.transport.drainEvents();
     this.handleEvents(events, world);
-    if (!world.paused && !this.pauseMenu.isOpen) this.juice?.update(dt, local);
+    if (!world.paused && !frozen) this.juice?.update(dt, local);
     this.lighting?.update(dt);
     this.hud.update(world, local);
     this.minimap.update(world, local, shopIsOpen(world), this.time.now / 1000);

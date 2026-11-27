@@ -6,7 +6,21 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
-### 2026-11-27 — Comic "HIT!" pop-up on player damage — alvarofeher — commit (pending)
+### 2026-11-27 — Generated entrance animation for the Crab Emperor — alvarofeher — commit (pending)
+- **Type:** feature, assets
+- **What changed:** when the final boss appears, a generated 3-second animation (portrait, banner, "CRAB EMPEROR -
+  TYRANT OF THE TIDE") plays over the game. The game is frozen while it plays and the boss music keeps running.
+  After the last frame it fades out (0.3 s) and play resumes. It replaces the old letterbox name card.
+- **Modules/files touched:** `assets/animations/crab_intro_animation/` (new: 90 overlay frames, a preview set with
+  the game baked in, and separate layers), `src/client/ui/BossIntroCutscene.js` (new),
+  `src/client/scenes/GameScene.js`, `src/client/scenes/BootScene.js` (loads the frames), `src/client/gfx/boss.js`
+  (old card removed), `src/shared/config.js` (`finalBoss.introCutscene`), `tests/unit/ui/bossIntro.test.js`.
+- **Why:** a stronger boss entrance, made with a generated animation instead of code-drawn shapes.
+- **Evidence:** `production/qa/evidence/2026-11-27-15-18-*_boss-intro-*.png` (during and after). The game time
+  stayed at 3.017 s for the whole animation and moved on once it ended.
+- **Prompt log:** [Boss entrance animation](prompt-log.md#art-generated-entrance-animation-for-the-crab-emperor--2026-11-27--alvarofeher).
+
+### 2026-11-27 — Comic "HIT!" pop-up on player damage — alvarofeher — commit ea6cee5
 - **Type:** feature
 - **What changed:** when a player takes damage, a bold white comic-style "HIT!" pops up next to them with a
   random tilt, then floats up and fades after about half a second.

@@ -198,6 +198,21 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Change made and why:** the slant now shifts one texture pixel every 3 rows, the letters are 7 rows tall and
   the H has a wider gap. The second capture (`2026-11-27-14-53-35_hit-text-hold.png`) reads clearly.
 
+### [Art] Generated entrance animation for the Crab Emperor — 2026-11-27 — alvarofeher
+- **Goal:** replace the code-drawn boss name card with a generated entrance animation that pauses the game.
+- **Tool/model:** animation: TODO (tool and prompt used to generate `assets/animations/crab_intro_animation/`).
+  Integration: Claude Code, Claude Opus 5.5.
+- **Prompt (exact, integration):** "i added in assets a folder for the crab intro animation. it is a generated
+  animation that must replace the current intro for the final boss. i want the animation to appear and stop the
+  game while it plays. keep the music running while it plays and let the game continue after it"
+- **Result:** the 90 transparent overlay frames play at 30 fps over the frozen game; the music is untouched; a 0.3 s
+  fade-out at the end, then play resumes ([changelog](changelog.md)).
+- **Problem found:** the animation has no outro (it ends on a held pose), so cutting straight back to the game was
+  abrupt; a short fade was added. The production build inlines the smallest frames as `data:` URLs, so ordering
+  frames by URL would have scrambled them; they are ordered by file name instead.
+- **Change made and why:** the animation pauses together with the pause menu, so opening the menu during it does
+  not skip it.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own

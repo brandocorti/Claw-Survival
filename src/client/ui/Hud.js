@@ -58,7 +58,7 @@ export class Hud {
         const last = e.round === this.config.rounds.count;
         this.showBanner(`ROUND ${e.round}`, last ? 'FINAL ROUND - HOLD ON!' : 'THE TIDE RISES');
       } else if (e.type === 'bossSpawned' && GFX.boss && e.enemyType === 'crabEmperor') {
-        // The entrance card (gfx/boss.js) introduces it instead of a banner.
+        // The entrance animation (ui/BossIntroCutscene.js) introduces it instead of a banner.
         this.showBanner('', '');
       } else if (e.type === 'bossSpawned') {
         const subtitle = e.enemyType === 'crabEmperor' ? 'ONE AGAINST ONE' : 'THE KING OF THE BEACH IS ANGRY';

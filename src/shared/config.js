@@ -71,6 +71,13 @@ export const CONFIG = {
     introSeconds: 3,
     /** Half hearts given back before the duel. */
     healBefore: 0,
+    /** Entrance animation (assets/animations/crab_intro_animation). The game is frozen while it plays. */
+    introCutscene: {
+      /** The frames were made for 30 fps (90 frames = 3 s). */
+      fps: 30,
+      /** After the last frame, the overlay fades out over this long before play resumes. */
+      fadeOutSeconds: 0.3,
+    },
   },
 
   spawning: {

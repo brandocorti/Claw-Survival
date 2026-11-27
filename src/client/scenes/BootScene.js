@@ -6,12 +6,17 @@ import { createCardTextures } from '../art/cardArt.js';
 import { createTileset } from '../art/tileArt.js';
 import { createPixelFont } from '../art/pixelFont.js';
 import { createHitTextTexture } from '../art/hitText.js';
+import { preloadBossIntro } from '../ui/BossIntroCutscene.js';
 
 export const TILESET_KEY = 'tiles';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
+  }
+
+  preload() {
+    preloadBossIntro(this);
   }
 
   create() {

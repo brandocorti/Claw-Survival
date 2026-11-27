@@ -1,11 +1,10 @@
 // The Crab Emperor (final boss) as an animated rig, with per-attack
-// telegraphs on the ground, a phase-2 look below half health, an entrance card
+// telegraphs on the ground, a phase-2 look below half health
 // and a death sequence. View-only: the simulation still drives the boss.
 import * as Phaser from 'phaser';
 import { empBody, empClaw, empLeg, empStalk, empCrown } from '../../shared/art/emperor.js';
 import { addOutline, createTextureFromGrid, createSpritesheet } from '../art/pixelArt.js';
 import { DEPTH } from '../systems/depth.js';
-import { addPixelText } from '../art/pixelFont.js';
 
 const O = '#1a1212';
 const RED = 0xff3d4a;
@@ -231,28 +230,6 @@ export class EmperorView {
   destroy() {
     [this.c, this.shadow, this.tele, this.steam, this.charge].forEach((o) => o.destroy());
   }
-}
-
-/** Entrance card: letterbox bars + name plate; returns nothing, cleans itself up. */
-export function emperorIntro(scene, display) {
-  const { width: w, height: h } = display;
-  const fixed = (o) => o.setScrollFactor(0).setDepth(DEPTH.MENU);
-  const top = fixed(scene.add.rectangle(0, -24, w, 24, 0x0d0a08).setOrigin(0));
-  const bot = fixed(scene.add.rectangle(0, h, w, 24, 0x0d0a08).setOrigin(0));
-  const plate = fixed(scene.add.rectangle(w / 2, 196, 220, 34, 0x0d0a08, 0.85)).setScale(0, 1);
-  const title = fixed(addPixelText(scene, w / 2, 186, 'CRAB EMPEROR').setOrigin(0.5).setScale(2)).setTint(0xf0c040).setAlpha(0);
-  const sub = fixed(addPixelText(scene, w / 2, 204, 'TYRANT OF THE TIDE').setOrigin(0.5)).setTint(0xff6a4a).setAlpha(0);
-  const line = fixed(scene.add.rectangle(w / 2, 213, 180, 1, 0xf0c040)).setScale(0, 1);
-  scene.tweens.add({ targets: top, y: 0, duration: 300, ease: 'Quad.Out' });
-  scene.tweens.add({ targets: bot, y: h - 24, duration: 300, ease: 'Quad.Out' });
-  scene.tweens.add({ targets: plate, scaleX: 1, duration: 260, delay: 250, ease: 'Back.Out' });
-  scene.tweens.add({ targets: line, scaleX: 1, duration: 400, delay: 350 });
-  scene.tweens.add({ targets: [title, sub], alpha: 1, duration: 200, delay: 380 });
-  scene.time.delayedCall(2300, () => {
-    scene.tweens.add({ targets: [top], y: -24, duration: 300 });
-    scene.tweens.add({ targets: [bot], y: h, duration: 300 });
-    scene.tweens.add({ targets: [plate, title, sub, line], alpha: 0, duration: 300, onComplete: () => [top, bot, plate, title, sub, line].forEach((o) => o.destroy()) });
-  });
 }
 
 /** Death: chain explosions, then the crown pops off and lands (it stays as a trophy). */
