@@ -1,4 +1,4 @@
-// Start menu and online lobby: play solo, create a room, or join one with a code.
+// Online lobby (opened from the start menu): create a room, or join one with a code.
 // When the host starts the match, the room is handed to GameScene inside a
 // ColyseusTransport. A solo dev shortcut in the URL (?round=3, ?boss...) skips this.
 import * as Phaser from 'phaser';
@@ -36,7 +36,7 @@ export class LobbyScene extends Phaser.Scene {
 
     const net = config.net;
     this.overlay = new LobbyOverlay({
-      onSolo: (name) => this.playSolo(name),
+      onBack: (name) => this.backToMenu(name),
       onCreate: (name) => this.connect(name, (client, opts) => client.create(ROOM_NAME, opts)),
       onJoin: (name, typed) => this.join(name, typed),
       onStart: () => this.room?.send(MSG.start),
@@ -55,9 +55,9 @@ export class LobbyScene extends Phaser.Scene {
     this.overlay.showMenu({ name: localStorage.getItem(NAME_KEY) ?? '', code, error });
   }
 
-  playSolo(name) {
+  backToMenu(name) {
     this.saveName(name);
-    this.scene.start('Game', { mode: 'solo' });
+    this.scene.start('Menu');
   }
 
   join(name, typed) {

@@ -63,7 +63,7 @@ export const CONFIG = {
     /** Enemies per second in round 1. Formula in shared/sim/systems/spawner.js. */
     baseRate: 1.6,
     /** Added to the rate for each round after the first. */
-    ratePerRound: 0.3,
+    ratePerRound: 0.36,
     /** The rate grows by this fraction from the start to the end of each round (0.8 = +80%). */
     rampWithinRound: 0.8,
     /** Spawning pauses while this many enemies are alive (performance budget). */
@@ -153,7 +153,7 @@ export const CONFIG = {
       ring: { interval: 3.2, windup: 0.5, count: 8, rotateStep: 0.39, bulletSpeed: 55, damage: 1, range: 300 },
     },
     crabKing: {
-      hp: 90, speed: 28, radius: 12, contactDamage: 2, xp: 25, boss: true,
+      hp: 90, speed: 28, radius: 12, contactDamage: 2, xp: 25, coins: 4, boss: true,
       spawnDelay: 1.4,
       /** Attack cycle; "ring" is only used below half health. */
       pattern: ['fan', 'charge', 'fan', 'ring'],
@@ -164,7 +164,7 @@ export const CONFIG = {
     },
     /** Final boss. Health also grows with the round, like every enemy. */
     crabEmperor: {
-      hp: 800, speed: 34, radius: 15, contactDamage: 2, xp: 0, boss: true,
+      hp: 800, speed: 34, radius: 22, contactDamage: 2, xp: 0, coins: 0, boss: true,
       spawnDelay: 1.6,
       pattern: ['fan', 'charge', 'ring'],
       /** Used below half health. */
@@ -196,6 +196,24 @@ export const CONFIG = {
     gemValues: [20, 5, 1],
   },
 
+  drops: {
+    /** Chance that a defeated enemy drops a coin. Bosses drop a fixed number (enemies.<id>.coins). */
+    coinChance: 0.045,
+    /** Low on purpose: hearts are the only healing besides the Big heart card. */
+    heartChance: 0.002,
+    /** Half hearts healed. */
+    heartHeal: 2,
+  },
+
+  shop: {
+    /** Press E within this distance of the salesman. */
+    interactRadius: 28,
+    /** Price of the first random ability, and how much each later one adds. */
+    basePrice: 10,
+    priceStep: 5,
+    rollsPerRound: 1,
+  },
+
   cards: {
     /** How many cards a level-up offers. */
     choices: 3,
@@ -220,11 +238,6 @@ export const CONFIG = {
     roomCodeLength: 4,
     /** Longest player name; longer names are cut. */
     maxNameLength: 12,
-    /**
-     * Online the world never pauses for a card choice (the clock is shared).
-     * After this many seconds a random card is picked for the player.
-     */
-    cardTimeoutSeconds: 10,
     /** A disconnected player keeps their arena this long and can rejoin; then they count as dead. */
     reconnectGraceSeconds: 10,
     /** Arena snapshots per second sent to each client (the sim runs at sim.tickRate). */

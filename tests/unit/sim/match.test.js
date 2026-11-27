@@ -1,8 +1,8 @@
-// Online match: one arena per player, one shared clock, last alive wins.
+// Online match: one arena per player, each on its own clock, last alive wins.
 import { describe, it, expect } from 'vitest';
 import {
   createMatch, addMatchPlayer, removeMatchPlayer, startMatch, stepMatch, drainMatchEvents,
-  getMatchPlayer, matchRound, matchSummary, resetMatch,
+  getMatchPlayer, matchSummary, resetMatch,
 } from '../../../src/shared/sim/match.js';
 import { damagePlayer } from '../../../src/shared/sim/systems/damage.js';
 import { grantXp } from '../../../src/shared/sim/systems/xp.js';
@@ -10,11 +10,18 @@ import { roundLength } from '../../../src/shared/sim/systems/spawner.js';
 import { BIG_ROOM, TEST_CONFIG, TEST_ENEMY_TYPES, TICK } from '../helpers/fixtures.js';
 
 const seconds = (s) => Math.ceil(s * TEST_CONFIG.sim.tickRate);
+/** Takes the first card whenever one is offered (a choice freezes that island until picked). */
+const PICK_FIRST = Object.freeze({ moveX: 0, moveY: 0, roll: false, pick: 0 });
+/** A room with the salesman ('V') next to the spawn. */
+const SHOP_ROOM = {
+  id: 'shop',
+  rows: ['##############', '#............#', '#............#', '#.....PV.....#', '#............#', '#............#', '##############'],
+};
 
 /** A started match with players p1..pN on the big room; every player is unhurtable unless told otherwise. */
-function makeMatch(n = 2, { spawning = true, tough = true, seed = 1 } = {}) {
+function makeMatch(n = 2, { spawning = true, tough = true, seed = 1, arena = BIG_ROOM } = {}) {
   const match = createMatch({
-    config: TEST_CONFIG, arena: BIG_ROOM, seed, worldOptions: { spawning, enemyTypes: TEST_ENEMY_TYPES },
+    config: TEST_CONFIG, arena, seed, worldOptions: { spawning, enemyTypes: TEST_ENEMY_TYPES },
   });
   for (let i = 1; i <= n; i++) addMatchPlayer(match, `p${i}`);
   startMatch(match);
@@ -32,14 +39,13 @@ const kill = (match, id) => {
 };
 
 describe('online match: start', () => {
-  it('gives every player their own world, all on tick 0 and sharing one clock', () => {
+  it('gives every player their own world, all on tick 0', () => {
     const match = makeMatch(3);
     expect(match.phase).toBe('waves');
     const worlds = match.players.map((e) => e.world);
     expect(new Set(worlds).size).toBe(3);
     for (const w of worlds) {
       expect(w.tick).toBe(0);
-      expect(w.clock).toBe(match.clock);
       expect(w.players.map((p) => p.id)).toEqual([match.players[worlds.indexOf(w)].id]);
     }
     expect(drainMatchEvents(match)).toEqual([{ type: 'matchStarted' }]);
@@ -61,48 +67,97 @@ describe('online match: start', () => {
   });
 });
 
-describe('online match: shared clock', () => {
-  it('every arena is in the same round at the same time, through every round change', () => {
-    const match = makeMatch(3);
-    const len = roundLength(TEST_CONFIG);
-    for (let r = 1; r <= TEST_CONFIG.rounds.count; r++) {
-      runMatch(match, seconds(len) - (r === 1 ? 1 : 0));
-      const rounds = match.players.map((e) => e.world.match.round);
-      expect(new Set(rounds).size, `after round ${r}`).toBe(1);
-      expect(rounds[0]).toBe(matchRound(match));
-    }
-  });
-
-  it('the arenas follow the match clock, not their own: moving the clock moves every arena', () => {
-    const match = makeMatch(3, { spawning: true });
-    runMatch(match, 10);
-    match.clock.elapsed = 2 * roundLength(TEST_CONFIG) + 1; // e.g. a dev jump, or a world that missed ticks
-    runMatch(match, 1);
-    for (const e of match.players) {
-      expect(e.world.match.round).toBe(3);
-      expect(e.world.match.elapsed).toBeCloseTo(match.clock.elapsed, 6);
-    }
-  });
-
-  it('an open card choice does not stop that arena or the clock', () => {
-    const match = makeMatch(2, { spawning: false });
+describe('online match: one clock per island', () => {
+  it('a player choosing a card freezes only their own island and its clock', () => {
+    // Arrange: p1 has a card choice open, p2 does not.
+    const match = makeMatch(2, { spawning: true });
+    const [w1, w2] = match.players.map((e) => e.world);
     const p1 = getMatchPlayer(match, 'p1');
-    const w1 = match.players[0].world;
+    const p2 = getMatchPlayer(match, 'p2');
+    runMatch(match, 10);
     grantXp(w1, p1, 100);
     runMatch(match, 1);
     expect(p1.cardChoice).not.toBe(null);
-    const x = p1.x;
-    const clock = match.clock.elapsed;
-    runMatch(match, 30, { p1: { moveX: 1, moveY: 0, roll: false } });
+    const before = { x1: p1.x, x2: p2.x, t1: w1.match.elapsed, t2: w2.match.elapsed, tick1: w1.tick };
+
+    // Act: both hold right for half a second.
+    const right = { moveX: 1, moveY: 0, roll: false };
+    runMatch(match, 30, { p1: right, p2: right });
+
+    // Assert: p1's island did not move on at all, p2's kept running.
+    expect(w1.paused).toBe(true);
+    expect(p1.x).toBe(before.x1);
+    expect(w1.match.elapsed).toBe(before.t1);
+    expect(w1.tick).toBe(before.tick1);
+    expect(w2.paused).toBe(false);
+    expect(p2.x).toBeGreaterThan(before.x2);
+    expect(w2.match.elapsed).toBeCloseTo(before.t2 + 30 * TICK, 6);
+  });
+
+  it('after the pick the island carries on from where it stopped', () => {
+    const match = makeMatch(2);
+    const w1 = match.players[0].world;
+    const p1 = getMatchPlayer(match, 'p1');
+    grantXp(w1, p1, 5); // exactly one level-up
+    runMatch(match, 1);
+    const elapsed = w1.match.elapsed;
+    runMatch(match, 20);
+    expect(w1.match.elapsed).toBe(elapsed);
+
+    runMatch(match, 1, { p1: PICK_FIRST });
+    runMatch(match, 10, { p1: PICK_FIRST });
+
     expect(w1.paused).toBe(false);
-    expect(p1.x).toBeGreaterThan(x);
-    expect(match.clock.elapsed).toBeCloseTo(clock + 30 * TICK, 6);
-    expect(w1.time).toBeCloseTo(match.players[1].world.time, 6);
+    expect(w1.match.elapsed).toBeGreaterThan(elapsed);
+  });
+
+  it('pausing puts a player behind: islands can be in different rounds', () => {
+    const match = makeMatch(2);
+    const w1 = match.players[0].world;
+    grantXp(w1, getMatchPlayer(match, 'p1'), 5);
+    runMatch(match, seconds(roundLength(TEST_CONFIG)) + 30, { p2: PICK_FIRST }); // p1 never picks
+
+    expect(w1.match.round).toBe(1);
+    expect(match.players[1].world.match.round).toBe(2);
+    expect(matchSummary(match).players.map((p) => p.round)).toEqual([1, 2]);
+  });
+
+  it('the shop freezes the island too, and only that one', () => {
+    const match = makeMatch(2, { arena: SHOP_ROOM });
+    const [w1, w2] = match.players.map((e) => e.world);
+    const p1 = getMatchPlayer(match, 'p1');
+    Object.assign(p1, { x: w1.map.vendor.x - 16, y: w1.map.vendor.y });
+    runMatch(match, 1, { p1: { ...PICK_FIRST, interact: true } });
+    expect(p1.shopOpen).toBe(true);
+    const t1 = w1.match.elapsed;
+    const t2 = w2.match.elapsed;
+
+    runMatch(match, 30, { p1: PICK_FIRST, p2: PICK_FIRST });
+
+    expect(w1.paused).toBe(true);
+    expect(w1.match.elapsed).toBe(t1);
+    expect(w2.match.elapsed).toBeGreaterThan(t2);
+  });
+
+  it('a player who finishes the waves first waits for the others', () => {
+    const match = makeMatch(2);
+    const w2 = match.players[1].world;
+    grantXp(w2, getMatchPlayer(match, 'p2'), 5); // p2 stops for a card and falls behind
+    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p1: PICK_FIRST });
+
+    expect(match.players[0].world.match.phase).toBe('wavesOver');
+    expect(w2.match.phase).toBe('waves');
+    expect(match.phase).toBe('waves');
+    expect(matchSummary(match).players.map((p) => p.wavesDone)).toEqual([true, false]);
+
+    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p2: PICK_FIRST });
+    expect(match.phase).toBe('wavesOver');
   });
 
   it('when the clock ends every arena empties, no final boss appears, and the match waits for the PvP', () => {
     const match = makeMatch(2);
-    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds) + 2);
+    // Level-up cards freeze an island until picked (one tick each): both players take the first card.
+    runMatch(match, seconds(TEST_CONFIG.match.durationSeconds + 10), { p1: PICK_FIRST, p2: PICK_FIRST });
     expect(match.phase).toBe('wavesOver');
     for (const e of match.players) {
       expect(e.world.match.phase).toBe('wavesOver');
@@ -180,14 +235,17 @@ describe('online match: lobby and summary', () => {
     expect(match.players.map((p) => p.id)).toEqual(['b']);
   });
 
-  it('the summary has the clock, the round and each player\'s level and state', () => {
+  it('the summary has each player\'s level, round and state', () => {
     const match = makeMatch(2, { spawning: false });
     grantXp(match.players[0].world, getMatchPlayer(match, 'p1'), 6);
     kill(match, 'p2');
     runMatch(match, 1);
     expect(matchSummary(match)).toEqual({
-      phase: 'over', clock: TICK, round: 1, winnerId: 'p1',
-      players: [{ id: 'p1', level: 2, alive: true }, { id: 'p2', level: 1, alive: false }],
+      phase: 'over', winnerId: 'p1',
+      players: [
+        { id: 'p1', level: 2, alive: true, round: 1, health: 6, maxHealth: 6, kills: 0, wavesDone: false },
+        { id: 'p2', level: 1, alive: false, round: 1, health: 0, maxHealth: 6, kills: 0, wavesDone: false },
+      ],
     });
   });
 
@@ -200,5 +258,29 @@ describe('online match: lobby and summary', () => {
     expect(match.players.map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(startMatch(match)).toBe(true);
     expect(getMatchPlayer(match, 'p2').alive).toBe(true);
+  });
+});
+
+describe('online match: player rules kept from the old card-timeout tests', () => {
+  it('dying closes an open card choice at once (a dead player\'s arena stops stepping)', () => {
+    const match = makeMatch(2, { spawning: false });
+    const p1 = getMatchPlayer(match, 'p1');
+    grantXp(match.players[0].world, p1, 5);
+    runMatch(match, 1);
+    expect(p1.cardChoice).not.toBe(null);
+    kill(match, 'p1');
+    expect(p1.alive).toBe(false);
+    expect(p1.cardChoice).toBe(null);
+  });
+
+  it('a pveImmune player (test bot option) ignores enemy damage but not damage from a player', () => {
+    const match = makeMatch(1, { spawning: false, tough: false });
+    const world = match.players[0].world;
+    const player = getMatchPlayer(match, 'p1');
+    player.pveImmune = true;
+    expect(damagePlayer(world, player, 2)).toBe(false);
+    expect(player.health).toBe(TEST_CONFIG.player.maxHealth);
+    expect(damagePlayer(world, player, 2, 'p2')).toBe(true);
+    expect(player.health).toBe(TEST_CONFIG.player.maxHealth - 2);
   });
 });

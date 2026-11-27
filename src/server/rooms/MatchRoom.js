@@ -1,5 +1,5 @@
 // The online room: a lobby, then a match where every player has their own arena
-// on one shared clock. All rules live in src/shared/sim/match.js; this class only
+// with its own clock. All rules live in src/shared/sim/match.js; this class only
 // connects them to the network: it checks messages, collects inputs (from clients
 // and bots), steps the match at a fixed rate and publishes the summary.
 import { Room } from '@colyseus/core';
@@ -49,7 +49,7 @@ export class MatchRoom extends Room {
     this.botsTough = options.botsTough === true;
     const seed = Number.isSafeInteger(options.seed) ? options.seed : Math.floor(Math.random() * 1e9);
     this.match = createMatch({ config: this.config, arena: BEACH_ARENA, seed });
-    /** @type {Map<string, { moveX: number, moveY: number, roll: boolean, pick: number|null }>} latest input per client */
+    /** @type {Map<string, import('../../shared/protocol.js').PlayerInput>} latest input per client */
     this.inputs = new Map();
     /** @type {Map<string, import('../../shared/net/bot.js').Bot>} */
     this.bots = new Map();
@@ -60,7 +60,6 @@ export class MatchRoom extends Room {
     this.setState(new MatchState());
     this.state.phase = 'lobby';
     this.state.code = this.code;
-    this.state.round = 1;
     this.state.duration = this.config.match.durationSeconds;
     this.setPatchRate(1000 / net.summaryRate);
     this.pendingBots = clampInt(options.bots, 0, net.maxBots);
@@ -127,8 +126,10 @@ export class MatchRoom extends Room {
     if (!input || !stored) return;
     stored.moveX = input.moveX;
     stored.moveY = input.moveY;
-    // A roll press is kept until a tick uses it.
+    // Presses (roll, E, a shop button) are kept until a tick uses them.
     if (input.roll) stored.roll = true;
+    if (input.interact) stored.interact = true;
+    if (input.shop) stored.shop = input.shop;
   }
 
   handlePick(client, msg) {
@@ -207,9 +208,11 @@ export class MatchRoom extends Room {
     if (this.match.phase !== 'waves') return;
     const inputs = {};
     for (const [id, stored] of this.inputs) {
-      inputs[id] = { moveX: stored.moveX, moveY: stored.moveY, roll: stored.roll, pick: stored.pick };
+      inputs[id] = { ...stored };
       stored.roll = false;
       stored.pick = null;
+      stored.interact = false;
+      stored.shop = null;
     }
     for (const [id, bot] of this.bots) inputs[id] = botInput(bot, getMatchPlayer(this.match, id), this.config, dt);
     stepMatch(this.match, inputs, dt);
@@ -238,14 +241,17 @@ export class MatchRoom extends Room {
   syncSummary() {
     const summary = matchSummary(this.match);
     this.state.phase = summary.phase;
-    this.state.clock = summary.clock;
-    this.state.round = summary.round;
     this.state.winnerId = summary.winnerId ?? '';
     for (const p of summary.players) {
       const s = this.state.players.get(p.id);
       if (!s) continue;
       s.level = p.level;
       s.alive = p.alive;
+      s.round = p.round;
+      s.health = p.health;
+      s.maxHealth = p.maxHealth;
+      s.kills = p.kills;
+      s.wavesDone = p.wavesDone;
     }
   }
 
@@ -256,6 +262,11 @@ export class MatchRoom extends Room {
     s.name = name;
     s.level = 1;
     s.alive = true;
+    s.round = 1;
+    s.health = this.config.player.maxHealth;
+    s.maxHealth = this.config.player.maxHealth;
+    s.kills = 0;
+    s.wavesDone = false;
     s.connected = true;
     s.isBot = isBot;
     this.state.players.set(id, s);

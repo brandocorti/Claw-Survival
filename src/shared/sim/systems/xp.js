@@ -1,6 +1,8 @@
 // XP gems and levelling. Level-ups are counted in player.pendingLevelUps; the
 // card choice that spends them is milestone 3.
 import { createGem } from '../entities/gem.js';
+import { openSpotNear } from '../map.js';
+import { flyToPlayers, popVelocity } from './pickups.js';
 
 /**
  * XP needed to go from `level` to `level + 1`:
@@ -18,11 +20,11 @@ export function xpToNextLevel(level, curve) {
  */
 export function dropGems(world, x, y, value) {
   let left = value;
+  const spot = openSpotNear(world.map, x, y);
   for (const size of world.config.xp.gemValues) {
     while (left >= size) {
-      const angle = world.rng.range(0, Math.PI * 2);
-      const speed = world.rng.range(20, 55);
-      world.gems.push(createGem(world.nextId++, size, x, y, Math.cos(angle) * speed, Math.sin(angle) * speed));
+      const v = popVelocity(world.rng);
+      world.gems.push(createGem(world.nextId++, size, spot.x, spot.y, v.vx, v.vy));
       left -= size;
     }
   }
@@ -53,60 +55,8 @@ export function grantXp(world, player, value) {
  * @param {number} dt
  */
 export function updateGems(world, dt) {
-  const cfg = world.config.xp;
-  const pickupDist = world.config.player.radius + 2;
-  const gems = world.gems;
-  let kept = 0;
-
-  for (let i = 0; i < gems.length; i++) {
-    const g = gems[i];
-    let target = g.targetId ? world.players.find((p) => p.id === g.targetId && p.alive) : null;
-    if (!target) {
-      g.targetId = null;
-      target = nearestPlayerWithin(world, g.x, g.y, cfg.pickupRadius);
-      if (target) g.targetId = target.id;
-    }
-
-    if (target) {
-      const dx = target.x - g.x;
-      const dy = target.y - g.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      g.vx += (dx / dist) * cfg.magnetAcceleration * dt;
-      g.vy += (dy / dist) * cfg.magnetAcceleration * dt;
-      const speed = Math.hypot(g.vx, g.vy);
-      if (speed > cfg.magnetMaxSpeed) {
-        g.vx *= cfg.magnetMaxSpeed / speed;
-        g.vy *= cfg.magnetMaxSpeed / speed;
-      }
-    } else {
-      const drag = Math.pow(0.02, dt); // the pop-out stops within ~1 s
-      g.vx *= drag;
-      g.vy *= drag;
-    }
-    g.x += g.vx * dt;
-    g.y += g.vy * dt;
-
-    if (target && Math.hypot(target.x - g.x, target.y - g.y) <= pickupDist) {
-      g.collected = true;
-      world.events.push({ type: 'gemCollected', playerId: target.id, value: g.value });
-      grantXp(world, target, g.value);
-      continue;
-    }
-    gems[kept++] = g;
-  }
-  gems.length = kept;
-}
-
-function nearestPlayerWithin(world, x, y, radius) {
-  let best = null;
-  let bestD = radius;
-  for (const p of world.players) {
-    if (!p.alive) continue;
-    const d = Math.hypot(p.x - x, p.y - y);
-    if (d <= bestD) {
-      bestD = d;
-      best = p;
-    }
-  }
-  return best;
+  flyToPlayers(world, world.gems, dt, () => true, (player, gem) => {
+    world.events.push({ type: 'gemCollected', playerId: player.id, value: gem.value });
+    grantXp(world, player, gem.value);
+  });
 }

@@ -19,9 +19,15 @@
  * @property {Record<string, number>} abilities - ability id -> level
  * @property {object} stats - derived numbers (damage, fireRate...), see systems/abilities.js
  * @property {string[]|null} cardChoice - ability ids on offer while a level-up is open
- * @property {number} cardOpenedAt - world time when the current card choice opened (for the online timeout)
+ * @property {number} cardOpenedAt - world time when the current card choice opened (online: tells a new choice from the same one)
  * @property {boolean} pveImmune - takes no damage from enemies, only from players (dev option for test bots)
  * @property {number} kills
+ * @property {number} coins
+ * @property {boolean} shopOpen - talking to the salesman
+ * @property {number} rollsBought - random abilities bought this match
+ * @property {number} rollRound - round of the last purchase
+ * @property {number} rollsThisRound - bought in that round
+ * @property {{ abilityId: string, level: number }|null} lastRoll - result shown in the shop
  * @property {string} weapon - key into config.weapons
  * @property {number} fireCooldown - seconds until the next shot
  * @property {boolean} moving
@@ -64,6 +70,12 @@ export function createPlayer(id, x, y, config) {
     cardOpenedAt: 0,
     pveImmune: false,
     kills: 0,
+    coins: 0,
+    shopOpen: false,
+    rollsBought: 0,
+    rollRound: 0,
+    rollsThisRound: 0,
+    lastRoll: null,
     weapon: p.startingWeapon,
     fireCooldown: 0,
     moving: false,

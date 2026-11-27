@@ -4,7 +4,7 @@
 
 /** Message names (client -> server and server -> client). */
 export const MSG = Object.freeze({
-  /** client -> server: { seq, moveX, moveY, roll } */
+  /** client -> server: { seq, moveX, moveY, roll, interact, shop } */
   input: 'input',
   /** client -> server: { index, targetId? } */
   pickCard: 'pickCard',
@@ -16,14 +16,19 @@ export const MSG = Object.freeze({
   arena: 'arena',
 });
 
+/** What a client may ask the salesman (shared/sim/systems/shop.js). */
+const SHOP_CHOICES = ['buy', 'close'];
+
 /** Largest card index a client may send (the sim also checks it is a card on offer). */
 const MAX_PICK_INDEX = 9;
 
 /**
  * Checks a client's input message and returns a clean PlayerInput, or null to drop it.
- * moveX / moveY are clamped to -1..1 (non-numbers become 0), roll must be exactly true.
+ * moveX / moveY are clamped to -1..1 (non-numbers become 0), roll and interact must be
+ * exactly true, shop must be 'buy' or 'close' (anything else becomes null).
  * @param {unknown} msg
- * @returns {{ seq: number, moveX: number, moveY: number, roll: boolean } | null}
+ * @returns {{ seq: number, moveX: number, moveY: number, roll: boolean, interact: boolean,
+ *   shop: 'buy'|'close'|null } | null}
  */
 export function sanitizeInput(msg) {
   if (!isPlainObject(msg)) return null;
@@ -32,6 +37,8 @@ export function sanitizeInput(msg) {
     moveX: clampAxis(msg.moveX),
     moveY: clampAxis(msg.moveY),
     roll: msg.roll === true,
+    interact: msg.interact === true,
+    shop: SHOP_CHOICES.includes(msg.shop) ? msg.shop : null,
   };
 }
 

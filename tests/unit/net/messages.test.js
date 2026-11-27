@@ -4,7 +4,7 @@ import { sanitizeInput, sanitizePick, sanitizeName } from '../../../src/shared/n
 
 describe('input check', () => {
   it('clamps movement to -1..1 (a client cannot run faster with moveX: 50)', () => {
-    expect(sanitizeInput({ moveX: 50, moveY: -7, roll: false })).toEqual({ seq: 0, moveX: 1, moveY: -1, roll: false });
+    expect(sanitizeInput({ moveX: 50, moveY: -7, roll: false })).toEqual({ seq: 0, moveX: 1, moveY: -1, roll: false, interact: false, shop: null });
   });
 
   it('turns non-numbers into 0 and only a real true rolls', () => {
@@ -12,6 +12,13 @@ describe('input check', () => {
       expect(sanitizeInput({ moveX: bad, moveY: bad, roll: 'yes' })).toMatchObject({ moveX: 0, moveY: 0, roll: false });
     }
     expect(sanitizeInput({ roll: true }).roll).toBe(true);
+  });
+
+  it('passes E and the salesman buttons, and nothing else', () => {
+    expect(sanitizeInput({ interact: true, shop: 'buy' })).toMatchObject({ interact: true, shop: 'buy' });
+    expect(sanitizeInput({ shop: 'close' }).shop).toBe('close');
+    for (const bad of ['steal', 'BUY', 1, true, {}]) expect(sanitizeInput({ shop: bad }).shop).toBe(null);
+    expect(sanitizeInput({ interact: 'yes' }).interact).toBe(false);
   });
 
   it('drops messages that are not objects', () => {

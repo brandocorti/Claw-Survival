@@ -8,6 +8,7 @@
 import { parseArena } from '../../shared/sim/map.js';
 import { decodeSnapshot } from '../../shared/net/snapshot.js';
 import { MSG } from '../../shared/net/messages.js';
+import { ABILITY_TYPES } from '../../shared/content/abilities/index.js';
 import { SnapshotBuffer } from './SnapshotBuffer.js';
 
 /** Snapshot intervals of delay: enough to ride out one late snapshot. */
@@ -35,12 +36,16 @@ export class ColyseusTransport {
     this.lastSent = null;
     this.lastSentAt = -Infinity;
     this.pendingRoll = false;
+    this.pendingInteract = false;
+    this.pendingShop = null;
     /** Snapshots received, for the dev overlay. */
     this.stats = { snapshots: 0 };
 
     /** Looks like a simulation world to the views; refilled from the snapshots. */
     this.world = {
       config,
+      // The shop panel reads the ability registry to tell whether anything is left to buy.
+      abilityTypes: ABILITY_TYPES,
       map: parseArena(arena, config.display.tileSize),
       time: 0,
       tick: 0,
@@ -51,6 +56,9 @@ export class ColyseusTransport {
       bullets: [],
       gems: [],
       fires: [],
+      pickups: [],
+      /** The other players' rows for the salesman's table, from the room state. */
+      remotePlayers: [],
     };
     this.shownPair = null;
     this.lastCardChoice = null;
@@ -113,16 +121,41 @@ export class ColyseusTransport {
   // ------------------------------------------------------------------ internals
 
   sendInput(input) {
+    // Presses are kept until a message carries them (the rate limit can delay one a frame).
     if (input.roll) this.pendingRoll = true;
+    if (input.interact) this.pendingInteract = true;
+    if (input.shop) this.pendingShop = input.shop;
     const now = this.now();
     const changed = !this.lastSent || input.moveX !== this.lastSent.moveX || input.moveY !== this.lastSent.moveY;
-    const due = changed || this.pendingRoll || now - this.lastSentAt >= KEEPALIVE_SECONDS;
+    const pressed = this.pendingRoll || this.pendingInteract || this.pendingShop;
+    const due = changed || pressed || now - this.lastSentAt >= KEEPALIVE_SECONDS;
     if (!due || now - this.lastSentAt < 1 / MAX_INPUTS_PER_SECOND) return; // try again next frame
-    const msg = { seq: ++this.seq, moveX: input.moveX, moveY: input.moveY, roll: this.pendingRoll };
+    const msg = {
+      seq: ++this.seq, moveX: input.moveX, moveY: input.moveY,
+      roll: this.pendingRoll, interact: this.pendingInteract, shop: this.pendingShop,
+    };
     this.room.send(MSG.input, msg);
     this.lastSent = msg;
     this.lastSentAt = now;
     this.pendingRoll = false;
+    this.pendingInteract = false;
+    this.pendingShop = null;
+  }
+
+  /**
+   * The salesman's table (shared/sim/systems/shop.js playerStatuses) online: the local
+   * player's name, and one row per other player from the room state.
+   */
+  fillRemotePlayers() {
+    const players = this.room.state?.players;
+    if (!players) return;
+    const me = this.getLocalPlayer();
+    if (me) me.name = players.get(this.localPlayerId)?.name ?? me.id;
+    this.world.remotePlayers = [...players.entries()]
+      .filter(([id]) => id !== this.localPlayerId)
+      .map(([id, p]) => ({
+        id, name: p.name, alive: p.alive, level: p.level, round: p.round, health: p.health, maxHealth: p.maxHealth, kills: p.kills,
+      }));
   }
 
   /** Fills this.world with `to`, taking prevX / prevY from `from` for each entity. */
@@ -134,7 +167,11 @@ export class ColyseusTransport {
     w.enemies = withPrevious(from.enemies, to.enemies);
     w.bullets = withPrevious(from.bullets, to.bullets);
     w.gems = withPrevious(from.gems, to.gems);
+    w.pickups = withPrevious(from.pickups, to.pickups);
     w.fires = to.fires;
+    // Same rule as the simulation (world.js): the island is frozen while its player picks or shops.
+    w.paused = w.players.some((p) => p.cardChoice || p.shopOpen);
+    this.fillRemotePlayers();
 
     // The card screen reopens when cardChoice is a different array; keep the same one
     // while the choice on the server is the same.

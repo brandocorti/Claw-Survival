@@ -15,12 +15,14 @@ const MAX_HIT_AGE_MS = 5000;
 
 const PHASES = ['waves', 'wavesOver', 'bossIntro', 'boss', 'won'];
 const TEAMS = ['player', 'enemy'];
+const PICKUP_KINDS = ['coin', 'heart'];
 
 // Player flags
 const P_ALIVE = 1;
 const P_MOVING = 2;
 const P_ROLLING = 4;
 const P_ROLL_LEFT = 8;
+const P_SHOP_OPEN = 16;
 // Enemy flags
 const E_FACE_LEFT = 1;
 const E_FACE_RIGHT = 2;
@@ -44,10 +46,13 @@ export function encodeSnapshot(world, events) {
     m: [PHASES.indexOf(world.match.phase), world.match.round, q(world.match.elapsed, MS)],
     p: world.players.map((p) => [
       p.id, q(p.x, POS), q(p.y, POS), q(p.aim, ANGLE),
-      (p.alive ? P_ALIVE : 0) | (p.moving ? P_MOVING : 0) | (p.rolling ? P_ROLLING : 0) | (p.rollDirX < 0 ? P_ROLL_LEFT : 0),
+      (p.alive ? P_ALIVE : 0) | (p.moving ? P_MOVING : 0) | (p.rolling ? P_ROLLING : 0) | (p.rollDirX < 0 ? P_ROLL_LEFT : 0)
+        | (p.shopOpen ? P_SHOP_OPEN : 0),
       p.health, p.maxHealth, p.level, p.xp, p.kills, p.pendingLevelUps,
       q(p.rollTime, MS), q(p.invulnerableTime, MS), hitAge(time, p.lastHitTime),
       p.abilities, p.cardChoice, q(p.cardOpenedAt, MS), p.targetId,
+      // The salesman (shared/sim/systems/shop.js): what the shop panel needs.
+      p.coins, p.rollsBought, p.rollRound, p.rollsThisRound, p.lastRoll,
     ]),
     e: world.enemies.filter((e) => !e.dead).map((e) => [
       e.id, enemyTypes.indexOf(e.type), q(e.x, POS), q(e.y, POS),
@@ -59,6 +64,7 @@ export function encodeSnapshot(world, events) {
     b: world.bullets.map((b) => [b.id, TEAMS.indexOf(b.team), q(b.x, POS), q(b.y, POS)]),
     g: world.gems.map((g) => [g.id, g.value, q(g.x, POS), q(g.y, POS), g.targetId ? 1 : 0]),
     f: world.fires.map((f) => [f.id, q(f.x, POS), q(f.y, POS), q(f.life, MS)]),
+    u: world.pickups.map((u) => [u.id, PICKUP_KINDS.indexOf(u.kind), q(u.x, POS), q(u.y, POS), u.targetId ? 1 : 0]),
     v: events,
   };
 }
@@ -69,7 +75,7 @@ export function encodeSnapshot(world, events) {
  * @param {object} data - from encodeSnapshot()
  * @param {object} config - the game config (enemy sizes and kinds are not sent)
  * @returns {{ time: number, tick: number, match: object, players: object[], enemies: object[],
- *   bullets: object[], gems: object[], fires: object[], events: object[] }}
+ *   bullets: object[], gems: object[], fires: object[], pickups: object[], events: object[] }}
  */
 export function decodeSnapshot(data, config) {
   const time = data.t / MS;
@@ -80,13 +86,15 @@ export function decodeSnapshot(data, config) {
     tick: data.k,
     match: { phase: PHASES[phase], round, elapsed: elapsed / MS },
     players: data.p.map(([id, x, y, aim, flags, health, maxHealth, level, xp, kills, pendingLevelUps,
-      rollTime, invulnerableTime, hitAgeMs, abilities, cardChoice, cardOpenedAt, targetId]) => ({
+      rollTime, invulnerableTime, hitAgeMs, abilities, cardChoice, cardOpenedAt, targetId,
+      coins, rollsBought, rollRound, rollsThisRound, lastRoll]) => ({
       id, ...pos(x, y), aim: aim / ANGLE,
       alive: Boolean(flags & P_ALIVE), moving: Boolean(flags & P_MOVING), rolling: Boolean(flags & P_ROLLING),
       rollDirX: flags & P_ROLL_LEFT ? -1 : 1,
       health, maxHealth, level, xp, kills, pendingLevelUps,
       rollTime: rollTime / MS, invulnerableTime: invulnerableTime / MS, lastHitTime: time - hitAgeMs / MS,
       abilities, cardChoice, cardOpenedAt: cardOpenedAt / MS, targetId,
+      shopOpen: Boolean(flags & P_SHOP_OPEN), coins, rollsBought, rollRound, rollsThisRound, lastRoll,
     })),
     enemies: data.e.map(([id, typeIndex, x, y, flags, spawnDelay, spawnDuration, hitAgeMs, hpPermille]) => {
       const type = enemyTypes[typeIndex];
@@ -103,6 +111,8 @@ export function decodeSnapshot(data, config) {
     bullets: data.b.map(([id, team, x, y]) => ({ id, team: TEAMS[team], ...pos(x, y) })),
     gems: data.g.map(([id, value, x, y, targeted]) => ({ id, value, ...pos(x, y), targetId: targeted ? 1 : null })),
     fires: data.f.map(([id, x, y, life]) => ({ id, ...pos(x, y), life: life / MS })),
+    // The value is not drawn; targetId only says whether it is flying to the player.
+    pickups: data.u.map(([id, kind, x, y, targeted]) => ({ id, kind: PICKUP_KINDS[kind], value: 0, ...pos(x, y), targetId: targeted ? 1 : null })),
     events: data.v,
   };
 }

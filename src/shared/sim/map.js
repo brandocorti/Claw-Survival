@@ -1,6 +1,7 @@
 // Arena map: a grid of tile types parsed from an ASCII layout,
 // plus collision queries used by movement, bullets, line of sight and spawning.
 import { TILE, TILE_CHARS, TILE_RULES } from '../content/tiles.js';
+import { layoutProps, propSolid } from './props.js';
 
 /**
  * @typedef {object} ArenaMap
@@ -9,13 +10,16 @@ import { TILE, TILE_CHARS, TILE_RULES } from '../content/tiles.js';
  * @property {number} height - in tiles
  * @property {number} tileSize - in pixels
  * @property {Uint8Array} tiles - row-major tile types
+ * @property {import('./props.js').Prop[]} props - set dressing (empty unless the arena has `props: true`)
+ * @property {Map<number, object[]>} solids - rectangles that block walking, by tile index
+ * @property {{ x: number, y: number } | null} vendor - where the salesman stands ('V' tile)
  * @property {{ x: number, y: number }} spawn - world pixels (center of the 'P' tile)
  */
 
 /**
  * Parses an arena definition ({ id, rows }) into a map.
  * Throws if rows differ in length, contain unknown characters, or have no single 'P'.
- * @param {{ id: string, rows: string[] }} arena
+ * @param {{ id: string, rows: string[], props?: boolean }} arena
  * @param {number} tileSize
  * @returns {ArenaMap}
  */
@@ -24,6 +28,7 @@ export function parseArena(arena, tileSize) {
   const width = arena.rows[0].length;
   const tiles = new Uint8Array(width * height);
   let spawn = null;
+  let vendor = null;
 
   arena.rows.forEach((row, y) => {
     if (row.length !== width) {
@@ -36,6 +41,7 @@ export function parseArena(arena, tileSize) {
         throw new Error(`Arena "${arena.id}": unknown tile '${ch}' at ${x},${y}`);
       }
       tiles[y * width + x] = type;
+      if (ch === 'V') vendor = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
       if (ch === 'P') {
         if (spawn) throw new Error(`Arena "${arena.id}": more than one 'P' spawn tile`);
         spawn = { x: (x + 0.5) * tileSize, y: (y + 0.5) * tileSize };
@@ -44,7 +50,12 @@ export function parseArena(arena, tileSize) {
   });
 
   if (!spawn) throw new Error(`Arena "${arena.id}": no 'P' spawn tile`);
-  return { id: arena.id, width, height, tileSize, tiles, spawn };
+  const map = { id: arena.id, width, height, tileSize, tiles, spawn, vendor, props: [], solids: new Map() };
+  if (arena.props) {
+    map.props = layoutProps(map, (tx, ty) => tileAt(map, tx, ty));
+    map.props.forEach((prop) => addSolid(map, propSolid(prop)));
+  }
+  return map;
 }
 
 /**
@@ -56,6 +67,25 @@ export function parseArena(arena, tileSize) {
 export function tileAt(map, tx, ty) {
   if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return TILE.CLIFF;
   return map.tiles[ty * map.width + tx];
+}
+
+/** Registers a rectangle under every tile it touches. */
+function addSolid(map, box) {
+  const ts = map.tileSize;
+  for (let ty = Math.floor(box.y0 / ts); ty <= Math.floor(box.y1 / ts); ty++) {
+    for (let tx = Math.floor(box.x0 / ts); tx <= Math.floor(box.x1 / ts); tx++) {
+      const i = ty * map.width + tx;
+      if (!map.solids.has(i)) map.solids.set(i, []);
+      map.solids.get(i).push(box);
+    }
+  }
+}
+
+/** True if a walker standing in the middle of this tile would be blocked. */
+export function walkBlocks(map, tx, ty) {
+  if (tileBlocks(map, tx, ty)) return true;
+  if (!map.solids.has(ty * map.width + tx)) return false;
+  return boxBlocked(map, (tx + 0.5) * map.tileSize, (ty + 0.5) * map.tileSize, 5);
 }
 
 /** How something travels -> the tile rule that stops it. */
@@ -84,9 +114,41 @@ export function boxBlocked(map, x, y, r, travel = 'walk') {
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
       if (tileBlocks(map, tx, ty, travel)) return true;
+      // Props only stop walkers: spirits float over them and bosses step over them.
+      if (travel !== 'walk') continue;
+      const boxes = map.solids.get(ty * map.width + tx);
+      if (boxes?.some((b) => x - r < b.x1 && x + r > b.x0 && y - r < b.y1 && y + r > b.y0)) return true;
     }
   }
   return false;
+}
+
+/**
+ * The position itself if you can walk there, otherwise the center of the nearest
+ * walkable tile. Keeps drops (e.g. from a spirit over water) reachable.
+ * @param {ArenaMap} map
+ */
+export function openSpotNear(map, x, y) {
+  const ts = map.tileSize;
+  const tx = Math.floor(x / ts);
+  const ty = Math.floor(y / ts);
+  if (!walkBlocks(map, tx, ty)) return { x, y };
+  let best = { x, y };
+  let bestD = Infinity;
+  for (let r = 1; r <= 8 && bestD === Infinity; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (walkBlocks(map, tx + dx, ty + dy)) continue;
+        const c = { x: (tx + dx + 0.5) * ts, y: (ty + dy + 0.5) * ts };
+        const d = Math.hypot(c.x - x, c.y - y);
+        if (d < bestD) {
+          bestD = d;
+          best = c;
+        }
+      }
+    }
+  }
+  return best;
 }
 
 /**
@@ -129,7 +191,8 @@ export function moveBox(map, x, y, r, dx, dy, travel = 'walk') {
   for (let i = 0; i < steps; i++) {
     if (!hitX && sx !== 0) {
       if (boxBlocked(map, x + sx, y, r, travel)) {
-        x = snapToWall(map, x, sx, r);
+        // Props are not on the tile grid, so there is nothing to snap to: just stop.
+        x = wallAhead(map, x, y, sx, 0, r, travel) ? snapToWall(map, x, sx, r) : x;
         hitX = true;
       } else {
         x += sx;
@@ -137,7 +200,7 @@ export function moveBox(map, x, y, r, dx, dy, travel = 'walk') {
     }
     if (!hitY && sy !== 0) {
       if (boxBlocked(map, x, y + sy, r, travel)) {
-        y = snapToWall(map, y, sy, r);
+        y = wallAhead(map, x, y, 0, sy, r, travel) ? snapToWall(map, y, sy, r) : y;
         hitY = true;
       } else {
         y += sy;
@@ -145,6 +208,17 @@ export function moveBox(map, x, y, r, dx, dy, travel = 'walk') {
     }
   }
   return { x, y, hitX, hitY };
+}
+
+/** True if the box, moved by (dx, dy), would touch a blocking tile (as opposed to a prop). */
+function wallAhead(map, x, y, dx, dy, r, travel) {
+  const ts = map.tileSize;
+  for (const cx of [x + dx - r, x + dx + r - 0.001]) {
+    for (const cy of [y + dy - r, y + dy + r - 0.001]) {
+      if (tileBlocks(map, Math.floor(cx / ts), Math.floor(cy / ts), travel)) return true;
+    }
+  }
+  return false;
 }
 
 /** Puts the box edge exactly against the tile boundary it was moving toward. */

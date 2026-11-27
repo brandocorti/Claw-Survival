@@ -5,6 +5,8 @@ export const DEPTH = Object.freeze({
   FLOOR: -1000,
   SHADOW: -500,
   GROUND_FX: -400,
+  /** Bullets are drawn over everything that stands on the ground, so nothing hides them. */
+  BULLET: 4500,
   FX: 5000,
   HUD: 9000,
   MENU: 9500,

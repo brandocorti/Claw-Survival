@@ -1,7 +1,7 @@
 // Flow field: for every walkable tile, how many steps it is to the nearest player.
 // Walking enemies follow it downhill, so they go around ponds and rocks instead
 // of getting stuck. One breadth-first search per update, ~2000 tiles: very cheap.
-import { tileBlocks } from './map.js';
+import { walkBlocks } from './map.js';
 
 const UNREACHABLE = 0xffff;
 const NEIGHBORS = [
@@ -49,9 +49,9 @@ export class FlowField {
       for (const [dx, dy] of NEIGHBORS) {
         const nx = x + dx;
         const ny = y + dy;
-        if (tileBlocks(map, nx, ny)) continue;
+        if (walkBlocks(map, nx, ny)) continue;
         // No cutting corners diagonally past a wall.
-        if (dx !== 0 && dy !== 0 && (tileBlocks(map, x + dx, y) || tileBlocks(map, x, y + dy))) continue;
+        if (dx !== 0 && dy !== 0 && (walkBlocks(map, x + dx, y) || walkBlocks(map, x, y + dy))) continue;
         const ni = ny * map.width + nx;
         if (dist[ni] <= d) continue;
         dist[ni] = d;
@@ -86,7 +86,7 @@ export class FlowField {
       const nx = tx + dx;
       const ny = ty + dy;
       if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
-      if (dx !== 0 && dy !== 0 && (tileBlocks(map, tx + dx, ty) || tileBlocks(map, tx, ty + dy))) continue;
+      if (dx !== 0 && dy !== 0 && (walkBlocks(map, tx + dx, ty) || walkBlocks(map, tx, ty + dy))) continue;
       const d = dist[ny * map.width + nx];
       if (d < best) {
         best = d;

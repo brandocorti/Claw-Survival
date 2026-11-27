@@ -1,5 +1,7 @@
 // Draws ability effects: coconuts circling players and burning ground.
 import { DEPTH } from '../systems/depth.js';
+import { GFX } from '../gfx/flags.js';
+import { addGlow } from '../gfx/lighting.js';
 import { orbitPositions } from '../../shared/content/abilities/orbitCoconuts.js';
 
 export class AbilityViews {
@@ -49,7 +51,12 @@ export class AbilityViews {
         .setDepth(f.y - 1)
         .setFlipX(flicker)
         .setAlpha(Math.min(1, f.life * 3)); // fades out at the end
+      if (GFX.light) {
+        const glow = (image.glow ??= addGlow(this.scene, 0xff8a2a, 1.3, 0.5));
+        glow.setVisible(true).setPosition(Math.round(f.x), Math.round(f.y) - 3).setDepth(f.y - 2)
+          .setAlpha(Math.min(1, f.life * 3) * (flicker ? 0.5 : 0.4));
+      }
     });
-    for (let i = world.fires.length; i < this.fires.length; i++) this.fires[i].setVisible(false);
+    for (let i = world.fires.length; i < this.fires.length; i++) { this.fires[i].setVisible(false); this.fires[i].glow?.setVisible(false); }
   }
 }

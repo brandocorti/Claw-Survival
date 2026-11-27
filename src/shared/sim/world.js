@@ -14,6 +14,8 @@ import { updateGems } from './systems/xp.js';
 import { createMatchState, updateSpawner } from './systems/spawner.js';
 import { refreshStats, updateAbilities } from './systems/abilities.js';
 import { updateCards } from './systems/cards.js';
+import { updateShop } from './systems/shop.js';
+import { updatePickups } from './systems/pickups.js';
 import { createEmptyInput } from '../protocol.js';
 import { ENEMY_TYPES } from '../content/enemies/index.js';
 import { ABILITY_TYPES } from '../content/abilities/index.js';
@@ -30,16 +32,12 @@ const NO_INPUT = Object.freeze(createEmptyInput());
  * @param {boolean} [options.cards] - false = level-ups never open the card choice (tests)
  * @param {object} [options.enemyTypes] - behaviour registry (tests can inject their own)
  * @param {object} [options.abilityTypes] - ability registry
- * @param {boolean} [options.cardPause] - true (solo) = the world freezes while a card choice is open.
- *   Online it is false, because every arena runs on the same clock.
- * @param {number|null} [options.cardTimeout] - seconds; after this a random card is picked (online). null = wait forever
- * @param {{ elapsed: number } | null} [options.clock] - shared match clock (online). null = this world keeps its own
  * @param {'boss'|'external'} [options.finale] - what happens when the waves end: the final boss duel (solo),
  *   or stop and let the online match decide (it starts the PvP)
  */
 export function createWorld({
   config, arena, seed = 1, spawning = true, cards = true, enemyTypes = ENEMY_TYPES, abilityTypes = ABILITY_TYPES,
-  cardPause = true, cardTimeout = null, clock = null, finale = 'boss',
+  finale = 'boss',
 }) {
   const map = parseArena(arena, config.display.tileSize);
   return {
@@ -50,11 +48,8 @@ export function createWorld({
     abilityTypes,
     spawning,
     cards,
-    cardPause,
-    cardTimeout,
-    clock,
     finale,
-    /** True while a player in this arena is choosing a card: nothing moves. */
+    /** True while a player in this arena is choosing a card or shopping: nothing moves. */
     paused: false,
     tick: 0,
     time: 0,
@@ -68,6 +63,10 @@ export function createWorld({
     bullets: [],
     /** @type {import('./entities/gem.js').Gem[]} */
     gems: [],
+    /** @type {import('./entities/pickup.js').Pickup[]} coins and hearts */
+    pickups: [],
+    /** Status rows of players in other arenas, filled by the server (milestone 5). */
+    remotePlayers: [],
     /** Burning ground patches (fire-trail roll). */
     fires: [],
     pendingExplosions: [],
@@ -97,16 +96,18 @@ export function addPlayer(world, id, x = world.map.spawn.x, y = world.map.spawn.
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
  */
 export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
-  for (const list of [world.players, world.enemies, world.bullets, world.gems]) {
+  for (const list of [world.players, world.enemies, world.bullets, world.gems, world.pickups]) {
     for (const o of list) {
       o.prevX = o.x;
       o.prevY = o.y;
     }
   }
 
-  // Level-up cards. In solo, freezing this world pauses the game for that player.
-  // Online (cardPause false) it never pauses: the choice times out instead.
+  // Level-up cards and the salesman. Every player has their own arena with its own clock
+  // (online too), so freezing this world pauses the game for that player only.
+  updateShop(world, inputs);
   updateCards(world, inputs);
+  world.paused = world.players.some((p) => p.cardChoice || p.shopOpen);
   if (world.paused) return;
 
   world.tick++;
@@ -119,6 +120,7 @@ export function stepWorld(world, inputs, dt = 1 / world.config.sim.tickRate) {
   updateBullets(world, dt);
   processExplosions(world);
   updateGems(world, dt);
+  updatePickups(world, dt);
   removeDeadEnemies(world);
 }
 

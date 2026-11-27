@@ -32,7 +32,7 @@ const STYLE = `
 
 /**
  * @typedef {object} LobbyHandlers
- * @property {(name: string) => void} onSolo
+ * @property {(name: string) => void} onBack - back to the start menu (solo is played from there)
  * @property {(name: string) => void} onCreate
  * @property {(name: string, code: string) => void} onJoin
  * @property {() => void} onStart
@@ -66,16 +66,16 @@ export class LobbyOverlay {
     this.root.innerHTML = `
       <div class="panel">
         <h1>${escapeHtml(document.title)}</h1>
-        <h2>Online: 2 to 6 players, each on their own island, all on one clock.</h2>
+        <h2>Online: 2 to 6 players, each on their own island. Cards and the salesman only stop your own.</h2>
         <label for="lobby-name">Your name</label>
         <input id="lobby-name" maxlength="${maxNameLength}" autocomplete="off" spellcheck="false">
-        <div class="row"><button class="main" data-act="solo">Play solo</button></div>
-        <div class="row"><button data-act="create">Create room</button></div>
+        <div class="row"><button class="main" data-act="create">Create room</button></div>
         <label for="lobby-code">Room code</label>
         <div class="row">
           <input id="lobby-code" maxlength="${roomCodeLength}" autocomplete="off" spellcheck="false" placeholder="ABCD">
           <button data-act="join">Join room</button>
         </div>
+        <div class="row"><button data-act="back">Back to menu</button></div>
         <div class="error" role="alert"></div>
       </div>`;
     const nameInput = this.root.querySelector('#lobby-name');
@@ -86,7 +86,7 @@ export class LobbyOverlay {
     (code ? codeInput : nameInput).focus();
 
     const name$ = () => nameInput.value.trim();
-    this.root.querySelector('[data-act=solo]').onclick = () => this.handlers.onSolo(name$());
+    this.root.querySelector('[data-act=back]').onclick = () => this.handlers.onBack(name$());
     this.root.querySelector('[data-act=create]').onclick = () => this.busy() && this.handlers.onCreate(name$());
     const join = () => this.busy() && this.handlers.onJoin(name$(), codeInput.value.trim());
     this.root.querySelector('[data-act=join]').onclick = join;

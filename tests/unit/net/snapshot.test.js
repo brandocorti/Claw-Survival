@@ -3,13 +3,14 @@ import { describe, it, expect } from 'vitest';
 import { encodeSnapshot, decodeSnapshot } from '../../../src/shared/net/snapshot.js';
 import { createWorld, addPlayer, stepWorld, drainEvents } from '../../../src/shared/sim/world.js';
 import { grantXp } from '../../../src/shared/sim/systems/xp.js';
+import { createPickup } from '../../../src/shared/sim/entities/pickup.js';
 import { BIG_ROOM, TEST_CONFIG, TEST_ENEMY_TYPES, TICK, placeEnemy, placeSturdyEnemy } from '../helpers/fixtures.js';
 
 /** A busy online world: enemies, bullets, gems, an open card choice. */
 function busyWorld() {
+  // No card choices while it fills up (a choice freezes the world); one is opened at the end.
   const world = createWorld({
-    config: TEST_CONFIG, arena: BIG_ROOM, seed: 4, spawning: true, enemyTypes: TEST_ENEMY_TYPES,
-    cardPause: false, cardTimeout: 100,
+    config: TEST_CONFIG, arena: BIG_ROOM, seed: 4, spawning: true, enemyTypes: TEST_ENEMY_TYPES, cards: false,
   });
   const player = addPlayer(world, 'p1');
   player.pveImmune = true;
@@ -19,6 +20,7 @@ function busyWorld() {
   for (let i = 0; i < 4; i++) placeSturdyEnemy(world, 'dummy', player.x - 40 - i * 14, player.y - 30);
   placeEnemy(world, 'crabKing', player.x - 150, player.y - 80).hp -= 7;
   for (let i = 0; i < 20; i++) stepWorld(world, {}, TICK);
+  world.cards = true;
   grantXp(world, player, 40);
   stepWorld(world, {}, TICK);
   return world;
@@ -64,6 +66,27 @@ describe('arena snapshots', () => {
     expect(s.bullets.map((b) => [b.id, b.team])).toEqual(world.bullets.map((b) => [b.id, b.team]));
     expect(s.gems.map((g) => [g.id, g.value])).toEqual(world.gems.map((g) => [g.id, g.value]));
     expect(s.events).toEqual(overTheWire(events));
+  });
+
+  it('carry the salesman state and the coins and hearts on the ground', () => {
+    const world = busyWorld();
+    const [p] = world.players;
+    Object.assign(p, { coins: 37, shopOpen: true, rollsBought: 2, rollRound: 3, rollsThisRound: 1, lastRoll: { abilityId: 'x', level: 2 } });
+    world.pickups.push(createPickup(world.nextId++, 'coin', 1, p.x + 30, p.y, 0, 0));
+    const heart = createPickup(world.nextId++, 'heart', 2, p.x - 30.04, p.y + 12.36, 0, 0);
+    heart.targetId = p.id;
+    world.pickups.push(heart);
+
+    const s = decodeSnapshot(overTheWire(encodeSnapshot(world, [])), TEST_CONFIG);
+
+    expect(s.players[0]).toMatchObject({
+      coins: 37, shopOpen: true, rollsBought: 2, rollRound: 3, rollsThisRound: 1, lastRoll: { abilityId: 'x', level: 2 },
+    });
+    expect(s.pickups.map((u) => [u.id, u.kind, Boolean(u.targetId)])).toEqual(
+      world.pickups.map((u) => [u.id, u.kind, Boolean(u.targetId)]),
+    );
+    expect(Math.abs(s.pickups[1].x - heart.x)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(s.pickups[1].y - heart.y)).toBeLessThanOrEqual(0.05);
   });
 
   it('keep recent hit times exact enough for the hit flash', () => {

@@ -1,15 +1,15 @@
-// An online match: one world (arena) per player, all on one clock owned by the match.
+// An online match: one world (arena) per player, each on its own clock.
 // Pure JavaScript like the rest of the simulation: the Colyseus room only feeds it
 // inputs and sends its state, so every rule here is unit tested without a network.
 //
 //   phase 'lobby' -> 'waves' -> 'wavesOver' -> (step 5: 'pvpCountdown' -> 'pvp') -> 'over'
 //
+// Each island runs like a solo run: it freezes while its player picks a card or shops,
+// without affecting anyone else, so players can be in different rounds at the same time.
 // Rules owned by the match (not by a single world):
-//   - the shared clock: every world reads match.clock, so all arenas are in the same round
+//   - the waves end for the match once every player has finished theirs (or is out)
 //   - last alive: with 2+ players, the match ends as soon as at most one is alive
 import { createWorld, addPlayer, stepWorld, allPlayersDead } from './world.js';
-import { roundLength } from './systems/spawner.js';
-import { EPSILON } from './math.js';
 
 /**
  * @typedef {object} MatchPlayer
@@ -32,8 +32,6 @@ export function createMatch({ config, arena, seed = 1, worldOptions = {} }) {
     seed,
     worldOptions,
     phase: 'lobby',
-    /** The one clock: seconds since the match started. Worlds read it, only stepMatch() moves it. */
-    clock: { elapsed: 0 },
     tick: 0,
     /** @type {MatchPlayer[]} in join order */
     players: [],
@@ -82,15 +80,13 @@ export function forfeit(match, entry) {
 }
 
 /**
- * Starts the match: one world per player, all reading the same clock, all on tick 0.
- * Online worlds never pause for cards (the clock is shared) and end the waves
- * without the final boss.
+ * Starts the match: one world per player, each with its own clock, all on tick 0.
+ * Online worlds end the waves without the final boss.
  * @returns {boolean} false if it could not start (not in the lobby, or no players)
  */
 export function startMatch(match) {
   if (match.phase !== 'lobby' || match.players.length === 0) return false;
   const { config } = match;
-  match.clock.elapsed = 0;
   match.tick = 0;
   match.winnerId = null;
   match.players.forEach((entry, i) => {
@@ -99,9 +95,6 @@ export function startMatch(match) {
       arena: match.arena,
       seed: match.seed + i,
       ...match.worldOptions,
-      cardPause: false,
-      cardTimeout: config.net.cardTimeoutSeconds,
-      clock: match.clock,
       finale: 'external',
     });
     addPlayer(entry.world, entry.id);
@@ -112,8 +105,8 @@ export function startMatch(match) {
 }
 
 /**
- * Advances the whole match by one tick: the clock once, then every arena whose
- * player is still alive.
+ * Advances the whole match by one tick: every arena whose player is still alive.
+ * A paused arena (card choice or shop open) stays frozen and its clock does not move.
  * @param {object} match
  * @param {Record<string, import('../protocol.js').PlayerInput>} inputs - by player id
  * @param {number} [dt] - seconds, defaults to 1 / config.sim.tickRate
@@ -121,13 +114,13 @@ export function startMatch(match) {
 export function stepMatch(match, inputs, dt = 1 / match.config.sim.tickRate) {
   if (match.phase !== 'waves') return;
   match.tick++;
-  match.clock.elapsed += dt;
   for (const entry of match.players) {
     if (allPlayersDead(entry.world)) continue; // a dead player's arena stops
     stepWorld(entry.world, { [entry.id]: inputs[entry.id] }, dt);
   }
   // milestone 7: the Gulag catches deaths here, before they count toward "last alive".
   if (checkLastAlive(match)) return;
+  // Players who finish their waves first wait (the client shows "waiting") until everyone has.
   if (match.players.every((e) => allPlayersDead(e.world) || e.world.match.phase === 'wavesOver')) {
     // Step 5 starts the shared PvP arena from here.
     match.phase = 'wavesOver';
@@ -161,7 +154,6 @@ function endMatch(match, winnerId) {
  */
 export function resetMatch(match) {
   match.phase = 'lobby';
-  match.clock.elapsed = 0;
   match.tick = 0;
   match.winnerId = null;
   for (const entry of match.players) entry.world = null;
@@ -173,27 +165,29 @@ export function getMatchPlayer(match, id) {
   return entry?.world?.players.find((p) => p.id === id);
 }
 
-/** The round every arena is in, from the shared clock (1-based). */
-export function matchRound(match) {
-  const { config } = match;
-  const elapsed = Math.min(match.clock.elapsed, config.match.durationSeconds - EPSILON);
-  return Math.min(config.rounds.count, Math.floor(elapsed / roundLength(config)) + 1);
-}
-
 /**
- * The small summary every client gets about every player.
- * @returns {{ phase: string, clock: number, round: number, winnerId: string|null,
- *   players: { id: string, level: number, alive: boolean }[] }}
+ * The small summary every client gets about every player. Each player is in their own
+ * round (their island has its own clock); the salesman shows these rows.
+ * @returns {{ phase: string, winnerId: string|null, players: { id: string, level: number, alive: boolean,
+ *   round: number, health: number, maxHealth: number, kills: number, wavesDone: boolean }[] }}
  */
 export function matchSummary(match) {
   return {
     phase: match.phase,
-    clock: match.clock.elapsed,
-    round: matchRound(match),
     winnerId: match.winnerId,
     players: match.players.map((e) => {
       const p = getMatchPlayer(match, e.id);
-      return { id: e.id, level: p?.level ?? 1, alive: p ? p.alive : true };
+      const m = e.world?.match;
+      return {
+        id: e.id,
+        level: p?.level ?? 1,
+        alive: p ? p.alive : true,
+        round: m?.round ?? 1,
+        health: p?.health ?? match.config.player.maxHealth,
+        maxHealth: p?.maxHealth ?? match.config.player.maxHealth,
+        kills: p?.kills ?? 0,
+        wavesDone: m?.phase === 'wavesOver',
+      };
     }),
   };
 }

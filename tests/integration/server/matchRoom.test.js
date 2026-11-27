@@ -75,13 +75,17 @@ describe('online room', () => {
 
     host.send('start');
     await waitFor(guest, (s) => s.phase === 'waves');
-    const clock = guest.state.clock;
-    await waitFor(guest, (s) => s.clock > clock + 0.5);
-    // One arena per player on the server, sharing one clock.
+    // One arena per player on the server, each with its own clock, and both running.
     const match = serverRoom(host.roomId).match;
+    const [a, b] = match.players.map((e) => e.world);
+    const start = Date.now();
+    while (a.time < 0.5 || b.time < 0.5) {
+      if (Date.now() - start > 3000) throw new Error('the arenas did not run');
+      await new Promise((r) => setTimeout(r, 20));
+    }
     expect(match.players.map((e) => e.id).sort()).toEqual([host.sessionId, guest.sessionId].sort());
-    expect(match.players[0].world).not.toBe(match.players[1].world);
-    expect(match.players[0].world.clock).toBe(match.players[1].world.clock);
+    expect(a).not.toBe(b);
+    expect(a.match).not.toBe(b.match);
   });
 
   it('cannot start alone, but can with bots from the create options', async () => {
@@ -135,14 +139,44 @@ describe('online room', () => {
     host.send('pickCard', { index: -1 });
     host.send('pickCard', 'zero');
     host.send('input', { seq: 1, moveX: 50, moveY: 0, roll: false });
-    const t0 = match.clock.elapsed;
+    const myWorld = match.players.find((e) => e.id === host.sessionId).world;
+    const t0 = myWorld.time;
     await new Promise((r) => setTimeout(r, 500));
-    const seconds = match.clock.elapsed - t0;
+    const seconds = myWorld.time - t0;
     const maxSpeed = me.stats.moveSpeed; // the clamp keeps it at normal speed
     expect(me.x - startX).toBeGreaterThan(0);
     expect(me.x - startX).toBeLessThanOrEqual(maxSpeed * (seconds + 0.05));
     expect(me.abilities).toEqual({});
     expect(host.state.phase).toBe('waves'); // still connected, the room is still running
+  });
+
+  it('E at the salesman opens the shop on the server and freezes only that island', async () => {
+    const host = await connect((c) => c.create(ROOM_NAME, { name: 'Maria', bots: 1 }));
+    await waitFor(host, (s) => s.players.size === 2);
+    host.send('start');
+    await waitFor(host, (s) => s.phase === 'waves');
+    const match = serverRoom(host.roomId).match;
+    const [mine, theirs] = [host.sessionId, `bot-1`].map((id) => match.players.find((e) => e.id === id).world);
+    const me = getMatchPlayer(match, host.sessionId);
+    me.x = mine.map.vendor.x - 16;
+    me.y = mine.map.vendor.y;
+
+    host.send('input', { seq: 1, moveX: 0, moveY: 0, roll: false, interact: true });
+    const start = Date.now();
+    while (!me.shopOpen) {
+      if (Date.now() - start > 2000) throw new Error('the shop did not open');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const [t1, t2] = [mine.time, theirs.time];
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(mine.paused).toBe(true);
+    expect(mine.time).toBe(t1);
+    expect(theirs.time).toBeGreaterThan(t2);
+    host.send('input', { seq: 2, moveX: 0, moveY: 0, roll: false, shop: 'close' });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(me.shopOpen).toBe(false);
+    expect(mine.time).toBeGreaterThan(t1);
   });
 
   it('a message type our client never sends disconnects the sender; the others play on', async () => {

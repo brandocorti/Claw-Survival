@@ -1,13 +1,20 @@
 // Room state synced to every client by Colyseus (patched config.net.summaryRate
-// times per second). It is only the small summary: lobby, clock and who is alive.
+// times per second). It is only the small summary: lobby and how every player is doing.
 // The arenas themselves are sent as separate snapshot messages, one arena per client.
 import { schema, t } from '@colyseus/schema';
 
-/** One player as everyone else sees them (HUD list, lobby list). */
+/** One player as everyone else sees them (HUD list, lobby list, the salesman's table). */
 export const PlayerSummary = schema({
   name: t.string(),
   level: t.number(),
   alive: t.boolean(),
+  /** The round this player is in: every island has its own clock. */
+  round: t.number(),
+  health: t.number(),
+  maxHealth: t.number(),
+  kills: t.number(),
+  /** True once this player has finished their waves and waits for the others. */
+  wavesDone: t.boolean(),
   connected: t.boolean(),
   isBot: t.boolean(),
 }, 'PlayerSummary');
@@ -20,11 +27,8 @@ export const MatchState = schema({
   code: t.string(),
   /** sessionId of the host (the only one who can start or add bots). */
   hostId: t.string(),
-  /** Seconds since the match started (shared by every arena). */
-  clock: t.number(),
   /** Length of the waves in seconds. The server decides it (dev option ?fast), clients follow. */
   duration: t.number(),
-  round: t.number(),
   /** Empty while nobody has won; also empty if everyone died on the same tick. */
   winnerId: t.string(),
   /** By player id: sessionId, or "bot-N". */

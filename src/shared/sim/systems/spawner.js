@@ -5,8 +5,8 @@
 // When the time is up the enemies vanish and the final boss duel starts:
 //   phase 'waves' -> 'bossIntro' -> 'boss' -> 'won'
 // Online (world.finale 'external') the waves end in 'wavesOver' instead and the
-// match moves the survivors to the PvP arena. Online the clock is also shared:
-// world.clock is advanced by the match, so every arena is in the same round.
+// match moves the survivors to the PvP arena. Every arena keeps its own clock (it stops
+// while that player picks a card or shops), so online players can be in different rounds.
 import { createEnemy, travelOf } from '../entities/enemy.js';
 import { boxBlocked } from '../map.js';
 import { clamp, EPSILON } from '../math.js';
@@ -60,8 +60,7 @@ export function updateSpawner(world, dt) {
     world.events.push({ type: 'roundStarted', round: m.round });
   }
 
-  if (world.clock) m.elapsed = world.clock.elapsed;
-  else m.elapsed += dt;
+  m.elapsed += dt;
   m.roundElapsed += dt;
   if (m.elapsed >= config.match.durationSeconds - EPSILON) {
     if (world.finale === 'external') endWaves(world);
@@ -76,8 +75,6 @@ export function updateSpawner(world, dt) {
     m.bossSpawned = false;
     world.events.push({ type: 'roundStarted', round });
   }
-  // The shared clock is the truth: derive the time into the round from it.
-  if (world.clock) m.roundElapsed = m.elapsed - (m.round - 1) * len;
 
   if (m.roundElapsed < config.rounds.breakSeconds) return;
 

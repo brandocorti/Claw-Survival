@@ -232,6 +232,102 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   technology, which left the model free to choose. Prompt 3 checked that the choice met the real
   need: a different network, not only a different Wi-Fi.
 
+### [Art] Milestone 4, first attempt (stopped) — 2026-11-25 — Esteban
+- **Goal:** the island art pass of the original spec.
+- **Tool/model:** Claude Code, Claude Opus 5.5, all art drawn in code.
+- **Prompt (exact):** "ok perfect push it and we can continue with phase 4", then, while the AI was
+  working: "stop, ill have a propper prompt with the art section and then ill pass it to you".
+- **Result:** a new island layout, a painted ground (rendered to an image, never seen in the game), and
+  untested code for props, lighting and particles. Set aside in a local git stash, not in the repository.
+- **Problem found:** the go-ahead gave no art direction beyond the spec, so the AI chose the style itself.
+- **Change made and why:** stopped by the author, who will write a dedicated art prompt.
+
+### [Gameplay] Salesman, money, hearts, menu and music — 2026-11-25 — Esteban
+- **Goal:** something to do between fights, a reason to collect drops, and a proper start to the game.
+- **Tool/model:** Claude Code, Claude Opus 5.5. Music: Suno and Google generative AI (see
+  `assets/audio/README.md`).
+- **Prompt (exact, with three songs attached):** "add a character that is a salesman and he can inform of
+  the status of the other players. mark it in the map somehow  you must interact with him with E to also
+  buy only one random buff roll. Add the posibility of enemies droping money randomly to trade later. Make
+  it balanced. Also that they can drop randomly hearts with a "low" rate. Add also a menu to start the run
+  with settings and things like that. Ill give to you the music of each phase."
+- **Result:** all of it ([changelog](changelog.md)).
+- **Problem found:** two ambiguities. "Only one random buff roll" was read as one per round, and the songs
+  were assigned to phases by their titles, since the AI cannot listen to them. "Make it balanced" had no
+  number: the AI's first guess for the drop rates nearly quintupled the bots' wins.
+- **Change made and why:** each effect was measured separately (hearts alone, shop alone), which showed
+  that hearts made the game easier far more than the shop, and the rates were set from that.
+- **Follow-up prompt (exact, in Spanish):** "hay 3 musicas diferentes, una para menú, pausa y salesman
+  (island pixel waves), para el juego normal (under the canopy), y por ultimo para el boss (claws of the
+  mangrove)" (there are 3 songs: one for menu, pause and salesman, one for the normal game, one for the
+  boss). The AI's guess from the titles was wrong for rounds 1-2, pause and salesman, and was replaced.
+
+### [Art] Graphics upgrade, M0 — 2026-11-25 — Esteban
+- **Goal:** apply the dedicated graphics prompt, one milestone at a time.
+- **Tool/model:** Claude Code, Claude Opus 5.5. The prompt itself was written with another AI session; its three
+  log entries are in `improved_graphics/prompt-log-entries.md` and still need the name of their author.
+- **Prompt (exact, with `improved_graphics.zip`):** "subelo a github and then graphics, make sure to use the
+  prompt in  GRAPHICS_UPGRADE_PROMPT.md", and later "completa el m0 y para ahi, continuare mañana" (finish M0
+  and stop there, I will continue tomorrow).
+- **Result:** M0 done ([changelog](changelog.md)).
+- **Problem found:** the AI had run ahead and drafted M1 to M3 before showing M0.
+- **Change made and why:** the draft was set aside in a git stash, unverified, and the project left at M0.
+
+### [Art] Graphics upgrade, M1 to M4 — 2026-11-25 — Esteban
+- **Goal:** the rest of the graphics prompt.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompt (exact):** "continue now till the end of mx", read as "through the last milestone".
+- **Result:** 15 upgrades ported from the reference code ([changelog](changelog.md)).
+- **Problem found:** the reference was made for an older version. The bigger boss could not be hit at its edge,
+  the victory screen hid the death sequence, the wreck stood on the salesman, bullets hid behind palm leaves,
+  and the first captures were not repeatable: the game ran before the harness started, and tweens read the
+  real clock.
+- **Change made and why:** each was fixed while porting, and the new collision, art and flags got tests. Shipping
+  working reference code with target images made the result match far better than the earlier free attempt.
+
+### [Merge] Merge main into the online branch: one clock per island — 2026-11-27 — alvarofeher
+- **Goal:** bring `main`'s gameplay (salesman, money, hearts, menu, music, graphics) into the online
+  branch without changing it, and add online play on top.
+- **Tool/model:** Claude Code (Claude Opus 5.5) in VS Code.
+- **Prompt (a conversation, in order):**
+  1. "how hard would it be to merge the online branch with the main branch?" then "dont do anything
+     yet, just evaluate". The model dry-ran the merge (`git merge-tree`, nothing touched): 7 files in
+     conflict, and a bigger problem than the conflicts. `main`'s salesman pauses the game, but the
+     online branch shares one clock between all islands and therefore never pauses.
+  2. "should i first merge main into tryinOnline branch? and then you fix whatever but just keping the
+     online side from my branch and leave main as it is gameplay wise, just adding online feature".
+     The model agreed and proposed: main wins on gameplay, the online branch wins on networking.
+     It suggested that online the shop could not pause and should time out like the cards.
+  3. **The correction:** "why cant it be frozen online if players dont play in the same island? each
+     player plays its own solo run until they reach the final. if any debuff is sent just make it show
+     when the player closes the salesman of finishes choosing an ability".
+  4. "each island uses its own clock, each player will do different amount of rounds depending on its
+     skill, its part of the game". The model pointed out that on `main` rounds are fixed by time (5 x 60 s),
+     so skill would not change the number of rounds, and offered three rule sets (A: clear a wave to
+     advance, B: fixed time with endless rounds, C: keep main's timed rounds).
+  5. "with C can we make the choosing of cards and salesman stop the game while that player chooses and
+     not affect others?" then "then lets do it this way i just merged main into tryingOnline."
+- **Result:** the merge was resolved with one clock per island (see the [changelog](changelog.md)).
+  Cards and the salesman freeze only the player's own island, the auto-pick is gone, and the salesman,
+  coins and hearts work online. The model also added an end-to-end server test (E at the salesman over
+  real WebSockets) and played a two-player match in two headless Chrome tabs. Screenshots are in
+  `production/qa/evidence/`.
+- **Problem found:**
+  - The model's first plan treated the shared clock as a constraint of online play. It was only a design
+    choice of the earlier online prompt ([v2: own islands, shared clock](#multiplayer-v2-own-islands-shared-clock-curses-and-a-final-fight--2026-11-25--alvarofeher)).
+    The person, who knows the game design, saw that separate islands do not need a shared clock.
+  - Prompt 4 mixed two ideas: per-island clocks, and "different amount of rounds depending on skill".
+    The second does not follow from the first under `main`'s rules. The model checked the round rules in
+    the code instead of assuming, and asked before changing gameplay.
+  - The model's first headless test showed the shop "open" while the island's clock still moved. The game
+    was right; the test script was wrong: it kept pressing E until the client saw the shop, and on the
+    server a second E closes the shop. The script was changed to press once.
+- **Change made and why:** prompt 3 changed the design (the shop timeout was replaced by per-island
+  freezing), and prompt 5 fixed the round rules (C: timed rounds, as on `main`). Asking "evaluate first"
+  (prompt 1) gave a cost estimate and exposed the design clash before any file was touched.
+- **Open:** an optional cap on total pause time per player, so nobody can keep the others waiting forever;
+  debuffs that wait until the player closes the shop or picks a card (prompt 3) are not built yet.
+
 ## Model limitations met so far (and how we handled them)
 
 - **A wrong diagnosis, and a test that could not fail.** All players were dropped about 3 s after a match
@@ -256,6 +352,10 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **A test that passes is not proof.** The first shared-clock test passed even when the arenas ignored
   the shared clock, because they all stepped together anyway. The model broke each new rule on purpose
   to see the tests fail. That showed the gap, and a test that moves the clock directly now catches it.
+- **A design choice taken for a constraint.** Merging the branches, the model assumed online islands must
+  share one clock and proposed a shop timeout. The person pointed out that separate islands need no shared
+  clock, which made online play simpler (no timeouts) and identical to solo. Lesson: when the model says
+  "this cannot work online", ask why, and check whether the reason is a rule of the game or an earlier prompt.
 - **A command that would have destroyed work.** To undo those deliberate breaks, the model ran
   `git checkout -- <file>`, which would also have thrown away its own uncommitted changes to those files.
   Claude Code's safety check blocked it. The model switched to restoring from copies in a scratch folder.

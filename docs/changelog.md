@@ -6,7 +6,36 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
-### 2026-11-25 — Play with friends over the internet (`npm run online`) — alvarofeher — commit (pending)
+### 2026-11-27 — Online meets main: salesman, menu and graphics online; one clock per island — alvarofeher — commit (pending)
+- **Type:** feature (merge of `main` into `tryingOnline`)
+- **What changed:**
+  - Online play now has everything from `main`: the salesman, coins and hearts, the start menu,
+    settings, music, the pause menu and the graphics upgrade. Solo plays exactly as on `main`.
+  - **Each island has its own clock.** Picking a level-up card or talking to the salesman freezes
+    only your own island, as in solo; the other players keep playing. The 10-second card auto-pick is gone.
+  - Players can now be in different rounds. Whoever finishes the waves first sees "waiting for the
+    other players"; the match moves on once everyone has finished or is out.
+  - The salesman's "How is everyone?" table and the HUD list show each player's own round.
+  - Flow: the start menu has **Play online**, which opens the lobby; the lobby's "Play solo" became
+    "Back to menu". `?online` opens the lobby straight away (`?online&fast` for a 100 s online match);
+    a `?room=CODE` link still does.
+  - Online the pause menu says the game does not stop, has no restart, and "Leave the match" leaves the room.
+- **Modules/files touched:** `src/shared/sim/` (`world.js`, `match.js`, `systems/spawner.js`,
+  `systems/cards.js`), `src/shared/net/` (`snapshot.js`, `messages.js`), `src/server/rooms/`
+  (`MatchRoom.js`, `schema.js`), `src/client/network/ColyseusTransport.js`, `src/client/scenes/`
+  (`GameScene.js`, `BootScene.js`, `MenuScene.js`, `LobbyScene.js`, `main.js`), `src/client/ui/`
+  (`Hud.js`, `CardScreen.js`, `PauseMenu.js`, `LobbyOverlay.js`), `src/client/devOptions.js`,
+  `src/shared/config.js` (removed `net.cardTimeoutSeconds`), tests in `tests/unit/` and
+  `tests/integration/server/` (`cardTimeout.test.js` replaced by per-island tests in `match.test.js`).
+- **Why:** the two branches had grown apart (7 files in conflict). The online branch shared one clock
+  between all islands, so it could never pause, which clashed with `main`'s salesman, which pauses the
+  game. Since every player is on their own island, nothing needs a shared clock.
+- **Evidence:** 255 tests pass (`npm run smoke`); a two-browser online match was played headless and
+  captured in `production/qa/evidence/2026-11-27-13-4*_m5-merge-*.png` (shop and card choice frozen
+  on one island while the other ran on; host in round 1 while the guest was in round 2).
+- **Prompt log:** [Merge main into the online branch](prompt-log.md#merge-main-into-the-online-branch-one-clock-per-island--2026-11-27--alvarofeher).
+
+### 2026-11-25 — Play with friends over the internet (`npm run online`) — alvarofeher — commit 2c43ab1
 - **Type:** feature
 - **What changed:** `npm run online` starts the game server, the client and a free Cloudflare quick
   tunnel, then prints a public `https://….trycloudflare.com` link. Anyone on any network opens it and
@@ -20,7 +49,7 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
   devices from talking to each other.
 - **Prompt log:** [Play across the internet with a Cloudflare tunnel](prompt-log.md).
 
-### 2026-11-25 — Play online in the browser: menu, lobby, room codes, own island each — alvarofeher — commit (pending)
+### 2026-11-25 — Play online in the browser: menu, lobby, room codes, own island each — alvarofeher — commit 2c43ab1
 - **Type:** feature
 - **What changed:**
   - The game now opens on a menu: play solo, create a room, or join one with a 4-character code
@@ -51,7 +80,7 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
   the bugs before the fixes).
 - **Prompt log:** [v2 run: step 3](prompt-log.md#multiplayer-v2-run-step-3-browser-client--2026-11-25--alvarofeher).
 
-### 2026-11-25 — Online server: own arenas on one shared clock, plus test bots — alvarofeher — commit (pending)
+### 2026-11-25 — Online server: own arenas on one shared clock, plus test bots — alvarofeher — commit 2c43ab1
 - **Type:** feature
 - **What changed:** a game server (`npm run server`, port 2567). A host creates a room with a 4-character
   code, others join with it, and the host starts with 2 to 6 players (bots count). Every player gets
@@ -69,6 +98,71 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
   caught each one. Server cost: 6 arenas with 462 enemies take 0.60 ms per tick on average, 1.50 ms at the
   99th percentile; the budget is 16.67 ms (`npm run bench:server 6 5 stress`).
 - **Prompt log:** [v2 run: plan and server](prompt-log.md#multiplayer-v2-run-plan-step-1-and-server-step-2--2026-11-25--alvarofeher).
+
+### 2026-11-25 — Graphics upgrade M3: the hero — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** redrawn hero (18×23, teal vest) with 4-frame walks, idle, blink, hurt face, tuck roll and
+  slingshot pull; white flash on a hit and a light flicker while invulnerable. Four example skins. The salesman
+  matches the new size.
+- **Modules/files touched:** `src/shared/art/hero.js`, `src/client/gfx/hero.js`, `src/client/entities/PlayerView.js`, `src/client/art/sprites.js`.
+- **Why:** H1 to H5 of the graphics prompt.
+- **Evidence:** `production/qa/evidence/*_gfx-m3-hero-sheet.png`.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M2: the Crab Emperor — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** the final boss is an animated rig whose eyes follow you, with a warning on the ground for
+  each attack (cone, lane, circle and curved arms for the spiral), an entrance card, cracks below half health,
+  a death sequence that leaves its crown, and a framed health bar. Its radius grew from 15 to 22 to match the
+  art, and the victory screen waits for the death sequence. No aim brackets on bosses.
+- **Modules/files touched:** `src/shared/art/emperor.js`, `src/client/gfx/boss.js`, `src/client/ui/Hud.js`,
+  `src/client/entities/EnemyViews.js`, `src/shared/config.js`, `src/shared/sim/systems/`.
+- **Why:** V1 to V5 of the graphics prompt.
+- **Evidence:** `production/qa/evidence/*_gfx-m2-*.png`. Bots starting at round 5: 25 of 34 beat it with either radius.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M1: environment — Esteban — commit 80e5856
+- **Type:** feature, assets
+- **What changed:** painted ground with rounded, animated shores and tall cliffs; palms, shipwreck, crates and
+  barrels; warm light, vignette, glows and cloud shadows; squash, debris that stays, scorch marks, footprints and
+  hit-stop; framed HUD with level pips and a ring under the player. The wreck, crates, barrels and palm trunks
+  block walking (not shots, spirits or bosses). The salesman moved next to the wreck. Bullets are drawn above props.
+- **Modules/files touched:** `src/client/gfx/`, `src/shared/sim/props.js`, `src/shared/sim/map.js`,
+  `src/shared/sim/flowField.js`, views, HUD.
+- **Why:** E1 to E5 of the graphics prompt.
+- **Evidence:** 195 unit tests pass. 60 FPS with 154 enemies and 782 enemy bullets (one player, weapon damage 0
+  and invulnerable so nothing died). Bots, 60 full matches: 24 wins, 18 before. Before/after:
+  `production/qa/evidence/*_gfx-before-f900.png`, `*_gfx-after-f900.png`. Not yet played by a person.
+- **Prompt log:** [Graphics upgrade, M1 to M4](prompt-log.md#art-graphics-upgrade-m1-to-m4--2026-11-25--esteban).
+
+### 2026-11-25 — Graphics upgrade M0: set-up — Esteban — commit 80e5856
+- **Type:** refactor
+- **What changed:** nothing visible. Graphics flags (all on; `?classic` turns them off), shared noise helpers,
+  and dev capture options `?capture`, `?script` and `?bosshp=N`. The prompt and its references are in
+  `improved_graphics/` (without the 30 MB of videos).
+- **Modules/files touched:** `src/client/gfx/`, `src/client/main.js`, `src/client/scenes/`, `src/shared/sim/hash.js`.
+- **Why:** first milestone of the graphics prompt. Status: [`graphics-upgrade.md`](graphics-upgrade.md).
+- **Evidence:** two captures of the same frame are identical pixel for pixel.
+- **Prompt log:** [Graphics upgrade, M0](prompt-log.md#art-graphics-upgrade-m0--2026-11-25--esteban).
+
+### 2026-11-25 — Salesman, money, hearts, start menu and music — Esteban — commit 3b93e08
+- **Type:** feature, assets
+- **What changed:** enemies sometimes drop coins and, rarely, hearts. A salesman, marked by a coin over
+  his head and a gold dot on the new minimap, is talked to with E: he shows every player's status and
+  sells one random ability per round (10 coins, 5 more each time). He leaves when the waves end. New
+  start menu, settings (volume, sound, shake, map, FPS, full screen; remembered), pause menu (Esc) and
+  music: Island Pixel Waves (menu, pause, salesman, victory), Under the Canopy (rounds) and Claws of the
+  Mangrove (final boss). Drops over water now land on reachable ground.
+- **Modules/files touched:** `src/shared/sim/systems/` (pickups, shop, damage, xp, cards), `src/shared/sim/map.js`,
+  `src/client/` (menu scene, pause, settings, shop panel, minimap, music), `assets/audio/`.
+- **Why:** requested by the author, with three songs.
+- **Evidence:** 168 unit tests pass; menus, shop, pause and music checked in the browser; screenshots
+  `production/qa/evidence/2026-11-25-17-*`. Balance, 60 bot matches per setting: a first guess (12% coins,
+  1.2% hearts) took wins from 7 to 34 of 40, so rates were cut to 4.5% and 0.2%, and spawn growth raised
+  from 0.3 to 0.36 per round. Bots reaching round 4: 36 before, 35 after; winning: 13 before, 18 after.
+  Complete runs average 41 coins, 2 hearts and 2 purchases. Not yet judged by a person.
+- **Known limits:** with no multiplayer yet (milestone 5), the status list only shows you.
+- **Prompt log:** [Salesman, money and menu](prompt-log.md#gameplay-salesman-money-hearts-menu-and-music--2026-11-25--esteban).
 
 ### 2026-11-25 — Final boss duel and victory — Esteban — commit 142a7cd
 - **Type:** feature

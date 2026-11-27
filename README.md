@@ -9,7 +9,7 @@ Project for the **Generative AI and Language Models** course (UPM, 2026/27). The
 built with generative AI (Claude Code); the process is documented in
 [`docs/prompt-log.md`](docs/prompt-log.md) and [`docs/changelog.md`](docs/changelog.md).
 
-![Round 3 with the Crab King](production/qa/evidence/2026-11-19-19-22-40_m2-round3-crab-king.png)
+![A fight on the island](production/qa/evidence/2026-11-25-20-27-33_gfx-m1-fight.png)
 
 ## Status
 
@@ -18,8 +18,9 @@ built with generative AI (Claude Code); the process is documented in
 | 1 | Project setup, pixel-perfect test arena, move / shoot / roll | ✅ done |
 | 2 | Enemies, waves, rounds, XP gems, HUD (+ survivors-style auto-aim controls) | ✅ done |
 | 3 | Level-up cards: 8 stackable abilities | ✅ done |
-| 4 | Island art pass | next |
-| 5–12 | Multiplayer server, curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
+| 4 | Graphics upgrade: environment, Crab Emperor, hero | ✅ done |
+| 5 | Multiplayer server and lobby | next |
+| 6–12 | Curses, Gulag, final PvP, AI messages, AI skins, audio, deployment | planned |
 
 Full plan: [`design/game-brief.md`](design/game-brief.md), section 9.
 
@@ -51,8 +52,11 @@ once (macOS: `brew install cloudflared`, Windows: `winget install Cloudflare.clo
 npm run online       # starts server + client + tunnel, prints a public link
 ```
 
-Send the printed `https://….trycloudflare.com` link to the others. Everyone opens it, one player
-creates a room and the rest join with the 4-letter code. Your computer is the server, so keep it
+Send the printed `https://….trycloudflare.com` link to the others. Everyone opens it and picks
+**Play online** in the start menu; one player creates a room and the rest join with the 4-letter code
+(or the host shares the `?room=CODE` link, which opens the lobby directly).
+Each player plays their own island: level-up cards and the salesman pause only your island, never
+the others', so players can be in different rounds. If you finish your waves first, you wait for the rest. Your computer is the server, so keep it
 awake and keep the terminal open. The link changes every time you restart.
 On the same Wi-Fi you can skip the tunnel: run `npm run dev:all` and open the "Network" address Vite prints.
 
@@ -61,13 +65,15 @@ On the same Wi-Fi you can skip the tunnel: run `npm run dev:all` and open the "N
 | Key | Action |
 |---|---|
 | WASD / arrows | Move |
+| E | Talk to the salesman (gold dot on the map) |
+| Esc | Pause, settings |
 | Space | Dodge roll (brief invulnerability, short cooldown) |
 | — | Your slingshot fires **by itself** at the nearest enemy in sight |
 | Mouse or 1 / 2 / 3 | Pick a card when you level up (the game pauses) |
-| R | Try again after you die |
+| R / M | After the run: play again / menu |
 | F9 (dev) | Save a screenshot to `production/qa/evidence/` |
 
-### Dev shortcuts (add to the URL)
+### Dev shortcuts (add to the URL; they skip the start menu)
 
 | Option | Effect |
 |---|---|
@@ -76,7 +82,10 @@ On the same Wi-Fi you can skip the tunnel: run `npm run dev:all` and open the "N
 | `?boss` | Go straight to the final boss |
 | `?tough` | 10 hearts instead of 3 |
 | `?cards=5` | Start with 5 cards to pick |
+| `?classic` | The old graphics, for comparison |
 | `?seed=42` | Same enemy spawns every run |
+| `?online` | Open the online lobby instead (`?online&fast` makes a 100 s online match) |
+| `?bots=2` | Online: add 2 test bots when you create a room |
 
 Example: <http://localhost:5173/?fast&round=3&tough> shows the Crab King within seconds.
 
@@ -114,4 +123,5 @@ framework in `.claude/` load. The milestones are driven with `/next` (see the br
   (`.claude/`, `CHANGELOG.md`, `UPGRADING.md`, `docs/`): MIT, see
   [`licenses/claude-code-game-studios.LICENSE`](licenses/claude-code-game-studios.LICENSE).
   Root `CHANGELOG.md` is the framework's; **ours is [`docs/changelog.md`](docs/changelog.md)**.
-- [Phaser 3](https://phaser.io) (MIT). All art so far is placeholder pixel art drawn in code; no external assets.
+- [Phaser 3](https://phaser.io) (MIT). All art so far is placeholder pixel art drawn in code.
+- Music: generated with AI, see [`assets/audio/README.md`](assets/audio/README.md).

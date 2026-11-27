@@ -1,6 +1,6 @@
 // Runs every enemy's behaviour, keeps them from stacking on top of each other,
 // moves them, and applies contact damage to players.
-import { isActive } from '../entities/enemy.js';
+import { isActive, MAX_ENEMY_RADIUS } from '../entities/enemy.js';
 import { moveBox, tileAt } from '../map.js';
 import { TILE } from '../../content/tiles.js';
 import { EPSILON } from '../math.js';
@@ -39,7 +39,7 @@ export function updateEnemies(world, dt) {
     if (!isActive(e)) continue;
     let sx = 0;
     let sy = 0;
-    world.grid.forEachNear(e.x, e.y, e.radius + 16, (o) => {
+    world.grid.forEachNear(e.x, e.y, e.radius + MAX_ENEMY_RADIUS, (o) => {
       if (o === e) return;
       const dx = e.x - o.x;
       const dy = e.y - o.y;

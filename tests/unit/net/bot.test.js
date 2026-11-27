@@ -1,6 +1,7 @@
 // Test bots: valid inputs, repeatable, and they pick cards on their own.
 import { describe, it, expect } from 'vitest';
 import { createBot, botInput } from '../../../src/shared/net/bot.js';
+import { createEmptyInput } from '../../../src/shared/protocol.js';
 import { createWorld, addPlayer, stepWorld } from '../../../src/shared/sim/world.js';
 import { grantXp } from '../../../src/shared/sim/systems/xp.js';
 import { BIG_ROOM, TEST_CONFIG, TEST_ENEMY_TYPES, TICK } from '../helpers/fixtures.js';
@@ -8,7 +9,6 @@ import { BIG_ROOM, TEST_CONFIG, TEST_ENEMY_TYPES, TICK } from '../helpers/fixtur
 function botWorld(seed = 5) {
   const world = createWorld({
     config: TEST_CONFIG, arena: BIG_ROOM, spawning: false, enemyTypes: TEST_ENEMY_TYPES,
-    cardPause: false, cardTimeout: 100,
   });
   const player = addPlayer(world, 'bot-1');
   return { world, player, bot: createBot('bot-1', seed) };
@@ -53,6 +53,6 @@ describe('test bots', () => {
   it('a dead bot sends nothing', () => {
     const made = botWorld();
     made.player.alive = false;
-    expect(botInput(made.bot, made.player, TEST_CONFIG, TICK)).toEqual({ moveX: 0, moveY: 0, roll: false, pick: null });
+    expect(botInput(made.bot, made.player, TEST_CONFIG, TICK)).toEqual(createEmptyInput());
   });
 });

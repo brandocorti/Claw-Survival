@@ -88,7 +88,9 @@ CONTROLS
     (nothing) ................ your slingshot shoots BY ITSELF at the
                                nearest enemy you can see
     Mouse, or 1 2 3 .......... pick a card when you level up
-    R ........................ try again after you die
+    E ........................ talk to the salesman
+    Esc ...................... pause and settings
+    R / M .................... after the run: again / menu
     F9 ....................... save a screenshot (developers)
 
 Goal: survive 5 rounds (5 minutes) of crabs, exploding coconuts,
@@ -97,6 +99,10 @@ drop to level up: the game pauses and you choose 1 of 3 cards.
 Picking the same card again makes it stronger. The Crab King appears in round 3.
 When the 5 minutes are over, everything vanishes and you fight the
 final boss, the Crab Emperor, one against one. Beat it to win.
+
+Enemies sometimes drop coins, and rarely hearts. The salesman (the
+man in the straw hat, gold dot on the map) tells you how everyone is
+doing and sells one random ability per round.
 
 Tip: dodge-roll THROUGH red bullets. Enemies flash yellow just
 before they attack.
