@@ -1,5 +1,5 @@
 =====================================================================
-  [GAME TITLE] - island survival roguelike
+  Claw Survival - island survival roguelike
   HOW TO PLAY THE GAME (for every team member)
 =====================================================================
 
@@ -16,7 +16,7 @@ STEP 0 - Before you start (only once)
    The repository is PRIVATE. Ask the owner (brandocorti) to add you
    as a collaborator, then accept the invitation in your email or at
    https://github.com/notifications
-   Repository: https://github.com/brandocorti/GEN_AI
+   Repository: https://github.com/brandocorti/Claw-Survival
 
 2. Install Node.js (version 18.18 or newer)
    Download the "LTS" version from https://nodejs.org and install it
@@ -49,13 +49,13 @@ Go to the folder where you want the game, e.g. your Desktop:
     cd Desktop
 
 Download it:
-    git clone https://github.com/brandocorti/GEN_AI.git
+    git clone https://github.com/brandocorti/Claw-Survival.git
 
 The first time, a GitHub sign-in window may open: sign in with the
 GitHub account that was invited.
 
 Enter the folder:
-    cd GEN_AI
+    cd Claw-Survival
 
 Install the game's libraries (about 60 MB, takes under a minute):
     npm install
@@ -65,7 +65,7 @@ Install the game's libraries (about 60 MB, takes under a minute):
 STEP 2 - Play
 ---------------------------------------------------------------------
 
-Inside the GEN_AI folder, run:
+Inside the Claw-Survival folder, run:
     npm run dev
 
 Then open this address in Chrome, Firefox or Edge:
@@ -75,7 +75,7 @@ Keep the terminal window open while you play.
 To stop the game: click the terminal and press Ctrl + C.
 
 Next time you want to play, you only need:
-    cd Desktop\GEN_AI        (macOS/Linux: cd Desktop/GEN_AI)
+    cd Desktop\Claw-Survival        (macOS/Linux: cd Desktop/Claw-Survival)
     npm run dev
 
 
@@ -119,7 +119,7 @@ SHORTCUTS FOR TESTING (add to the address)
 GET THE LATEST VERSION
 ---------------------------------------------------------------------
 
-The game is updated often. Before playing, inside the GEN_AI folder:
+The game is updated often. Before playing, inside the Claw-Survival folder:
     git pull
     npm install
     npm run dev

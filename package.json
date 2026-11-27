@@ -1,8 +1,8 @@
 {
-  "name": "island-roguelike",
+  "name": "claw-survival",
   "private": true,
   "version": "0.1.0",
-  "description": "[GAME TITLE] - multiplayer top-down pixel-art roguelike on a tropical survival island",
+  "description": "Claw Survival - multiplayer top-down pixel-art roguelike on a tropical survival island",
   "type": "module",
   "scripts": {
     "dev": "vite",

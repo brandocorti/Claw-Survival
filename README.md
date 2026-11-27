@@ -1,4 +1,4 @@
-# [GAME TITLE] — island survival roguelike
+# Claw Survival — island survival roguelike
 
 *Working title.* A browser-based, top-down pixel-art roguelike: a group of castaways
 washes up on a tropical island, survives waves of crabs, coconuts, skeleton pirates and
@@ -31,8 +31,8 @@ New to this? Follow the step-by-step guide in [`HOW_TO_PLAY.txt`](HOW_TO_PLAY.tx
 You need **Node.js 18.18 or newer** ([nodejs.org](https://nodejs.org), LTS).
 
 ```bash
-git clone https://github.com/brandocorti/GEN_AI.git
-cd GEN_AI
+git clone https://github.com/brandocorti/Claw-Survival.git
+cd Claw-Survival
 npm install          # once
 npm run dev          # then open http://localhost:5173
 ```

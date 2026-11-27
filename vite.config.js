@@ -44,7 +44,7 @@ function saveEvidencePlugin() {
 }
 
 export default defineConfig({
-  base: './', // relative paths, so the game works at brandocorti.github.io/GEN_AI/
+  base: './', // relative paths, so the game works at brandocorti.github.io/Claw-Survival/
   root: path.join(repoRoot, 'src', 'client'),
   server: {
     port: 5173,

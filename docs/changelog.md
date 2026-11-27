@@ -6,6 +6,19 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-27 — Rename the game and the repository to Claw Survival — brandocorti — commit TBD (fill in after committing)
+- **Type:** refactor
+- **What changed:** the working title `[GAME TITLE]` is now **Claw Survival** (browser tab title, README, how-to-play
+  file, code guide, game brief). The GitHub repository is renamed from `GEN_AI` to `Claw-Survival`, so the game's
+  address will be `brandocorti.github.io/Claw-Survival/`. The npm package is now `claw-survival`.
+- **Modules/files touched:** `README.md`, `HOW_TO_PLAY.txt`, `package.json`, `package-lock.json`, `vite.config.js`
+  (comment), `src/README.md`, `src/client/index.html`, `design/game-brief.md`, `docs/deployment-plan.md`.
+- **Why:** the team chose the final name. Done before the first deploy so the public link never uses the old name.
+- **Left unchanged on purpose:** `prompts/game-prompt-v1.md` (the original prompt, kept as written) and the older
+  entries of this changelog, which still say `GEN_AI` because that was the name when they were written.
+  GitHub redirects the old repository address, so old links keep working.
+- **Prompt log:** [Naming: rename the game and the repo](prompt-log.md)
+
 ### 2026-11-25 — Deploy to GitHub Pages (setup) — brandocorti — commit 9e28cd0
 - **Type:** feature
 - **What changed:** the game can now be published as a static site. `vite.config.js` uses relative asset

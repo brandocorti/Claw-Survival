@@ -1,4 +1,4 @@
-# Deployment Plan: Island Roguelike
+# Deployment Plan: Claw Survival
 
 Last updated: 2026-11-25
 
@@ -34,7 +34,7 @@ In `vite.config.js`, add `base: './'` as the first line inside `defineConfig`. W
 
 ```js
 export default defineConfig({
-  base: './', // relative paths, so the game works at brandocorti.github.io/GEN_AI/
+  base: './', // relative paths, so the game works at brandocorti.github.io/Claw-Survival/
   root: path.join(repoRoot, 'src', 'client'),
   // ...the rest stays the same
 });
@@ -98,7 +98,7 @@ It runs the tests and the build (`npm run smoke`) and only publishes if both pas
    ```
 
 2. On GitHub, open the **Actions** tab and wait for the "Deploy to GitHub Pages" run to show a green tick (about 2 minutes).
-3. Open **https://brandocorti.github.io/GEN_AI/** and play.
+3. Open **https://brandocorti.github.io/Claw-Survival/** and play.
 4. Put that link in `README.md` and in the Moodle PDF.
 
 ## Phase A: publish a new version
@@ -128,12 +128,12 @@ Also add `"start": "node server.js"` to the `scripts` in `package.json`.
 The owner does this because Render must read the private repo.
 
 1. Sign up at [render.com](https://render.com) with the GitHub account. The free tier needs no card.
-2. **New → Web Service**, connect GitHub and give Render access to `brandocorti/GEN_AI`.
+2. **New → Web Service**, connect GitHub and give Render access to `brandocorti/Claw-Survival`.
 3. Fill in the form:
 
    | Field | Value |
    | --- | --- |
-   | Name | `island-roguelike` |
+   | Name | `claw-survival` |
    | Region | Frankfurt (EU Central) |
    | Branch | `main` |
    | Language | Node |

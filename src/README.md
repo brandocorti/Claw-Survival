@@ -1,4 +1,4 @@
-# [GAME TITLE] — code guide
+# Claw Survival — code guide
 
 Browser game: Phaser 3.90 + Vite. Design brief: [`design/game-brief.md`](../design/game-brief.md).
 

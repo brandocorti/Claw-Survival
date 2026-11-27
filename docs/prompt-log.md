@@ -148,6 +148,21 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
   half-finished branch can never overwrite the public site. The agent did not commit or push; that stays a
   human step.
 
+### [Naming] Rename the game and the repo to Claw Survival — 2026-11-27 — brandocorti
+- **Goal:** replace the placeholder title `[GAME TITLE]` and the repository name `GEN_AI` with the final name,
+  everywhere, before the first deploy.
+- **Tool/model:** Claude Code (Sonnet 5.5) in VS Code.
+- **Prompt** (originally in Italian, translated): "Can we change the name of the repo and the name of the game
+  everywhere to Claw Survival?"
+- **Result:** the agent searched the repo first (11 files with the old names), then asked two questions: which
+  repo slug (answer: `Claw-Survival`) and whether to touch the original prompt file (answer: leave it as it is).
+  It then replaced the names in the docs, `package.json`, the page title and the Vite comment.
+- **Problem found:** a blind find-and-replace would have rewritten history: the original prompt
+  (`prompts/game-prompt-v1.md`) and older changelog entries must keep the names they had at the time.
+  Renaming the repo also changes the Pages address and local clone folders.
+- **Change made and why:** replaced only current-facing text; the history stays as written and the new
+  changelog entry records the rename. The agent had asked before choosing the slug because it ends up in a public URL.
+
 ## Model limitations met so far (and how we handled them)
 
 - **The first version had real bugs that only tests caught.** In milestone 1 the agent's own
