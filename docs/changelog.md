@@ -6,7 +6,7 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
-### 2026-11-27 — Rename the game to Claw Survival — brandocorti — commit TBD (fill in after committing)
+### 2026-11-27 — Rename the game to Claw Survival — brandocorti — commit aa3cb0a
 - **Type:** refactor
 - **What changed:** the working title `[GAME TITLE]` is now **Claw Survival**: main menu title, browser tab title,
   README, how-to-play file, code guide and game brief. The GitHub repository is renamed from `GEN_AI` to
