@@ -37,6 +37,7 @@ import { GFX, SCRIPTED, CAPTURE } from '../gfx/flags.js';
 import { Lighting } from '../gfx/lighting.js';
 import { Juice } from '../gfx/juice.js';
 import { emperorIntro, emperorDeath } from '../gfx/boss.js';
+import { watchablePlayers } from '../network/spectatorList.js';
 
 /** Shortest time between two hit-stops, so chains of explosions do not stutter. */
 const HIT_STOP_GAP_MS = 500;
@@ -130,6 +131,19 @@ export class GameScene extends Phaser.Scene {
       else this.scene.start('Menu');
     });
     if (this.online) {
+      // Once out: Q / E (or the arrow keys) watch the previous / next player still playing.
+      /** Seconds since our own run ended (online), for the spectator delay. */
+      this.outFor = 0;
+      /** Seconds until we ask the server again, if a request found nobody. */
+      this.spectateRetry = 0;
+      /** Whose island the views show, to clear them when it changes. */
+      this.shownIsland = null;
+      const watch = (step) => {
+        if (this.pauseMenu.isOpen || !this.ownRunOver() || room.state.phase === 'over') return;
+        this.transport.spectate(step);
+      };
+      for (const key of ['Q', 'LEFT']) this.input.keyboard.on(`keydown-${key}`, () => watch(-1));
+      for (const key of ['E', 'RIGHT']) this.input.keyboard.on(`keydown-${key}`, () => watch(1));
       // The server closed the room or the connection dropped (reconnecting is step 6).
       this.onRoomLeave = () => this.scene.start('Lobby', { error: 'Disconnected from the game server.' });
       room.onLeave(this.onRoomLeave);
@@ -152,8 +166,9 @@ export class GameScene extends Phaser.Scene {
 
   /** True once the local player is out, or the run (solo) or the match (online) is decided. */
   runIsOver() {
+    if (this.online && this.ownRunOver()) return true;
     const local = this.transport.getLocalPlayer();
-    if (!local) return false; // online, before the first snapshot
+    if (!local) return false; // online, before the first snapshot (or while watching someone)
     if (!local.alive || this.transport.world.match.phase === 'won') return true;
     return this.online && this.transport.room.state.phase === 'over';
   }
@@ -173,7 +188,8 @@ export class GameScene extends Phaser.Scene {
     this.gemViews.sync(world.gems, alpha, world.time);
     this.pickupViews.sync(world.pickups, alpha, world.time);
     const open = shopIsOpen(world);
-    this.vendorView?.update({ open, near: nearVendor(world, local) && !local.shopOpen, time: this.time.now / 1000 });
+    const near = nearVendor(world, local) && !local.shopOpen && !(this.online && this.transport.spectating);
+    this.vendorView?.update({ open, near, time: this.time.now / 1000 });
     this.abilityViews.sync(world, alpha, this.transport.renderTime);
     const hidden = world.enemies.filter((e) => e.boss);
     if (local.alive) hidden.push(local);
@@ -224,12 +240,24 @@ export class GameScene extends Phaser.Scene {
     if (!this.pauseMenu.isOpen) this.transport.update(deltaMs, input);
     else if (this.online) this.transport.update(deltaMs, STAND_STILL);
 
-    // 2. Simulation -> visuals (online: nothing to draw until the first snapshot)
+    // 2. Simulation -> visuals (online: nothing to draw until the first snapshot).
+    // `local` is the player on screen: ours, or (online, once out) the one we watch.
     const world = this.transport.world;
     const alpha = this.transport.alpha;
-    const local = this.transport.getLocalPlayer();
+    const spectating = this.online && this.transport.spectating;
+    const local = this.online ? this.transport.getViewedPlayer() : this.transport.getLocalPlayer();
     if (!local) return;
     const room = this.online ? this.transport.room : null;
+    if (this.online) {
+      this.updateSpectating(dt);
+      const island = this.transport.viewedPlayerId;
+      if (this.shownIsland !== null && island !== this.shownIsland) this.clearIslandViews();
+      this.shownIsland = island;
+      // Shakes, hearts and footprints follow the player on screen.
+      this.effects.localPlayerId = island;
+      this.hud.viewedPlayerId = island;
+      if (this.juice) this.juice.localPlayerId = island;
+    }
     // Hit-stop: the picture freezes for a few frames; the simulation does not.
     if (this.hitStop > 0) this.hitStop--;
     else this.syncViews(world, local, alpha, dt);
@@ -238,13 +266,13 @@ export class GameScene extends Phaser.Scene {
     this.handleEvents(events, world);
     if (!world.paused && !this.pauseMenu.isOpen) this.juice?.update(dt, local);
     this.lighting?.update(dt);
-    this.hud.update(world, local);
+    this.hud.update(world, local, { spectating });
     this.minimap.update(world, local, shopIsOpen(world), this.time.now / 1000);
     // No cards or shop once you are out or the match is decided (online the last snapshot can still hold one).
-    const choosing = local.alive && room?.state.phase !== 'over';
+    const choosing = local.alive && !spectating && room?.state.phase !== 'over';
     this.cardScreen.update(choosing ? local : NO_CARD_CHOICE);
     this.shopPanel.update(world, choosing ? local : { ...local, shopOpen: false });
-    music.play(musicFor(world.match, { paused: this.pauseMenu.isOpen, shopping: local.shopOpen }));
+    music.play(musicFor(world.match, { paused: this.pauseMenu.isOpen, shopping: choosing && local.shopOpen }));
 
     // 3. Auto-aim target marker
     const target = local.targetId != null ? world.enemies.find((e) => e.id === local.targetId) : null;
@@ -265,7 +293,8 @@ export class GameScene extends Phaser.Scene {
         py = boss.y - 20;
       }
     }
-    this.cameraSystem.update(px, py, input.moveX, input.moveY, dt);
+    const lead = spectating ? STAND_STILL : input; // no look-ahead from our keys on someone else's island
+    this.cameraSystem.update(px, py, lead.moveX, lead.moveY, dt);
 
     this.fpsText.setVisible(settings.showFps);
     this.fpsTimer -= dt;
@@ -273,6 +302,45 @@ export class GameScene extends Phaser.Scene {
       this.fpsTimer = 0.25;
       this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}  ${world.enemies.length}`);
     }
+  }
+
+  /**
+   * Online: true once our own run is over (out, or the final boss beaten), from the
+   * room summary, which still knows while the snapshots show someone else's island.
+   */
+  ownRunOver() {
+    const me = this.transport.room.state?.players?.get(this.transport.localPlayerId);
+    return Boolean(me && (!me.alive || me.bossBeaten));
+  }
+
+  /**
+   * Online, once out: after config.net.spectateDelaySeconds, start watching the others
+   * (and ask again now and then if the first request found nobody).
+   */
+  updateSpectating(dt) {
+    const room = this.transport.room;
+    const out = room.state.phase === 'waves' && this.ownRunOver();
+    if (!out || this.transport.spectating) {
+      if (!out) this.outFor = 0;
+      return;
+    }
+    this.outFor += dt;
+    this.spectateRetry -= dt;
+    if (this.outFor < this.config.net.spectateDelaySeconds || this.spectateRetry > 0) return;
+    if (watchablePlayers(room.state.players, this.transport.localPlayerId).length === 0) return;
+    this.transport.spectate(1);
+    this.spectateRetry = 1;
+  }
+
+  /** The snapshots switched to another island: drop the sprites of the old one. */
+  clearIslandViews() {
+    for (const view of this.playerViews.values()) view.destroy();
+    this.playerViews.clear();
+    this.enemyViews.sync([], 1, 0);
+    this.bulletViews.sync([], 1);
+    this.gemViews.sync([], 1, 0);
+    this.pickupViews.sync([], 1, 0);
+    this.camFocus = null;
   }
 
   /** Online: leave the room and return to the online lobby. */

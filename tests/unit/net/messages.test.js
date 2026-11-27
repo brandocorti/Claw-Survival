@@ -1,6 +1,6 @@
 // The server's checks on everything a client sends (anti-cheat basics).
 import { describe, it, expect } from 'vitest';
-import { sanitizeInput, sanitizePick, sanitizeName } from '../../../src/shared/net/messages.js';
+import { sanitizeInput, sanitizePick, sanitizeName, sanitizeSpectate } from '../../../src/shared/net/messages.js';
 
 describe('input check', () => {
   it('clamps movement to -1..1 (a client cannot run faster with moveX: 50)', () => {
@@ -57,5 +57,14 @@ describe('name check', () => {
   it('falls back when nothing usable is left', () => {
     expect(sanitizeName('   ', 12, 'Player 1')).toBe('Player 1');
     expect(sanitizeName(42, 12, 'Player 1')).toBe('Player 1');
+  });
+});
+
+describe('spectate check', () => {
+  it('passes a step of exactly 1 or -1, and nothing else', () => {
+    expect(sanitizeSpectate({ step: 1 })).toEqual({ step: 1 });
+    expect(sanitizeSpectate({ step: -1 })).toEqual({ step: -1 });
+    for (const bad of [0, 2, -5, '1', true, null, 0.5]) expect(sanitizeSpectate({ step: bad })).toBe(null);
+    for (const bad of [null, 'next', 1, [1]]) expect(sanitizeSpectate(bad)).toBe(null);
   });
 });

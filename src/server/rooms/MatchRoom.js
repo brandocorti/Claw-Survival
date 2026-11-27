@@ -11,7 +11,8 @@ import {
 } from '../../shared/sim/match.js';
 import { createEmptyInput } from '../../shared/protocol.js';
 import { createBot, botInput } from '../../shared/net/bot.js';
-import { MSG, sanitizeInput, sanitizePick, sanitizeName } from '../../shared/net/messages.js';
+import { MSG, sanitizeInput, sanitizePick, sanitizeName, sanitizeSpectate } from '../../shared/net/messages.js';
+import { canSpectate, nextWatchable, updateWatchers } from '../../shared/net/spectate.js';
 import { encodeSnapshot } from '../../shared/net/snapshot.js';
 import { drainEvents } from '../../shared/sim/world.js';
 import { generateRoomCode } from '../../shared/net/roomCode.js';
@@ -53,6 +54,10 @@ export class MatchRoom extends Room {
     this.inputs = new Map();
     /** @type {Map<string, import('../../shared/net/bot.js').Bot>} */
     this.bots = new Map();
+    /** @type {Map<string, string>} spectators: viewer id -> id of the player whose island they get */
+    this.watching = new Map();
+    /** @type {Map<string, number>} spectators whose player's run just ended: viewer id -> match tick */
+    this.watchLostAt = new Map();
     this.nextBotNumber = 1;
     this.accumulator = 0;
     this.ticksSinceSnapshot = 0;
@@ -69,6 +74,7 @@ export class MatchRoom extends Room {
     this.onMessage(MSG.start, (client) => this.handleStart(client));
     this.onMessage(MSG.addBot, (client) => this.isHost(client) && this.addBot());
     this.onMessage(MSG.removeBot, (client) => this.isHost(client) && this.removeLastBot());
+    this.onMessage(MSG.spectate, (client, msg) => this.handleSpectate(client, msg));
 
     // The loop runs for the room's whole life, also in the lobby and after a match, and is
     // never stopped: Colyseus's message rate limit reads the room clock, and stopping the
@@ -101,6 +107,8 @@ export class MatchRoom extends Room {
     const id = client.sessionId;
     removeMatchPlayer(this.match, id);
     this.inputs.delete(id);
+    this.watching.delete(id);
+    this.watchLostAt.delete(id);
     if (this.match.phase === 'lobby') this.state.players.delete(id);
     else {
       const summary = this.state.players.get(id);
@@ -140,6 +148,18 @@ export class MatchRoom extends Room {
     stored.pick = pick.index;
   }
 
+  /** A player who is out asks to watch the next (step 1) or previous (step -1) player still playing. */
+  handleSpectate(client, msg) {
+    const request = sanitizeSpectate(msg);
+    const viewerId = client.sessionId;
+    if (!request || !canSpectate(this.match, viewerId)) return;
+    const from = this.watching.get(viewerId) ?? viewerId;
+    const target = nextWatchable(this.match, viewerId, from, request.step);
+    if (!target) return;
+    this.watching.set(viewerId, target);
+    this.watchLostAt.delete(viewerId);
+  }
+
   handleStart(client) {
     const net = this.config.net;
     if (!this.isHost(client) || this.match.phase !== 'lobby') return;
@@ -150,6 +170,8 @@ export class MatchRoom extends Room {
       if (player) player.pveImmune = this.botsTough;
     }
     this.lock();
+    this.watching.clear();
+    this.watchLostAt.clear();
     this.accumulator = 0;
     this.ticksSinceSnapshot = 0;
     this.syncSummary();
@@ -216,6 +238,7 @@ export class MatchRoom extends Room {
     }
     for (const [id, bot] of this.bots) inputs[id] = botInput(bot, getMatchPlayer(this.match, id), this.config, dt);
     stepMatch(this.match, inputs, dt);
+    updateWatchers(this.match, this.watching, this.watchLostAt, this.config.net.spectateSwitchSeconds * this.config.sim.tickRate);
     // When the match stops (someone won, or time is up: step 5 continues into the PvP),
     // send the last snapshot at once so every client sees the final moment.
     const ended = drainMatchEvents(this.match).some((e) => e.type === 'matchOver' || e.type === 'wavesOver');
@@ -226,15 +249,20 @@ export class MatchRoom extends Room {
   }
 
   /**
-   * Sends every client a snapshot of its own arena (with the events since the last one).
-   * Bots' arenas are drained too, so their events do not pile up.
+   * Sends every client a snapshot of its own arena, or of the arena it is watching
+   * (with the events since the last one). Each arena is encoded once, however many
+   * clients get it; bots' arenas are drained too, so their events do not pile up.
    */
   sendSnapshots() {
     this.ticksSinceSnapshot = 0;
+    const encoded = new Map();
     for (const entry of this.match.players) {
       // The match clock keeps running while an arena is frozen (shop, card choice).
-      const data = encodeSnapshot(entry.world, drainEvents(entry.world), this.match.tick / this.config.sim.tickRate);
-      this.clients.get(entry.id)?.send(MSG.arena, data);
+      encoded.set(entry.id, encodeSnapshot(entry.world, drainEvents(entry.world), this.match.tick / this.config.sim.tickRate));
+    }
+    for (const client of this.clients) {
+      const data = encoded.get(this.watching.get(client.sessionId) ?? client.sessionId);
+      if (data) client.send(MSG.arena, data);
     }
   }
 

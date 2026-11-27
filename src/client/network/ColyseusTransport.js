@@ -63,11 +63,61 @@ export class ColyseusTransport {
     this.shownPair = null;
     this.lastCardChoice = null;
 
+    /** Whose island the snapshots show: our own, or (once out) the player we watch. */
+    this.islandId = null;
+
     this.unsubscribe = room.onMessage(MSG.arena, (data) => {
       this.stats.snapshots++;
       const snapshot = decodeSnapshot(data, config);
-      this.buffer.push(snapshot, this.now());
+      this.acceptSnapshot(snapshot, this.now());
     });
+  }
+
+  /**
+   * Adds a snapshot. Every island holds exactly one player; when that player changes
+   * (we started watching someone else), the buffer starts over, so nothing slides from
+   * one island to the other.
+   * @param {object} snapshot - decoded
+   * @param {number} now - local seconds
+   */
+  acceptSnapshot(snapshot, now) {
+    const owner = snapshot.players[0]?.id ?? this.islandId;
+    if (owner !== this.islandId) {
+      if (this.islandId !== null) this.resetBuffer();
+      this.islandId = owner;
+    }
+    this.buffer.push(snapshot, now);
+  }
+
+  resetBuffer() {
+    this.buffer = new SnapshotBuffer({ delay: this.buffer.delay });
+    this.shownPair = null;
+    this.lastCardChoice = null;
+    this.events = [];
+  }
+
+  /** Id of the player whose island is drawn (ours until we watch someone). */
+  get viewedPlayerId() {
+    return this.islandId ?? this.localPlayerId;
+  }
+
+  /** True while we are out and watching another player's island. */
+  get spectating() {
+    return this.viewedPlayerId !== this.localPlayerId;
+  }
+
+  /** @returns {object | undefined} the player whose island is drawn, as last drawn */
+  getViewedPlayer() {
+    return this.world.players.find((p) => p.id === this.viewedPlayerId);
+  }
+
+  /**
+   * Once out: asks the server for the next (1) or previous (-1) player still playing.
+   * The server decides; the snapshots that follow show who we got.
+   * @param {1|-1} step
+   */
+  spectate(step) {
+    this.room.send(MSG.spectate, { step });
   }
 
   /** True once the first snapshot has arrived (GameScene waits for it). */
@@ -81,8 +131,11 @@ export class ColyseusTransport {
    * @param {import('../../shared/protocol.js').PlayerInput} input
    */
   update(_deltaMs, input) {
-    this.sendInput(input);
-    if (input.pick != null) this.room.send(MSG.pickCard, { index: input.pick });
+    // Watching someone else: our own player is out, so there is nothing to send.
+    if (!this.spectating) {
+      this.sendInput(input);
+      if (input.pick != null) this.room.send(MSG.pickCard, { index: input.pick });
+    }
 
     const sample = this.buffer.sample(this.now());
     if (!sample) return;

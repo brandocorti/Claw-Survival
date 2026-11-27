@@ -6,6 +6,27 @@ The history of the **prompts** is in [`prompt-log.md`](prompt-log.md).
 
 ---
 
+### 2026-11-27 — Online: players who are out watch the others — alvarofeher — commit (pending)
+- **Type:** feature
+- **What changed:** online, a player who is out (or who beat the boss and waits) sees "WASHED OUT" for 2 s, then
+  watches another player still playing: their island, hearts, level, boss bar and screen shake. Q / E (or the
+  arrow keys) switch between the players still playing; a bar shows `WATCHING ANA 2/3  Q < > E  M MENU`. When the
+  watched player's run ends, the watcher sees the end for 1.5 s and moves on to the next one. Level-up cards and
+  the shop of the watched player never open on the watcher's screen. When the match ends, the usual winner screen
+  shows with the watcher's own numbers.
+- **Modules/files touched:** `src/shared/net/spectate.js` (new: who may watch, who can be watched, cycling),
+  `src/shared/net/messages.js` (`spectate` message and its check), `src/server/rooms/MatchRoom.js` (who watches
+  whom; each island is encoded once and sent to its owner and its watchers), `src/client/network/ColyseusTransport.js`
+  (the island on screen; the snapshot buffer starts over on a switch; no input while watching),
+  `src/client/network/spectatorList.js` (new), `src/client/scenes/GameScene.js`, `src/client/ui/Hud.js`,
+  `src/shared/config.js` (`net.spectateDelaySeconds`, `net.spectateSwitchSeconds`); tests in
+  `tests/unit/net/spectate*.test.js`, `tests/unit/net/messages.test.js`, `tests/integration/server/matchRoom.test.js`.
+- **Why:** a player who died early had nothing to do but wait for the winner screen.
+- **Evidence:** `production/qa/evidence/2026-11-27-16-02-*_spectate-*.png` (a real online match against 3 bots:
+  playing, washed out, watching, switching, the watched bot going out). 274 tests pass.
+- **Known limits:** the map's crushed rocks and ground debris are drawn from your own island, not the watched one.
+- **Prompt log:** [Spectating](prompt-log.md#online-spectating-for-players-who-are-out--2026-11-27--alvarofeher).
+
 ### 2026-11-27 — Online: every island plays the whole run up to the Crab Emperor; solo works after online — alvarofeher — commit (pending)
 - **Type:** fix + rule change
 - **What changed:**

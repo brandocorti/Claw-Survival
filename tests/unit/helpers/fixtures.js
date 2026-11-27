@@ -84,7 +84,7 @@ export const TEST_CONFIG = Object.freeze({
   cards: { choices: 3 },
   net: {
     defaultPort: 2567, minPlayers: 2, maxPlayers: 6, maxBots: 5, roomCodeLength: 4, maxNameLength: 12,
-    reconnectGraceSeconds: 10, snapshotRate: 20, summaryRate: 5,
+    reconnectGraceSeconds: 10, snapshotRate: 20, spectateDelaySeconds: 2, spectateSwitchSeconds: 1.5, summaryRate: 5,
     maxMessagesPerSecond: 40, winScreenSeconds: 8,
     bot: { turnIntervalMin: 0.5, turnIntervalMax: 1, idleChance: 0.1, rollChance: 0.3, pickDelayMin: 0.2, pickDelayMax: 0.5 },
   },

@@ -242,6 +242,10 @@ export const CONFIG = {
     reconnectGraceSeconds: 10,
     /** Arena snapshots per second sent to each client (the sim runs at sim.tickRate). */
     snapshotRate: 20,
+    /** Once out, a player sees their own "washed out" screen this long, then starts watching the others. */
+    spectateDelaySeconds: 2,
+    /** When the watched player's run ends, their watchers see the end this long before moving on. */
+    spectateSwitchSeconds: 1.5,
     /** Room summary updates per second (clock, levels, who is alive). */
     summaryRate: 5,
     /** Messages a client may send per second; extra ones are dropped. */

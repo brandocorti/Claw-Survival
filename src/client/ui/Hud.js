@@ -8,6 +8,7 @@ import { PALETTE as P, hexToInt } from '../art/palette.js';
 import { DEPTH } from '../systems/depth.js';
 import { GFX } from '../gfx/flags.js';
 import { xpToNextLevel } from '../../shared/sim/systems/xp.js';
+import { watchablePlayers, watchLabel } from '../network/spectatorList.js';
 
 const MAX_HEARTS_DRAWN = 14;
 const MARGIN = 4;
@@ -27,6 +28,8 @@ export class Hud {
     this.scene = scene;
     this.config = config;
     this.localPlayerId = localPlayerId;
+    /** Whose island is on screen: ours, or (online, once out) the player we watch. */
+    this.viewedPlayerId = localPlayerId;
     this.room = room;
     /** @type {object[]} one text per other player (online) */
     this.rivalTexts = [];
@@ -77,7 +80,7 @@ export class Hud {
         this.showBanner('TIME IS UP', 'THE BEACH GOES QUIET...', P.shotRim);
       } else if (e.type === 'wavesOver') {
         this.showBanner('TIME IS UP', 'YOU SURVIVED THE WAVES', P.shotRim);
-      } else if (e.type === 'playerHit' && e.playerId === this.localPlayerId) {
+      } else if (e.type === 'playerHit' && e.playerId === this.viewedPlayerId) {
         this.heartShakeUntil = this.scene.time.now + 250;
       }
     }
@@ -92,9 +95,10 @@ export class Hud {
 
   /**
    * @param {object} world
-   * @param {import('../../shared/sim/entities/player.js').Player} player
+   * @param {import('../../shared/sim/entities/player.js').Player} player - the player on screen
+   * @param {{ spectating?: boolean }} [view] - online: true while watching another player's island
    */
-  update(world, player) {
+  update(world, player, { spectating = false } = {}) {
     const g = this.gfx;
     g.clear();
     if (GFX.hud) this.drawPanels(g, player);
@@ -174,7 +178,8 @@ export class Hud {
 
     if (this.room) {
       this.updateRivals();
-      this.updateOnlineEnd(world, player);
+      this.updateOnlineEnd(world, player, spectating);
+      this.updateWatchBar(spectating);
       return;
     }
     if (this.endScreen) return;
@@ -262,22 +267,51 @@ export class Hud {
    * Online end screens: out, or boss beaten, while the others play on (every island has
    * its own clock); then the winner for everyone once every run is over.
    */
-  updateOnlineEnd(world, player) {
+  updateOnlineEnd(world, player, spectating) {
     const state = this.room.state;
+    if (spectating && state.phase !== 'over') {
+      // Watching someone: their island, no end screen over it.
+      if (this.endKind === 'dead' || this.endKind === 'won') this.clearEnd();
+      this.endKind = 'watching';
+      return;
+    }
     if (state.phase === 'over' && this.endKind !== 'over') {
       const winner = state.winnerId ? state.players.get(state.winnerId) : null;
       const mine = state.winnerId === this.localPlayerId;
       const heading = mine ? 'YOU WIN!' : winner ? `${toPixelText(winner.name)} WINS` : 'NOBODY WINS';
       this.clearEnd();
-      this.showEnd(world, player, heading, mine ? '#5dff8a' : P.shotRim, 'PRESS R FOR THE MENU');
+      // Watching someone when it ended: show our own run's numbers, from the summary.
+      const me = state.players.get(this.localPlayerId);
+      const ownWorld = spectating && me ? { match: { phase: me.bossBeaten ? 'won' : 'waves', round: me.round } } : world;
+      const ownPlayer = spectating && me ? { level: me.level, kills: me.kills } : player;
+      this.showEnd(ownWorld, ownPlayer, heading, mine ? '#5dff8a' : P.shotRim, 'PRESS R FOR THE MENU');
       this.endKind = 'over';
     } else if (!player.alive && !this.endKind) {
-      this.showEnd(world, player, 'WASHED OUT', P.enemyShot, 'THE OTHERS PLAY ON - PRESS R FOR THE MENU');
+      const others = watchablePlayers(state.players, this.localPlayerId).length > 0;
+      this.showEnd(world, player, 'WASHED OUT', P.enemyShot, others ? 'SOON YOU WATCH THE OTHERS - R FOR THE MENU' : 'THE OTHERS PLAY ON - PRESS R FOR THE MENU');
       this.endKind = 'dead';
     } else if (world.match.phase === 'won' && !this.endKind && this.victoryIsDue()) {
       this.showEnd(world, player, 'YOU SURVIVED!', '#5dff8a', 'WAITING FOR THE OTHERS - PRESS R FOR THE MENU');
       this.endKind = 'won';
     }
+  }
+
+  /** Online, while watching: "WATCHING ANA 2/3  Q < > E  M MENU" under the round sign. */
+  updateWatchBar(spectating) {
+    const show = spectating && this.room.state.phase !== 'over';
+    if (!this.watchBar) {
+      const fixed = (obj) => obj.setScrollFactor(0).setDepth(DEPTH.HUD);
+      this.watchPlate = fixed(this.scene.add.rectangle(this.w / 2, 30, 10, 11, 0x0d0a08, 0.75));
+      this.watchBar = fixed(addPixelText(this.scene, this.w / 2, 27, '').setOrigin(0.5, 0));
+    }
+    this.watchPlate.setVisible(show);
+    this.watchBar.setVisible(show);
+    if (!show) return;
+    const players = this.room.state.players;
+    const name = toPixelText(players.get(this.viewedPlayerId)?.name ?? '?');
+    const list = watchablePlayers(players, this.localPlayerId).map((p) => ({ ...p, name: toPixelText(p.name) }));
+    this.watchBar.setText(watchLabel(list, this.viewedPlayerId, name));
+    this.watchPlate.setSize(this.watchBar.width + 8, 11);
   }
 
   clearEnd() {

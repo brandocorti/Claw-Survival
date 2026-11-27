@@ -7,6 +7,8 @@ import { matchMaker } from '@colyseus/core';
 import { createGameServer, ROOM_NAME } from '../../../src/server/createServer.js';
 import { getMatchPlayer } from '../../../src/shared/sim/match.js';
 import { damagePlayer } from '../../../src/shared/sim/systems/damage.js';
+import { decodeSnapshot } from '../../../src/shared/net/snapshot.js';
+import { CONFIG } from '../../../src/shared/config.js';
 
 let server;
 let endpoint;
@@ -224,6 +226,50 @@ describe('online room', () => {
     }
     await new Promise((r) => setTimeout(r, 200));
     expect(dropped).toBe(null);
+  });
+
+  it('once out, a player watches the others: next / previous, and on to the next when the watched one is out', async () => {
+    const host = await connect((c) => c.create(ROOM_NAME, { name: 'Maria', bots: 2, botsTough: true }));
+    await waitFor(host, (s) => s.players.size === 3);
+    /** Whose island the latest snapshot showed. */
+    let island = null;
+    host.onMessage('arena', (data) => { island = decodeSnapshot(data, CONFIG).players[0]?.id ?? island; });
+    host.send('start');
+    await waitFor(host, (s) => s.phase === 'waves');
+    const match = serverRoom(host.roomId).match;
+    const killNow = (id) => {
+      const p = getMatchPlayer(match, id);
+      p.invulnerableTime = 0;
+      p.pveImmune = false;
+      damagePlayer(match.players.find((e) => e.id === id).world, p, 999);
+    };
+    const islandBecomes = async (id, ms = 3000) => {
+      const start = Date.now();
+      while (island !== id) {
+        if (Date.now() - start > ms) throw new Error(`still on ${island}, expected ${id}`);
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    };
+    await islandBecomes(host.sessionId);
+
+    host.send('spectate', { step: 1 }); // still playing: ignored
+    await new Promise((r) => setTimeout(r, 200));
+    expect(island).toBe(host.sessionId);
+
+    killNow(host.sessionId);
+    host.send('spectate', { step: 1 });
+    await islandBecomes('bot-1');
+    host.send('spectate', { step: 1 });
+    await islandBecomes('bot-2');
+    host.send('spectate', { step: -1 });
+    await islandBecomes('bot-1');
+
+    // The watched bot is out: its end shows for a moment, then the next player still playing.
+    killNow('bot-1');
+    await new Promise((r) => setTimeout(r, CONFIG.net.spectateSwitchSeconds * 1000 * 0.5));
+    expect(island).toBe('bot-1');
+    await islandBecomes('bot-2', CONFIG.net.spectateSwitchSeconds * 1000 + 2000);
+    expect(host.state.phase).toBe('waves');
   });
 
   it('a room code cannot be joined once the match has started', async () => {

@@ -367,6 +367,27 @@ rules: `CLAUDE.md`, section 5). The history of the **product** is in
 - **Change made and why:** tests now state the per-island rules ("when a player dies the others play
   on", "each island gets its own final boss"). Every scene start passes its data explicitly.
 
+### [Online] Spectating for players who are out — 2026-11-27 — alvarofeher
+- **Goal:** let players who died online watch the players still playing, and switch between them.
+- **Tool/model:** Claude Code, Claude Opus 5.5.
+- **Prompts (exact), in order:**
+  1. "how hard would it be to make the other online players who died be able to watch the remaining players
+     gameplay. if there are many give them an option to swap views" (asked for an estimate first, not code)
+  2. "right now im in the online gameplay branch. i dont want to merge the animation yet"
+  3. "go ahead" (after the AI proposed the behaviour, defaults and file list)
+- **Result:** the estimate (about a day, mostly client work) came first, then a plan with defaults (2 s delay,
+  Q / E, auto-switch) that was approved before any code. The server stays authoritative: the client only asks for
+  the next or previous player. Unit tests, a real-server test, and a browser run against 3 bots.
+- **Problem found:** (1) Switching islands would have made every sprite slide from one island to the other, because
+  the client smooths movement between the last two snapshots; the buffer now starts over when the island changes.
+  (2) Many places assumed your own player is on the island being drawn (camera, HUD, cards, shop, shake), which
+  would have stopped drawing while watching; they now follow the player on screen. (3) One of the AI's own tests
+  was wrong (it expected the match clock to keep running after everyone was out), and its first browser check
+  read the result too early; both were corrected, not the code.
+- **Change made and why:** asking for an estimate before code, then approving a plan, kept the change to the files
+  listed up front; the AI also noticed that the boss intro animation (on another branch) would not freeze an
+  online game, which is noted for when the branches are merged.
+
 ## Model limitations met so far (and how we handled them)
 
 - **A wrong diagnosis, and a test that could not fail.** All players were dropped about 3 s after a match

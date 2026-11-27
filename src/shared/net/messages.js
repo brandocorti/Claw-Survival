@@ -12,6 +12,8 @@ export const MSG = Object.freeze({
   start: 'start',
   addBot: 'addBot',
   removeBot: 'removeBot',
+  /** client -> server, once out: { step: 1 | -1 } watch the next / previous player still playing */
+  spectate: 'spectate',
   /** server -> client: one arena snapshot (shared/net/snapshot.js), config.net.snapshotRate per second */
   arena: 'arena',
 });
@@ -53,6 +55,16 @@ export function sanitizePick(msg) {
   const { index, targetId } = msg;
   if (!Number.isInteger(index) || index < 0 || index > MAX_PICK_INDEX) return null;
   return { index, targetId: typeof targetId === 'string' && targetId.length <= 64 ? targetId : null };
+}
+
+/**
+ * Checks a spectate request: step must be exactly 1 or -1.
+ * @param {unknown} msg
+ * @returns {{ step: 1|-1 } | null}
+ */
+export function sanitizeSpectate(msg) {
+  if (!isPlainObject(msg) || (msg.step !== 1 && msg.step !== -1)) return null;
+  return { step: msg.step };
 }
 
 /**
